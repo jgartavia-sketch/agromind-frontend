@@ -1,0 +1,53 @@
+.finance-real-summary {
+  background: #020617;
+  border: 1px solid #1e293b;
+  border-radius: 16px;
+  padding: 1.25rem;
+  margin-top: 1.5rem;
+}
+
+.subtitle {
+  font-size: 0.85rem;
+  opacity: 0.65;
+  margin-bottom: 1rem;
+}
+
+.real-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+}
+
+.real-box {
+  background: #0f172a;
+  border-radius: 12px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.real-box span {
+  font-size: 0.8rem;
+  opacity: 0.7;
+}
+
+.real-box strong {
+  font-size: 1.2rem;
+}
+
+.real-box small {
+  opacity: 0.6;
+}
+
+.real-box.positive {
+  border-left: 4px solid #22c55e;
+}
+
+.real-box.negative {
+  border-left: 4px solid #ef4444;
+}
+
+.real-box.neutral {
+  border-left: 4px solid #38bdf8;
+}

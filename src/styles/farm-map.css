@@ -1,0 +1,625 @@
+/* ====== CONTENEDOR GENERAL ====== */
+
+.farm-map-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+/* ====== TOOLBAR SUPERIOR ====== */
+
+.farm-map-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #020617;
+  border-radius: 999px;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid #1f2937;
+  box-shadow: 0 0 0 1px #0b1120;
+  gap: 0.5rem;
+}
+
+.farm-map-tools-left {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.tool-btn,
+.primary-btn,
+.secondary-btn {
+  font-size: 0.85rem;
+  border-radius: 999px;
+  padding: 0.3rem 0.9rem;
+  border: 1px solid #1f2937;
+  background: #020617;
+  color: #e5e7eb;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.05s ease;
+}
+
+.tool-btn:hover,
+.primary-btn:hover,
+.secondary-btn:hover {
+  background: #111827;
+  border-color: #22c55e;
+}
+
+.tool-btn.active {
+  background: #16a34a;
+  border-color: #22c55e;
+  color: #020617;
+  font-weight: 600;
+  transform: translateY(-1px);
+}
+
+.primary-btn {
+  background: #22c55e;
+  color: #020617;
+  font-weight: 600;
+  border-color: #22c55e;
+}
+
+.primary-btn:hover {
+  background: #4ade80;
+  border-color: #4ade80;
+}
+
+.secondary-btn {
+  font-size: 0.75rem;
+  padding: 0.2rem 0.7rem;
+}
+
+/* ====== LAYOUT: MAPA + SIDEBAR ====== */
+
+.farm-map-layout {
+  display: block;
+}
+
+
+.farm-map {
+  width: 100%;
+  min-height: 380px;
+  height: 440px;
+  border-radius: 1rem;
+  overflow: hidden;
+  border: 1px solid #1f2937;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.35);
+}
+
+/* Sidebar */
+
+.farm-map-sidebar {
+  background: #020617;
+  border-radius: 1rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid #1f2937;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.35);
+  display: flex;
+  flex-direction: column;
+  max-height: 440px;
+  overflow: hidden;
+}
+
+.farm-map-sidebar h3 {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #e5e7eb;
+  margin: 0 0 0.3rem;
+}
+
+.farm-map-empty {
+  font-size: 0.8rem;
+  color: #9ca3af;
+  margin: 0.25rem 0 0.5rem;
+}
+
+.farm-map-sidebar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.farm-map-sidebar:hover {
+  overflow-y: auto;
+}
+
+.farm-map-sidebar::-webkit-scrollbar-thumb {
+  background: #111827;
+  border-radius: 999px;
+}
+
+/* ====== FILAS DE FEATURES ====== */
+
+.farm-feature-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.4rem 0.5rem;
+  padding: 0.55rem 0.55rem;
+  margin-top: 0.4rem;
+  border-radius: 0.75rem;
+  background: #020617;
+  border: 1px solid #111827;
+  cursor: pointer;
+}
+
+.farm-feature-row.selected {
+  border-color: #22c55e;
+  background: radial-gradient(circle at top left, #022c22 0, #020617 55%);
+}
+
+.farm-feature-icon {
+  display: flex;
+  align-items: flex-start;
+  padding-top: 0.35rem;
+}
+
+.geom-dot {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  box-shadow: 0 0 0 2px #020617, 0 0 0 3px #111827;
+}
+
+.farm-feature-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.farm-feature-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.geom-kind-badge {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #9ca3af;
+}
+
+.danger-link {
+  background: none;
+  border: none;
+  color: #f97373;
+  font-size: 0.75rem;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+}
+
+.danger-link:hover {
+  color: #fecaca;
+}
+
+/* Inputs */
+
+.farm-feature-input,
+.farm-feature-textarea {
+  width: 100%;
+  border-radius: 0.5rem;
+  border: 1px solid #1f2937;
+  background: #020617;
+  color: #e5e7eb;
+  font-size: 0.8rem;
+  padding: 0.3rem 0.4rem;
+  resize: vertical;
+}
+
+.farm-feature-input::placeholder,
+.farm-feature-textarea::placeholder {
+  color: #6b7280;
+}
+
+.farm-feature-input:focus,
+.farm-feature-textarea:focus {
+  outline: none;
+  border-color: #22c55e;
+  box-shadow: 0 0 0 1px #22c55e33;
+}
+
+.farm-feature-textarea {
+  min-height: 45px;
+}
+
+.farm-map-hint {
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  color: #9ca3af;
+}
+
+/* ====== TABLA DE ZONAS ====== */
+
+.farm-zones-table-wrapper {
+  margin-top: 0.35rem;
+  border-radius: 1rem;
+  border: 1px solid #111827;
+  background: #020617;
+  padding: 0.5rem 0.9rem 0.7rem;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.35);
+  font-size: 0.8rem;
+}
+
+.farm-zones-header-row {
+  display: grid;
+  grid-template-columns: 2fr 1.5fr 1.5fr 1.5fr;
+  gap: 0.5rem;
+  padding: 0.25rem 0.25rem 0.4rem;
+  border-bottom: 1px solid #111827;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 0.7rem;
+}
+
+.farm-zones-row {
+  display: grid;
+  grid-template-columns: 2fr 1.5fr 1.5fr 1.5fr;
+  gap: 0.5rem;
+  padding: 0.45rem 0.25rem;
+  border-radius: 0.75rem;
+  margin-top: 0.25rem;
+  background: #020617;
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+
+.farm-zones-row:hover {
+  background: #020617;
+  border-color: #111827;
+}
+
+.farm-zones-row.selected {
+  border-color: #22c55e;
+  background: radial-gradient(circle at top left, #022c22 0, #020617 55%);
+}
+
+.zone-col {
+  display: flex;
+  align-items: center;
+}
+
+.zone-name span {
+  font-weight: 600;
+  color: #e5e7eb;
+}
+
+.zone-type select,
+.zone-status select {
+  width: 100%;
+  border-radius: 999px;
+  border: 1px solid #1f2937;
+  background: #020617;
+  color: #e5e7eb;
+  font-size: 0.75rem;
+  padding: 0.15rem 0.6rem;
+}
+
+.zone-type select:focus,
+.zone-status select:focus {
+  outline: none;
+  border-color: #22c55e;
+  box-shadow: 0 0 0 1px #22c55e33;
+}
+
+/* ====== ESTADO ERROR ====== */
+
+.farm-map-error {
+  background: #450a0a;
+  border-radius: 0.75rem;
+  border: 1px solid #7f1d1d;
+  padding: 0.75rem;
+  font-size: 0.85rem;
+  color: #fee2e2;
+}
+
+/* ====== RESPONSIVE ====== */
+
+@media (max-width: 900px) {
+  .farm-map-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .farm-map-sidebar {
+    max-height: 320px;
+  }
+
+  .farm-map-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .farm-map-tools-left {
+    justify-content: center;
+  }
+
+  .primary-btn {
+    width: 100%;
+    text-align: center;
+  }
+
+  .farm-zones-header-row,
+  .farm-zones-row {
+    grid-template-columns: 1.6fr 1.4fr 1.4fr 1.6fr;
+  }
+}
+.farm-zone-components-panel {
+  margin-top: 0.6rem;
+  padding: 0.6rem 0.9rem 0.8rem;
+  border-radius: 1rem;
+  border: 1px solid #111827;
+  background: #020617;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.35);
+  font-size: 0.8rem;
+}
+
+.farm-zone-components-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.35rem;
+}
+
+.farm-zone-components-header h4 {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #e5e7eb;
+}
+
+.zone-tag {
+  border-radius: 999px;
+  border: 1px solid #1f2937;
+  padding: 0.15rem 0.6rem;
+  font-size: 0.75rem;
+  color: #e5e7eb;
+  background: #020617;
+}
+
+.farm-zone-components-empty {
+  margin: 0.3rem 0 0.1rem;
+  color: #9ca3af;
+}
+
+.farm-zone-component-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.4rem 0.5rem;
+  padding: 0.5rem 0.55rem;
+  margin-top: 0.25rem;
+  border-radius: 0.75rem;
+  background: #020617;
+  border: 1px solid #111827;
+}
+
+.farm-zone-component-icon {
+  display: flex;
+  align-items: flex-start;
+  padding-top: 0.3rem;
+}
+
+.farm-zone-component-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.farm-zone-component-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.component-kind-badge {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #9ca3af;
+}
+
+.zone-name-input {
+  width: 100%;
+  border-radius: 999px;
+  border: 1px solid #1f2937;
+  background: #020617;
+  color: #e5e7eb;
+  font-size: 0.8rem;
+  padding: 0.25rem 0.6rem;
+}
+.farm-map-filters {
+  margin-top: 0.75rem;
+  margin-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  color: #e5e7eb;
+}
+
+.filters-label {
+  opacity: 0.8;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 0.75rem;
+}
+
+.filter-chip {
+  border: 1px solid #1f2937;
+  background: #020617;
+  border-radius: 999px;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  opacity: 0.7;
+  transition: background 0.15s ease, opacity 0.15s ease, border-color 0.15s ease;
+}
+
+.filter-chip.active {
+  opacity: 1;
+  border-color: #22c55e;
+  background: #022c22;
+}
+
+.filter-chip.point::before {
+  content: "●";
+  font-size: 0.7rem;
+}
+
+.filter-chip.line::before {
+  content: "─";
+  font-size: 0.7rem;
+}
+
+.filter-chip.polygon::before {
+  content: "▭";
+  font-size: 0.7rem;
+}
+.farm-zones-row.selected {
+  background: #020617;
+  border-color: #22c55e;
+  box-shadow: 0 0 0 1px #22c55e40;
+}
+/* Layout nombre + icono */
+.zone-col.zone-name {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Swatch base */
+.geom-swatch {
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+/* Punto: bolita */
+.geom-swatch-point {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  box-shadow: 0 0 0 1px #020617;
+}
+
+/* Línea: rayita horizontal */
+.geom-swatch-line {
+  width: 18px;
+  height: 3px;
+  border-radius: 999px;
+}
+
+/* Zona: rectangulito */
+.geom-swatch-polygon {
+  width: 14px;
+  height: 10px;
+  border-radius: 3px;
+  box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.9);
+}
+/* Highlight de fila cuando está “hovered” desde tabla o mapa */
+.farm-zones-row.hovered {
+  background: rgba(15, 23, 42, 0.9);
+  border-color: #22c55e55;
+}
+
+.farm-zones-row.selected.hovered {
+  border-color: #22c55e;
+}
+.feature-color-pill {
+  width: 16px;
+  height: 4px;
+  border-radius: 999px;
+  margin-right: 0.35rem;
+  flex-shrink: 0;
+}
+
+/* Fila en hover */
+.farm-zones-row.hovered {
+  background: rgba(15, 23, 42, 0.9);
+  border-color: #22c55e55;
+}
+/* ==== MINI-DASHBOARD DE RESUMEN ==== */
+
+.farm-map-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.9rem;
+}
+
+.summary-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.25rem 0.7rem;
+  border-radius: 999px;
+  border: 1px solid #1e293b;
+  background: rgba(15, 23, 42, 0.9);
+  font-size: 0.82rem;
+  color: #e5e7eb;
+}
+
+.summary-chip-status {
+  border-style: dashed;
+  border-color: #374151;
+}
+
+.summary-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  box-shadow: 0 0 6px rgba(15, 23, 42, 0.8);
+}
+
+.dot-point {
+  background: #f97316;
+}
+
+.dot-line {
+  background: #22c55e;
+}
+
+.dot-zone {
+  background: #a855f7;
+}
+
+.summary-label {
+  white-space: nowrap;
+}
+
+/* pills de estado de zonas */
+.status-pill {
+  width: 14px;
+  height: 6px;
+  border-radius: 999px;
+}
+
+.status-ok {
+  background: #22c55e;
+}
+
+.status-warning {
+  background: #f97316;
+}
+
+.status-info {
+  background: #38bdf8;
+}
+
+/* colorcito al lado del nombre en la tabla (por si no lo tenías) */
+.feature-color-pill {
+  width: 16px;
+  height: 4px;
+  border-radius: 999px;
+  margin-right: 0.35rem;
+  flex-shrink: 0;
+}
+
+/* fila en hover desde el mapa */
+.farm-zones-row.hovered {
+  background: rgba(15, 23, 42, 0.9);
+  border-color: #22c55e55;
+}

@@ -1,0 +1,63 @@
+.finance-compare-card {
+  background: #0f172a;
+  border-radius: 14px;
+  padding: 1.5rem;
+  margin-top: 1.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.finance-compare-header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.finance-compare-header p {
+  font-size: 0.85rem;
+  opacity: 0.7;
+  margin-top: 0.25rem;
+}
+
+.finance-compare-grid {
+  margin-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.compare-row {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr 1fr 1.3fr;
+  gap: 0.5rem;
+  align-items: center;
+  font-size: 0.9rem;
+}
+
+.compare-row.highlight {
+  padding-top: 0.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.compare-row .label {
+  font-weight: 500;
+}
+
+.compare-row .ia {
+  color: #38bdf8;
+}
+
+.compare-row .real {
+  color: #22c55e;
+}
+
+.diff {
+  text-align: right;
+  font-weight: 500;
+}
+
+.diff.positive {
+  color: #22c55e;
+}
+
+.diff.negative {
+  color: #ef4444;
+}

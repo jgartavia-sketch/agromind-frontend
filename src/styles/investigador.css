@@ -1,0 +1,68 @@
+/* src/styles/investigador.css */
+
+.investigador-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.investigador-header h1 {
+  margin: 0;
+}
+
+.investigador-subtitle {
+  opacity: 0.85;
+}
+
+.investigador-env {
+  font-size: 0.8rem;
+  opacity: 0.6;
+}
+
+.investigador-action {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  align-items: flex-start;
+}
+
+.investigador-camera-btn {
+  padding: 0.7rem 1.2rem;
+  border-radius: 999px;
+  border: 1px dashed var(--bg-active);
+  background: transparent;
+  color: var(--text-main);
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.investigador-hint {
+  font-size: 0.85rem;
+  opacity: 0.7;
+}
+
+.investigador-results {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 1rem;
+}
+
+.investigador-card h3 {
+  margin: 0.3rem 0;
+}
+
+.investigador-type {
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.6;
+}
+
+.investigador-status {
+  font-size: 0.85rem;
+}
+
+.investigador-note {
+  font-size: 0.8rem;
+  opacity: 0.75;
+}

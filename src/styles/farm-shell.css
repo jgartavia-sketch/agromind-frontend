@@ -1,0 +1,252 @@
+/* =========================
+   Layout general del shell
+   ========================= */
+.farm-shell {
+  min-height: 100vh;
+  padding: 6.5rem 3rem 3rem;
+  background: radial-gradient(circle at top, #022c22 0, #020617 45%, #020617 100%);
+  color: #e5e7eb;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+}
+
+/* =========================
+   HEADER / NAVBAR FIJO
+   ========================= */
+.farm-shell-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2rem;
+
+  padding: 1rem 3rem;
+  background: rgba(2, 6, 23, 0.9);
+  backdrop-filter: blur(10px);
+
+  border-bottom: 1px solid #1e293b;
+  z-index: 1000;
+}
+
+/* =========================
+   Marca AgroMind
+   ========================= */
+.farm-shell-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  white-space: nowrap;
+}
+
+.brand-logo-circle {
+  width: 42px;
+  height: 42px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #22c55e, #14b8a6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: #020617;
+  box-shadow: 0 0 18px rgba(34, 197, 94, 0.6);
+}
+
+.brand-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.brand-name {
+  font-size: 1.2rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+.brand-tagline {
+  font-size: 0.8rem;
+  color: #9ca3af;
+}
+
+/* =========================
+   Navegación principal
+   ========================= */
+.farm-shell-nav {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.nav-tab {
+  border-radius: 999px;
+  padding: 0.35rem 0.8rem;
+  font-size: 0.8rem;
+  border: 1px solid #1e293b;
+  background: rgba(15, 23, 42, 0.6);
+  color: #e5e7eb;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.nav-tab-active {
+  border-color: #22c55e;
+  background: radial-gradient(circle at top, #22c55e, #16a34a);
+  color: #020617;
+  font-weight: 600;
+  box-shadow: 0 0 12px rgba(34, 197, 94, 0.5);
+}
+
+/* =========================
+   Lado derecho del navbar
+   ========================= */
+.farm-shell-right {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.farm-shell-right-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+/* Badge de versión */
+.farm-shell-badge {
+  font-size: 0.7rem;
+  padding: 0.3rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid #1e293b;
+  background: rgba(15, 23, 42, 0.9);
+  color: #9ca3af;
+}
+
+/* =========================
+   Selector de finca
+   ========================= */
+.farm-switcher {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: rgba(15, 23, 42, 0.9);
+  border-radius: 999px;
+  padding: 0.25rem 0.6rem;
+  border: 1px solid #1e293b;
+  flex-wrap: wrap;
+}
+
+.farm-switcher-label {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #9ca3af;
+}
+
+.farm-switcher select {
+  background: transparent;
+  border: none;
+  color: #e5e7eb;
+  font-size: 0.75rem;
+  max-width: 140px;
+}
+
+.farm-switcher select:focus {
+  outline: none;
+}
+
+.farm-switcher-add {
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.6);
+  background: transparent;
+  padding: 0.1rem 0.45rem;
+  font-size: 0.65rem;
+  color: #cbd5f5;
+  cursor: pointer;
+}
+
+.farm-switcher-add:hover {
+  background: rgba(15, 23, 42, 0.9);
+}
+
+.farm-logout-btn {
+  background: transparent;
+  border-radius: 999px;
+  border: 1px solid #1f2937;
+  padding: 0.22rem 0.7rem;
+  font-size: 0.7rem;
+  color: #9ca3af;
+  cursor: pointer;
+}
+
+.farm-logout-btn:hover {
+  background: rgba(15, 23, 42, 0.9);
+}
+
+/* =========================
+   MAIN
+   ========================= */
+.farm-shell-main {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* Card principal */
+.farm-shell-map-card {
+  margin-top: 1rem;
+  background: rgba(15, 23, 42, 0.95);
+  border-radius: 1.5rem;
+  border: 1px solid #1e293b;
+  padding: 1.25rem;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.9);
+}
+
+/* =========================
+   Responsive fino
+   ========================= */
+@media (max-width: 900px) {
+  .farm-shell {
+    padding: 8rem 1.25rem 2rem;
+  }
+
+  .farm-shell-header {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 1rem 1.25rem;
+  }
+
+  .farm-shell-nav {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .farm-shell-right {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
+
+@media (max-width: 600px) {
+  .brand-tagline {
+    display: none;
+  }
+
+  .farm-shell-nav {
+    gap: 0.35rem;
+  }
+
+  .nav-tab {
+    font-size: 0.75rem;
+    padding: 0.3rem 0.7rem;
+  }
+
+  .farm-shell-map-card {
+    padding: 1rem;
+    border-radius: 1.1rem;
+  }
+}

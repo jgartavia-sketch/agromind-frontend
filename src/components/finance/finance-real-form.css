@@ -1,0 +1,28 @@
+.finance-real-card {
+  background: #0f172a;
+  border: 1px solid #1e293b;
+  border-radius: 14px;
+  padding: 1.25rem;
+  margin-top: 1.5rem;
+}
+
+.finance-real-subtitle {
+  opacity: 0.7;
+  font-size: 0.85rem;
+  margin-bottom: 1rem;
+}
+
+.finance-real-form {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.finance-real-form input,
+.finance-real-form select,
+.finance-real-form textarea {
+  background: #020617;
+  border: 1px solid #1e293b;
+  color: #e5e7eb;
+  padding: 0.5rem;
+  border-radius: 8px;
+}

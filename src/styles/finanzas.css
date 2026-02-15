@@ -1,0 +1,200 @@
+/* =========================
+   CONTENEDOR GENERAL
+========================= */
+
+.finance-page {
+  background: radial-gradient(circle at top, #020617 0%, #000 65%);
+  padding: 2.5rem 1.5rem;
+}
+
+.finance-container {
+  max-width: 1280px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2.5rem;
+}
+
+/* =========================
+   SECCIÓN IA / PROYECCIÓN
+========================= */
+
+.finance-ia-section {
+  background: linear-gradient(
+    145deg,
+    rgba(15, 23, 42, 0.9),
+    rgba(2, 6, 23, 0.95)
+  );
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  border-radius: 1.25rem;
+  padding: 1.75rem;
+  box-shadow: 0 30px 80px rgba(2, 6, 23, 0.85);
+}
+
+/* =========================
+   SECCIÓN FINANZAS REALES
+========================= */
+
+.finance-real-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+}
+
+.page-header h2 {
+  font-size: 1.35rem;
+  font-weight: 600;
+  color: #e5e7eb;
+  margin-bottom: 0.25rem;
+}
+
+.page-subtitle {
+  font-size: 0.85rem;
+  color: #9ca3af;
+}
+
+/* =========================
+   RESUMEN FINANCIERO
+========================= */
+
+.finance-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.2rem;
+}
+
+.finance-card {
+  background: radial-gradient(circle at top left, #022c22 0, #020617 60%);
+  border-radius: 1rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid rgba(30, 64, 175, 0.55);
+  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.9);
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.finance-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #9ca3af;
+}
+
+.finance-value {
+  font-size: 1.35rem;
+  font-weight: 600;
+  color: #e5e7eb;
+}
+
+.finance-value-pos {
+  color: #4ade80;
+}
+
+.finance-value-neg {
+  color: #f87171;
+}
+
+/* =========================
+   FILTROS
+========================= */
+
+.filters-bar {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+  margin-top: 0.5rem;
+}
+
+/* =========================
+   TABLA
+========================= */
+
+.finance-table {
+  background: linear-gradient(
+    160deg,
+    rgba(15, 23, 42, 0.85),
+    rgba(2, 6, 23, 0.95)
+  );
+  border-radius: 1.25rem;
+  padding: 1.25rem;
+  border: 1px solid rgba(30, 64, 175, 0.4);
+  box-shadow: 0 25px 70px rgba(2, 6, 23, 0.85);
+}
+
+/* =========================
+   PILLS Y MONTOS
+========================= */
+
+.type-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.type-pill-income {
+  background: rgba(34, 197, 94, 0.18);
+  color: #bbf7d0;
+  border: 1px solid rgba(34, 197, 94, 0.6);
+}
+
+.type-pill-expense {
+  background: rgba(248, 113, 113, 0.18);
+  color: #fecaca;
+  border: 1px solid rgba(248, 113, 113, 0.6);
+}
+
+.amount {
+  font-weight: 600;
+}
+
+.amount-income {
+  color: #22c55e;
+}
+
+.amount-expense {
+  color: #f97316;
+}
+.page-header-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 50;
+}
+
+.modal-card {
+  background: var(--card-bg, #fff);
+  padding: 1.5rem;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 420px;
+}
+
+.modal-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin-bottom: 0.8rem;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}

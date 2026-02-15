@@ -1,0 +1,183 @@
+/* Contenedor general */
+.agromind-auth-shell {
+  min-height: 100vh;
+  background: radial-gradient(circle at top, #020617 0, #020617 40%, #000 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  color: #e5e7eb;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+}
+
+/* Card principal */
+.agromind-auth-card {
+  width: 100%;
+  max-width: 420px;
+  border-radius: 1rem;
+  border: 1px solid rgba(15, 23, 42, 0.95);
+  background: radial-gradient(circle at top left, #020617, #020617 40%, #000 100%);
+  padding: 1.5rem 1.75rem;
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.7);
+}
+
+/* Logo */
+.agromind-auth-logo {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  margin-bottom: 1rem;
+}
+
+.auth-logo-mark {
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  background: radial-gradient(circle at 30% 20%, #22c55e, #15803d 45%, #052e16 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #e5e7eb;
+  box-shadow: 0 0 0 1px rgba(22, 163, 74, 0.6),
+    0 8px 20px rgba(0, 0, 0, 0.7);
+}
+
+.auth-logo-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+}
+
+.auth-brand-name {
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.auth-brand-tagline {
+  font-size: 0.75rem;
+  color: #9ca3af;
+}
+
+/* Header */
+.agromind-auth-header h1 {
+  font-size: 1.25rem;
+  margin-bottom: 0.25rem;
+}
+
+.agromind-auth-header p {
+  font-size: 0.8rem;
+  color: #9ca3af;
+}
+
+/* Formulario */
+.agromind-auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  margin-top: 1rem;
+}
+
+.auth-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.auth-field label {
+  font-size: 0.8rem;
+  color: #d1d5db;
+}
+
+.auth-field input {
+  border-radius: 0.6rem;
+  border: 1px solid rgba(31, 41, 55, 0.9);
+  background: #020617;
+  color: #e5e7eb;
+  font-size: 0.85rem;
+  padding: 0.45rem 0.55rem;
+  outline: none;
+}
+
+.auth-field input::placeholder {
+  color: #6b7280;
+}
+
+.auth-field input:focus {
+  border-color: #22c55e;
+  box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.35);
+}
+
+.auth-hint {
+  font-size: 0.7rem;
+  color: #6b7280;
+}
+
+/* Botón principal */
+.auth-primary-btn {
+  margin-top: 0.4rem;
+  width: 100%;
+  border-radius: 999px;
+  border: 1px solid #16a34a;
+  background: radial-gradient(circle at 30% 20%, #22c55e, #15803d 45%, #052e16 100%);
+  color: #e5e7eb;
+  font-size: 0.9rem;
+  font-weight: 500;
+  padding: 0.5rem 0.75rem;
+  cursor: pointer;
+  transition: transform 0.08s ease, box-shadow 0.08s ease,
+    filter 0.08s ease;
+}
+
+.auth-primary-btn:hover {
+  filter: brightness(1.05);
+  box-shadow: 0 10px 25px rgba(34, 197, 94, 0.2);
+  transform: translateY(-1px);
+}
+
+.auth-primary-btn:active {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
+/* Cambio de modo login/registro */
+.auth-switch-mode {
+  margin-top: 0.8rem;
+  display: flex;
+  justify-content: center;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+  color: #9ca3af;
+}
+
+.auth-switch-mode button {
+  border: none;
+  background: none;
+  padding: 0;
+  color: #22c55e;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+
+.auth-switch-mode button:hover {
+  text-decoration: underline;
+}
+
+/* Footer */
+.auth-footnote {
+  margin-top: 1rem;
+  font-size: 0.7rem;
+  color: #6b7280;
+  text-align: center;
+}
+
+/* Responsive básico */
+@media (max-width: 500px) {
+  .agromind-auth-card {
+    padding: 1.25rem 1.1rem;
+  }
+}
