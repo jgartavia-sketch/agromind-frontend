@@ -58,7 +58,27 @@ export default function FarmShell({ user, onLogout }) {
           ))}
         </nav>
 
-        <div className="farm-shell-right">
+        <div
+          className="farm-shell-right"
+          style={{ display: "flex", alignItems: "center", gap: "12px" }}
+        >
+          {/* ✅ Badge pequeño (no rompe el layout del mapa) */}
+          <div
+            title="Deploy verificado"
+            style={{
+              border: "1px solid #22c55e",
+              color: "#22c55e",
+              padding: "6px 10px",
+              borderRadius: "999px",
+              fontWeight: 700,
+              fontSize: "12px",
+              whiteSpace: "nowrap",
+              background: "rgba(2, 44, 34, 0.25)",
+            }}
+          >
+            ✅ Online
+          </div>
+
           {onLogout && (
             <button
               type="button"
@@ -70,21 +90,6 @@ export default function FarmShell({ user, onLogout }) {
           )}
         </div>
       </header>
-
-      {/* 🔥 Banner de validación de deploy */}
-      <div
-        style={{
-          background: "linear-gradient(90deg, #0f172a, #022c22)",
-          border: "1px solid #22c55e",
-          color: "#22c55e",
-          padding: "8px 16px",
-          textAlign: "center",
-          fontWeight: "bold",
-          letterSpacing: "0.5px",
-        }}
-      >
-        ✅ AgroMind CR está oficialmente online 🚀
-      </div>
 
       <main className="farm-shell-main">
         <section className="farm-shell-map-card">
