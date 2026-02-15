@@ -71,6 +71,21 @@ export default function FarmShell({ user, onLogout }) {
         </div>
       </header>
 
+      {/* 🔥 Banner de validación de deploy */}
+      <div
+        style={{
+          background: "linear-gradient(90deg, #0f172a, #022c22)",
+          border: "1px solid #22c55e",
+          color: "#22c55e",
+          padding: "8px 16px",
+          textAlign: "center",
+          fontWeight: "bold",
+          letterSpacing: "0.5px",
+        }}
+      >
+        ✅ AgroMind CR está oficialmente online 🚀
+      </div>
+
       <main className="farm-shell-main">
         <section className="farm-shell-map-card">
           {activeTab === "mapa" && (
