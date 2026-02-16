@@ -40,7 +40,7 @@ export default function FarmShell({ user, onLogout }) {
           {[
             ["mapa", "Mapa de la finca"],
             ["tareas", "Tareas"],
-            ["finanzas", "Finanzas (demo)"],
+            ["finanzas", "Finanzas"],
             ["dispositivos", "Dispositivos"],
             ["investigador", "Investigador IA"],
             ["productos", "Productos de interés"],
@@ -58,27 +58,7 @@ export default function FarmShell({ user, onLogout }) {
           ))}
         </nav>
 
-        <div
-          className="farm-shell-right"
-          style={{ display: "flex", alignItems: "center", gap: "12px" }}
-        >
-          {/* ✅ Badge pequeño (no rompe el layout del mapa) */}
-          <div
-            title="Deploy verificado"
-            style={{
-              border: "1px solid #22c55e",
-              color: "#22c55e",
-              padding: "6px 10px",
-              borderRadius: "999px",
-              fontWeight: 700,
-              fontSize: "12px",
-              whiteSpace: "nowrap",
-              background: "rgba(2, 44, 34, 0.25)",
-            }}
-          >
-            ✅ Online
-          </div>
-
+        <div className="farm-shell-right">
           {onLogout && (
             <button
               type="button"
