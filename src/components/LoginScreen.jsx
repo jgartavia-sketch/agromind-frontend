@@ -1,23 +1,88 @@
 // src/components/LoginScreen.jsx
 import { useState } from "react";
 import "../styles/farm-auth.css";
+import { API_BASE_URL, assertApiConfigured } from "../config/api";
 
 export default function LoginScreen({ onLogin }) {
   const [mode, setMode] = useState("login"); // "login" | "signup"
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [pass, setPass] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!email.trim() || !pass.trim()) return;
+    setError("");
 
-    const payload = {
-      name: name.trim() || "Productor",
-      email: email.trim(),
-    };
+    try {
+      assertApiConfigured();
 
-    onLogin?.(payload);
+      const cleanEmail = email.trim().toLowerCase();
+      const cleanPass = pass.trim();
+      const cleanName = name.trim();
+
+      if (!cleanEmail || !cleanPass) {
+        setError("Correo y contraseña son obligatorios.");
+        return;
+      }
+
+      if (cleanPass.length < 8) {
+        setError("La contraseña debe tener al menos 8 caracteres.");
+        return;
+      }
+
+      setLoading(true);
+
+      // 1) Si está en signup: crear cuenta
+      if (mode === "signup") {
+        const res = await fetch(`${API_BASE_URL}/auth/register`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: cleanName || "Productor",
+            email: cleanEmail,
+            password: cleanPass,
+          }),
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data?.error || "No se pudo crear la cuenta.");
+
+        // Luego de crear cuenta, pasamos a login automático
+      }
+
+      // 2) Login (siempre)
+      const resLogin = await fetch(`${API_BASE_URL}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: cleanEmail,
+          password: cleanPass,
+        }),
+      });
+
+      const loginData = await resLogin.json();
+      if (!resLogin.ok)
+        throw new Error(loginData?.error || "No se pudo iniciar sesión.");
+
+      // Guardar token
+      if (loginData?.token) {
+        localStorage.setItem("agromind_token", loginData.token);
+      }
+
+      // Entrar al sistema
+      if (loginData?.user) {
+        onLogin?.(loginData.user);
+      } else {
+        // fallback mínimo
+        onLogin?.({ name: cleanName || "Productor", email: cleanEmail });
+      }
+    } catch (err) {
+      setError(err?.message || "Error inesperado.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -33,10 +98,7 @@ export default function LoginScreen({ onLogin }) {
 
         <div className="agromind-auth-header">
           <h1>{mode === "login" ? "Iniciar sesión" : "Crear cuenta"}</h1>
-          <p>
-            Accede a tu panel de finca inteligente. Esta versión funciona
-            100% en tu navegador, sin servidor.
-          </p>
+          <p>Accede a tu panel de finca inteligente.</p>
         </div>
 
         <form className="agromind-auth-form" onSubmit={handleSubmit}>
@@ -45,9 +107,10 @@ export default function LoginScreen({ onLogin }) {
               <label>Nombre</label>
               <input
                 type="text"
-                placeholder="Ej: Memo Artavia"
+                placeholder="Ej: José Artavia"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
+                autoComplete="name"
               />
             </div>
           )}
@@ -59,6 +122,7 @@ export default function LoginScreen({ onLogin }) {
               placeholder="tucorreo@finca.cr"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              autoComplete="email"
             />
           </div>
 
@@ -66,17 +130,38 @@ export default function LoginScreen({ onLogin }) {
             <label>Contraseña</label>
             <input
               type="password"
-              placeholder="Solo para esta demo local"
+              placeholder="Mínimo 8 caracteres"
               value={pass}
               onChange={(e) => setPass(e.target.value)}
+              autoComplete={mode === "login" ? "current-password" : "new-password"}
             />
             <span className="auth-hint">
-              En esta fase no se valida en un servidor, solo se usa para la experiencia.
+              Tu contraseña se guarda cifrada y se valida en el servidor.
             </span>
           </div>
 
-          <button type="submit" className="auth-primary-btn">
-            {mode === "login" ? "Entrar" : "Crear y entrar"}
+          {error && (
+            <div
+              style={{
+                marginTop: "0.5rem",
+                padding: "0.65rem 0.75rem",
+                borderRadius: "10px",
+                background: "rgba(239,68,68,0.12)",
+                border: "1px solid rgba(239,68,68,0.25)",
+                color: "#fecaca",
+                fontSize: "0.95rem",
+              }}
+            >
+              {error}
+            </div>
+          )}
+
+          <button type="submit" className="auth-primary-btn" disabled={loading}>
+            {loading
+              ? "Procesando..."
+              : mode === "login"
+              ? "Entrar"
+              : "Crear cuenta y entrar"}
           </button>
         </form>
 
@@ -84,14 +169,14 @@ export default function LoginScreen({ onLogin }) {
           {mode === "login" ? (
             <>
               <span>¿Aún no tienes cuenta?</span>
-              <button type="button" onClick={() => setMode("signup")}>
+              <button type="button" onClick={() => setMode("signup")} disabled={loading}>
                 Crear cuenta
               </button>
             </>
           ) : (
             <>
               <span>¿Ya tienes cuenta?</span>
-              <button type="button" onClick={() => setMode("login")}>
+              <button type="button" onClick={() => setMode("login")} disabled={loading}>
                 Iniciar sesión
               </button>
             </>
@@ -99,7 +184,7 @@ export default function LoginScreen({ onLogin }) {
         </div>
 
         <p className="auth-footnote">
-          Demo local · Próximamente: autenticación real con backend y múltiples fincas por cuenta.
+          Seguridad activa · Cifrado de contraseña · Sesión con token
         </p>
       </div>
     </div>
