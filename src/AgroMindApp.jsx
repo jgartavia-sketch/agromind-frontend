@@ -1,122 +1,110 @@
 // src/AgroMindApp.jsx
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import FarmShell from "./components/FarmShell";
 import LoginScreen from "./components/LoginScreen";
+
+// ✅ Base URL del backend (producción)
+// Recomendado: poner VITE_API_URL en Vercel (y en tu .env local del front)
+const API_BASE =
+  import.meta.env.VITE_API_URL || "https://agromind-backend-slem.onrender.com";
+
+// Keys de sesión (dejamos varios por compatibilidad, así no te rompe nada)
+const TOKEN_KEYS = ["agromind_token", "token", "auth_token", "jwt"];
+const USER_KEYS = ["agromind_user", "user", "auth_user"];
+
+function getStoredToken() {
+  for (const k of TOKEN_KEYS) {
+    const v = localStorage.getItem(k);
+    if (v && v.trim()) return v.trim();
+  }
+  return null;
+}
+
+function setStoredSession({ token, user }) {
+  if (token) localStorage.setItem("agromind_token", token);
+  if (user) localStorage.setItem("agromind_user", JSON.stringify(user));
+}
+
+function clearStoredSession() {
+  [...TOKEN_KEYS, ...USER_KEYS].forEach((k) => localStorage.removeItem(k));
+}
 
 export default function AgroMindApp() {
   const [user, setUser] = useState(null);
   const [booting, setBooting] = useState(true);
 
-  const API_BASE = useMemo(() => {
-    const raw = import.meta.env.VITE_API_URL || "";
-    return raw.replace(/\/+$/, "");
-  }, []);
-
-  const clearAuth = () => {
-    try {
-      localStorage.removeItem("agromind_token");
-      localStorage.removeItem("agromind_user");
-    } catch {
-      // ignore
-    }
-  };
-
-  const handleLogin = (payload) => {
-    // payload esperado: { id, email, name, token }
-    setUser(payload || null);
-  };
-
-  const handleLogout = () => {
-    clearAuth();
-    setUser(null);
-  };
-
-  // ✅ Boot: si hay token, validar con /auth/me y entrar directo
+  // ✅ Al cargar: si hay token, validar en backend
   useEffect(() => {
     const boot = async () => {
       try {
-        const token = localStorage.getItem("agromind_token");
-        const rawUser = localStorage.getItem("agromind_user");
-
-        if (!token || !API_BASE) {
+        const token = getStoredToken();
+        if (!token) {
           setBooting(false);
           return;
         }
 
-        // Intentamos usar el user guardado (para UI rápida)
-        let cachedUser = null;
-        if (rawUser) {
-          try {
-            cachedUser = JSON.parse(rawUser);
-          } catch {
-            cachedUser = null;
-          }
-        }
-
-        // Validar token con backend (fuente de verdad)
         const resp = await fetch(`${API_BASE}/auth/me`, {
           method: "GET",
-          headers: { Authorization: `Bearer ${token}` },
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
         });
 
-        const data = await resp.json().catch(() => ({}));
-
-        if (!resp.ok || !data?.user) {
-          clearAuth();
+        if (!resp.ok) {
+          clearStoredSession();
           setUser(null);
           setBooting(false);
           return;
         }
 
-        const me = data.user;
-        setUser({
-          id: me.id,
-          email: me.email,
-          name: me.name || cachedUser?.name || "Productor",
-          token,
-        });
-
-        // Refrescar cache por si cambió algo
-        try {
-          localStorage.setItem("agromind_user", JSON.stringify(me));
-        } catch {
-          // ignore
+        const data = await resp.json();
+        if (data?.user) {
+          setStoredSession({ token, user: data.user });
+          setUser(data.user);
+        } else {
+          clearStoredSession();
+          setUser(null);
         }
-
-        setBooting(false);
-      } catch {
-        // Si el backend no responde, no inventamos: volvemos al login
-        clearAuth();
+      } catch (err) {
+        // Si el backend está dormido o hay red lenta, no reventamos la app:
+        // solo mostramos login y listo.
         setUser(null);
+      } finally {
         setBooting(false);
       }
     };
 
     boot();
-  }, [API_BASE]);
+  }, []);
 
-  // Pantalla de arranque (evita flicker del login)
-  if (booting) {
-    return (
-      <div className="agromind-auth-shell">
-        <div className="agromind-auth-card" style={{ textAlign: "center" }}>
-          <div className="agromind-auth-logo" style={{ justifyContent: "center" }}>
-            <div className="auth-logo-mark">AG</div>
-            <div className="auth-logo-text">
-              <span className="auth-brand-name">AgroMind CR</span>
-              <span className="auth-brand-tagline">Cargando…</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  // ✅ Login exitoso desde LoginScreen
+  // Acepta 2 formatos:
+  // 1) onLogin({ token, user })
+  // 2) onLogin({ name, email }) (por compatibilidad)
+  const handleLogin = (payload) => {
+    const token = payload?.token || null;
+    const u =
+      payload?.user ||
+      (payload?.email
+        ? { name: payload?.name || "Productor", email: payload.email }
+        : null);
 
-  // Si no hay usuario -> login
+    if (token && u) setStoredSession({ token, user: u });
+    setUser(u);
+  };
+
+  // ✅ Logout limpio (estado + storage)
+  const handleLogout = () => {
+    clearStoredSession();
+    setUser(null);
+  };
+
+  // Pantalla de arranque (para que no parpadee login/shell)
+  if (booting) return null;
+
   if (!user) {
     return <LoginScreen onLogin={handleLogin} />;
   }
 
-  // Si hay usuario -> app
   return <FarmShell user={user} onLogout={handleLogout} />;
 }
