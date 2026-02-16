@@ -1,85 +1,128 @@
 // src/components/LoginScreen.jsx
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import "../styles/farm-auth.css";
-import { API_BASE_URL, assertApiConfigured } from "../config/api";
 
 export default function LoginScreen({ onLogin }) {
   const [mode, setMode] = useState("login"); // "login" | "signup"
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [pass, setPass] = useState("");
+  const [pass2, setPass2] = useState("");
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  const API_BASE = useMemo(() => {
+    const raw = import.meta.env.VITE_API_URL || "";
+    return raw.replace(/\/+$/, ""); // sin slash final
+  }, []);
+
+  const canSubmit = useMemo(() => {
+    const e = email.trim();
+    const p = pass.trim();
+    if (!e || !p) return false;
+    if (mode === "signup") {
+      if (p.length < 8) return false;
+      if (p !== pass2.trim()) return false;
+    }
+    return true;
+  }, [mode, email, pass, pass2]);
+
+  const friendlyError = (msg) => {
+    if (!msg) return "Ocurrió un error. Intenta de nuevo.";
+    return msg;
+  };
+
+  const persistAuth = (token, user) => {
+    try {
+      localStorage.setItem("agromind_token", token);
+      localStorage.setItem("agromind_user", JSON.stringify(user));
+    } catch {
+      // Si el navegador bloquea storage, igual dejamos continuar
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
 
-    try {
-      assertApiConfigured();
+    if (!API_BASE) {
+      setError("Falta configurar la conexión con el servidor.");
+      return;
+    }
 
-      const cleanEmail = email.trim().toLowerCase();
-      const cleanPass = pass.trim();
-      const cleanName = name.trim();
+    const cleanEmail = email.trim().toLowerCase();
+    const password = pass.trim();
 
-      if (!cleanEmail || !cleanPass) {
-        setError("Correo y contraseña son obligatorios.");
-        return;
-      }
+    if (!cleanEmail || !password) return;
 
-      if (cleanPass.length < 8) {
+    if (mode === "signup") {
+      const password2 = pass2.trim();
+      if (password.length < 8) {
         setError("La contraseña debe tener al menos 8 caracteres.");
         return;
       }
+      if (password !== password2) {
+        setError("Las contraseñas no coinciden.");
+        return;
+      }
+    }
 
-      setLoading(true);
-
-      // 1) Si está en signup: crear cuenta
+    setLoading(true);
+    try {
+      // 1) Si es signup, primero registramos
       if (mode === "signup") {
-        const res = await fetch(`${API_BASE_URL}/auth/register`, {
+        const resp = await fetch(`${API_BASE}/auth/register`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            name: cleanName || "Productor",
+            name: name.trim() || "Productor",
             email: cleanEmail,
-            password: cleanPass,
+            password,
           }),
         });
 
-        const data = await res.json();
-        if (!res.ok) throw new Error(data?.error || "No se pudo crear la cuenta.");
-
-        // Luego de crear cuenta, pasamos a login automático
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok) {
+          setError(friendlyError(data?.error));
+          setLoading(false);
+          return;
+        }
       }
 
-      // 2) Login (siempre)
-      const resLogin = await fetch(`${API_BASE_URL}/auth/login`, {
+      // 2) Login siempre
+      const resp2 = await fetch(`${API_BASE}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: cleanEmail,
-          password: cleanPass,
-        }),
+        body: JSON.stringify({ email: cleanEmail, password }),
       });
 
-      const loginData = await resLogin.json();
-      if (!resLogin.ok)
-        throw new Error(loginData?.error || "No se pudo iniciar sesión.");
-
-      // Guardar token
-      if (loginData?.token) {
-        localStorage.setItem("agromind_token", loginData.token);
+      const data2 = await resp2.json().catch(() => ({}));
+      if (!resp2.ok) {
+        setError(friendlyError(data2?.error));
+        setLoading(false);
+        return;
       }
 
-      // Entrar al sistema
-      if (loginData?.user) {
-        onLogin?.(loginData.user);
-      } else {
-        // fallback mínimo
-        onLogin?.({ name: cleanName || "Productor", email: cleanEmail });
+      const token = data2?.token;
+      const user = data2?.user;
+
+      if (!token || !user) {
+        setError("Respuesta inválida del servidor.");
+        setLoading(false);
+        return;
       }
+
+      persistAuth(token, user);
+
+      // Le pasamos al App la sesión
+      onLogin?.({ ...user, token });
+
+      // Limpieza visual
+      setPass("");
+      setPass2("");
     } catch (err) {
-      setError(err?.message || "Error inesperado.");
+      setError("No se pudo conectar con el servidor.");
     } finally {
       setLoading(false);
     }
@@ -123,6 +166,7 @@ export default function LoginScreen({ onLogin }) {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               autoComplete="email"
+              inputMode="email"
             />
           </div>
 
@@ -130,33 +174,37 @@ export default function LoginScreen({ onLogin }) {
             <label>Contraseña</label>
             <input
               type="password"
-              placeholder="Mínimo 8 caracteres"
+              placeholder={mode === "signup" ? "Mínimo 8 caracteres" : "Tu contraseña"}
               value={pass}
               onChange={(e) => setPass(e.target.value)}
-              autoComplete={mode === "login" ? "current-password" : "new-password"}
+              autoComplete={mode === "signup" ? "new-password" : "current-password"}
             />
-            <span className="auth-hint">
-              Tu contraseña se guarda cifrada y se valida en el servidor.
-            </span>
           </div>
 
+          {mode === "signup" && (
+            <div className="auth-field">
+              <label>Confirmar contraseña</label>
+              <input
+                type="password"
+                placeholder="Repite la contraseña"
+                value={pass2}
+                onChange={(e) => setPass2(e.target.value)}
+                autoComplete="new-password"
+              />
+            </div>
+          )}
+
           {error && (
-            <div
-              style={{
-                marginTop: "0.5rem",
-                padding: "0.65rem 0.75rem",
-                borderRadius: "10px",
-                background: "rgba(239,68,68,0.12)",
-                border: "1px solid rgba(239,68,68,0.25)",
-                color: "#fecaca",
-                fontSize: "0.95rem",
-              }}
-            >
+            <div className="auth-error" style={{ marginTop: "0.5rem" }}>
               {error}
             </div>
           )}
 
-          <button type="submit" className="auth-primary-btn" disabled={loading}>
+          <button
+            type="submit"
+            className="auth-primary-btn"
+            disabled={!canSubmit || loading}
+          >
             {loading
               ? "Procesando..."
               : mode === "login"
@@ -169,23 +217,31 @@ export default function LoginScreen({ onLogin }) {
           {mode === "login" ? (
             <>
               <span>¿Aún no tienes cuenta?</span>
-              <button type="button" onClick={() => setMode("signup")} disabled={loading}>
+              <button
+                type="button"
+                onClick={() => {
+                  setError("");
+                  setMode("signup");
+                }}
+              >
                 Crear cuenta
               </button>
             </>
           ) : (
             <>
               <span>¿Ya tienes cuenta?</span>
-              <button type="button" onClick={() => setMode("login")} disabled={loading}>
+              <button
+                type="button"
+                onClick={() => {
+                  setError("");
+                  setMode("login");
+                }}
+              >
                 Iniciar sesión
               </button>
             </>
           )}
         </div>
-
-        <p className="auth-footnote">
-          Seguridad activa · Cifrado de contraseña · Sesión con token
-        </p>
       </div>
     </div>
   );
