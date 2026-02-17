@@ -1,4 +1,5 @@
 // src/components/FarmShell.jsx
+
 import { useState } from "react";
 import FarmMap from "./FarmMap";
 import TareasPage from "../pages/TareasPage";
@@ -6,6 +7,7 @@ import FinanzasPage from "../pages/FinanzasPage";
 import DispositivosPage from "../pages/DispositivosPage";
 import InvestigadorPage from "../pages/InvestigadorPage";
 import ProductosPage from "../pages/ProductosPage";
+import Footer from "./Footer"; // ✅ NUEVO
 import "../styles/farm-shell.css";
 
 export default function FarmShell({ user, onLogout }) {
@@ -85,6 +87,9 @@ export default function FarmShell({ user, onLogout }) {
           {activeTab === "productos" && <ProductosPage />}
         </section>
       </main>
+
+      {/* ✅ Footer en todas las páginas dentro del shell */}
+      <Footer />
     </div>
   );
 }
