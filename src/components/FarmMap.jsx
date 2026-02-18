@@ -21,7 +21,7 @@ import Point from "ol/geom/Point";
 import LineString from "ol/geom/LineString";
 import Polygon from "ol/geom/Polygon";
 
-// Claves de localStorage
+// Claves de localStorage (fallback / cache)
 const VIEW_KEY = "agromind_farm_view";
 const DRAWINGS_KEY = "agromind_farm_drawings";
 
@@ -31,12 +31,7 @@ const LINE_COLORS = ["#22c55e", "#38bdf8", "#f97316", "#a855f7", "#facc15"];
 const POLYGON_COLORS = ["#22c55e88", "#38bdf888", "#f9731688", "#a855f788"];
 
 const ZONE_TYPES = ["Zona de animales", "Pasillo", "Cultivo", "Zona libre"];
-const ZONE_STATUSES = [
-  "Operativa",
-  "Prioridad alta",
-  "Cosecha próxima",
-  "Disponible",
-];
+const ZONE_STATUSES = ["Operativa", "Prioridad alta", "Cosecha próxima", "Disponible"];
 
 const COMPONENT_TYPES = [
   "Bebedero",
@@ -70,6 +65,61 @@ function generateName(kind, countersRef) {
   return `Zona ${next}`;
 }
 
+/**
+ * 🔐 Token helper
+ * Ajusta aquí si tu app guarda el token con otra key.
+ */
+function getAuthToken() {
+  return (
+    localStorage.getItem("token") ||
+    localStorage.getItem("agromind_token") ||
+    localStorage.getItem("agromind_auth_token") ||
+    ""
+  );
+}
+
+/**
+ * 🌐 API base
+ * En producción lo ideal es setear VITE_API_URL en tu .env del frontend:
+ * VITE_API_URL="https://tu-backend-render.onrender.com"
+ */
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3001";
+
+async function apiFetch(path, options = {}) {
+  const token = getAuthToken();
+  const headers = {
+    "Content-Type": "application/json",
+    ...(options.headers || {}),
+  };
+
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  const res = await fetch(`${API_BASE}${path}`, {
+    ...options,
+    headers,
+  });
+
+  const text = await res.text();
+  let data = null;
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    data = text;
+  }
+
+  if (!res.ok) {
+    const msg =
+      (data && data.error) ||
+      (typeof data === "string" ? data : "Error en request.");
+    const err = new Error(msg);
+    err.status = res.status;
+    err.payload = data;
+    throw err;
+  }
+
+  return data;
+}
+
 export default function FarmMap({ focusZoneRequest }) {
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
@@ -89,115 +139,424 @@ export default function FarmMap({ focusZoneRequest }) {
   // Para hover bidireccional
   const [hoveredId, setHoveredId] = useState(null);
 
-  const countersRef = useRef({
-    point: 0,
-    line: 0,
-    polygon: 0,
-  });
-
-  const colorIndexRef = useRef({
-    point: 0,
-    line: 0,
-    polygon: 0,
-  });
+  const countersRef = useRef({ point: 0, line: 0, polygon: 0 });
+  const colorIndexRef = useRef({ point: 0, line: 0, polygon: 0 });
 
   const apiKey = import.meta.env.VITE_MAPTILER_KEY;
+
+  // Backend state
+  const [mapReady, setMapReady] = useState(false);
+  const [activeFarmId, setActiveFarmId] = useState(null);
+  const [backendOnline, setBackendOnline] = useState(true);
+
+  // Debounce autosave
+  const autosaveTimerRef = useRef(null);
 
   // ✅ Helper: forzar recalcular tamaño del mapa cuando el layout cambia
   const forceMapResize = () => {
     const map = mapInstanceRef.current;
     if (!map) return;
-
-    // 1) Un update inmediato
     map.updateSize();
-
-    // 2) Y otro en el siguiente frame (por si el DOM todavía está ajustando)
-    requestAnimationFrame(() => {
-      map.updateSize();
-    });
+    requestAnimationFrame(() => map.updateSize());
   };
 
-  // Guardar datos + vista
-  const persistDrawingsAndView = (list, options = {}) => {
-    const vectorSource = vectorSourceRef.current;
+  // =========================
+  // SERIALIZE / DESERIALIZE
+  // =========================
+
+  /**
+   * Convierte featuresList + geometrías de OL a payload para backend.
+   * Guardamos meta (color, note, zoneType, status) dentro de data,
+   * para no perder la estética/estado en el reload.
+   */
+  const buildBackendPayloadFromList = (list, options = {}) => {
     const map = mapInstanceRef.current;
-    if (!vectorSource || !map) return;
-
     const featuresMap = featuresMapRef.current;
+    if (!map) return null;
 
-    const payload = list
-      .map((item) => {
-        const feature = featuresMap[item.id];
-        if (!feature) return null;
+    const points = [];
+    const lines = [];
+    const zones = [];
 
-        const geometry = feature.getGeometry();
-        if (!geometry) return null;
+    list.forEach((item) => {
+      const feature = featuresMap[item.id];
+      if (!feature) return;
 
-        const geomType = geometry.getType();
-        let coordinates;
+      const geometry = feature.getGeometry();
+      if (!geometry) return;
 
-        if (geomType === "Point") {
-          coordinates = toLonLat(geometry.getCoordinates());
-        } else if (geomType === "LineString") {
-          coordinates = geometry.getCoordinates().map((coord) => toLonLat(coord));
-        } else if (geomType === "Polygon") {
-          coordinates = geometry.getCoordinates().map((ring) =>
-            ring.map((coord) => toLonLat(coord))
-          );
-        } else {
-          return null;
-        }
+      const geomType = geometry.getType();
 
-        return {
-          id: item.id,
-          kind: item.kind,
-          color: item.color,
+      if (geomType === "Point") {
+        const coord = toLonLat(geometry.getCoordinates());
+        points.push({
           name: item.name,
-          note: item.note || "",
-          zoneType: item.zoneType || null,
-          status: item.status || null,
-          components: Array.isArray(item.components) ? item.components : [],
-          geomType,
-          coordinates,
-        };
-      })
-      .filter(Boolean);
+          data: {
+            type: "Point",
+            coordinates: coord,
+            color: item.color,
+            note: item.note || "",
+          },
+        });
+        return;
+      }
 
-    try {
-      localStorage.setItem(DRAWINGS_KEY, JSON.stringify(payload));
-    } catch (err) {
-      console.warn("No se pudieron guardar los dibujos:", err);
-    }
+      if (geomType === "LineString") {
+        const coords = geometry.getCoordinates().map((c) => toLonLat(c));
+        lines.push({
+          name: item.name,
+          data: {
+            type: "LineString",
+            coordinates: coords,
+            color: item.color,
+            note: item.note || "",
+          },
+        });
+        return;
+      }
+
+      if (geomType === "Polygon") {
+        const rings = geometry
+          .getCoordinates()
+          .map((ring) => ring.map((c) => toLonLat(c)));
+
+        zones.push({
+          name: item.name,
+          data: {
+            type: "Polygon",
+            coordinates: rings,
+            color: item.color,
+            note: item.note || "",
+            zoneType: item.zoneType || "Zona libre",
+            status: item.status || "Disponible",
+          },
+          components: Array.isArray(item.components) ? item.components : [],
+        });
+      }
+    });
 
     // Vista
     let viewToSave = options.view || null;
-
     if (!viewToSave) {
       const view = map.getView();
       const center = view.getCenter();
       const zoom = view.getZoom();
-
       if (center && typeof zoom === "number") {
         const [lon, lat] = toLonLat(center);
-        viewToSave = { lon, lat, zoom };
+        viewToSave = { center: [lon, lat], zoom };
       }
     }
 
-    if (viewToSave) {
-      try {
-        localStorage.setItem(VIEW_KEY, JSON.stringify(viewToSave));
-      } catch (err) {
-        console.warn("No se pudo guardar la vista de la finca:", err);
+    return {
+      view: viewToSave,
+      points,
+      lines,
+      zones,
+    };
+  };
+
+  /**
+   * Cargar data del backend y construir Features en OL + featuresList (UI).
+   */
+  const applyBackendMapToUI = (data) => {
+    const map = mapInstanceRef.current;
+    const vectorSource = vectorSourceRef.current;
+    if (!map || !vectorSource) return;
+
+    // Reset total
+    vectorSource.clear();
+    featuresMapRef.current = {};
+    setSelectedId(null);
+    setExpandedZoneId(null);
+    setHoveredId(null);
+
+    const newList = [];
+    const counters = { point: 0, line: 0, polygon: 0 };
+
+    // View
+    const viewFromServer = data?.farm?.view;
+    if (
+      viewFromServer &&
+      Array.isArray(viewFromServer.center) &&
+      viewFromServer.center.length === 2 &&
+      typeof viewFromServer.zoom === "number"
+    ) {
+      map.getView().setCenter(fromLonLat(viewFromServer.center));
+      map.getView().setZoom(viewFromServer.zoom);
+    }
+
+    // Helper to add feature
+    const addFeature = ({ kind, name, geometry, meta, components }) => {
+      const id = `${kind}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      counters[kind] = (counters[kind] || 0) + 1;
+
+      const finalName =
+        name && String(name).trim().length > 0
+          ? String(name)
+          : generateName(kind, { current: counters });
+
+      const color =
+        meta?.color ||
+        pickColor(kind, { current: { ...colorIndexRef.current } });
+
+      const note = meta?.note || "";
+
+      const zoneType = kind === "polygon" ? meta?.zoneType || "Zona libre" : null;
+      const status = kind === "polygon" ? meta?.status || "Disponible" : null;
+
+      const finalComponents =
+        kind === "polygon" && Array.isArray(components)
+          ? components.map((c, idx) => ({
+              id:
+                c.id ||
+                `comp-${idx}-${Date.now().toString(36)}${Math.random()
+                  .toString(36)
+                  .slice(2, 6)}`,
+              name: c.name || "",
+              note: c.note || "",
+              type: c.type || "Otro",
+            }))
+          : [];
+
+      const feature = new Feature(geometry);
+      feature.setProperties({
+        id,
+        kind,
+        color,
+        name: finalName,
+        note,
+        zoneType,
+        status,
+        components: finalComponents,
+        geomType: geometry.getType(),
+        selected: false,
+        hovered: false,
+      });
+
+      vectorSource.addFeature(feature);
+      featuresMapRef.current[id] = feature;
+
+      newList.push({
+        id,
+        kind,
+        color,
+        name: finalName,
+        note,
+        zoneType,
+        status,
+        components: finalComponents,
+      });
+    };
+
+    // Points
+    (data?.points || []).forEach((p) => {
+      const d = p?.data || {};
+      if (d?.type !== "Point" || !Array.isArray(d.coordinates)) return;
+      addFeature({
+        kind: "point",
+        name: p?.name,
+        geometry: new Point(fromLonLat(d.coordinates)),
+        meta: d,
+      });
+    });
+
+    // Lines
+    (data?.lines || []).forEach((l) => {
+      const d = l?.data || {};
+      if (d?.type !== "LineString" || !Array.isArray(d.coordinates)) return;
+      addFeature({
+        kind: "line",
+        name: l?.name,
+        geometry: new LineString(d.coordinates.map((c) => fromLonLat(c))),
+        meta: d,
+      });
+    });
+
+    // Zones
+    (data?.zones || []).forEach((z) => {
+      const d = z?.data || {};
+      if (d?.type !== "Polygon" || !Array.isArray(d.coordinates)) return;
+      addFeature({
+        kind: "polygon",
+        name: z?.name,
+        geometry: new Polygon(
+          d.coordinates.map((ring) => ring.map((c) => fromLonLat(c)))
+        ),
+        meta: d,
+        components: z?.components,
+      });
+    });
+
+    countersRef.current = counters;
+    setFeaturesList(newList);
+    forceMapResize();
+  };
+
+  // =========================
+  // BACKEND LOAD / SAVE
+  // =========================
+
+  const scheduleAutosave = (list, options = {}) => {
+    // Siempre guardamos cache local para no perder nada si cae backend
+    try {
+      const payload = list
+        .map((item) => {
+          const feature = featuresMapRef.current[item.id];
+          if (!feature) return null;
+          const geometry = feature.getGeometry();
+          if (!geometry) return null;
+
+          const geomType = geometry.getType();
+          let coordinates;
+
+          if (geomType === "Point") {
+            coordinates = toLonLat(geometry.getCoordinates());
+          } else if (geomType === "LineString") {
+            coordinates = geometry.getCoordinates().map((coord) => toLonLat(coord));
+          } else if (geomType === "Polygon") {
+            coordinates = geometry.getCoordinates().map((ring) =>
+              ring.map((coord) => toLonLat(coord))
+            );
+          } else return null;
+
+          return {
+            id: item.id,
+            kind: item.kind,
+            color: item.color,
+            name: item.name,
+            note: item.note || "",
+            zoneType: item.zoneType || null,
+            status: item.status || null,
+            components: Array.isArray(item.components) ? item.components : [],
+            geomType,
+            coordinates,
+          };
+        })
+        .filter(Boolean);
+
+      localStorage.setItem(DRAWINGS_KEY, JSON.stringify(payload));
+
+      // Vista fallback
+      const map = mapInstanceRef.current;
+      if (map) {
+        const view = map.getView();
+        const center = view.getCenter();
+        const zoom = view.getZoom();
+        if (center && typeof zoom === "number") {
+          const [lon, lat] = toLonLat(center);
+          localStorage.setItem(VIEW_KEY, JSON.stringify({ lon, lat, zoom }));
+        }
       }
+    } catch {
+      // no-op
+    }
+
+    // Backend autosave (si hay finca y token)
+    if (!activeFarmId) return;
+    const token = getAuthToken();
+    if (!token) return;
+
+    if (autosaveTimerRef.current) {
+      clearTimeout(autosaveTimerRef.current);
+    }
+
+    autosaveTimerRef.current = setTimeout(async () => {
+      try {
+        const payload = buildBackendPayloadFromList(list, options);
+        if (!payload) return;
+        await apiFetch(`/api/farms/${activeFarmId}/map`, {
+          method: "PUT",
+          body: JSON.stringify(payload),
+        });
+        setBackendOnline(true);
+      } catch (err) {
+        console.warn("Autosave backend falló:", err?.message || err);
+        setBackendOnline(false);
+      }
+    }, 900);
+  };
+
+  const ensureFarmAndLoad = async () => {
+    try {
+      const token = getAuthToken();
+      if (!token) {
+        // Sin token: modo fallback local
+        setBackendOnline(false);
+        return;
+      }
+
+      const farmsRes = await apiFetch("/api/farms", { method: "GET" });
+      let farms = farmsRes?.farms || [];
+
+      // Si no hay fincas, crea una
+      if (!farms.length) {
+        const created = await apiFetch("/api/farms", {
+          method: "POST",
+          body: JSON.stringify({
+            name: "Mi finca",
+            view: null,
+          }),
+        });
+        farms = created?.farm ? [created.farm] : [];
+      }
+
+      const farmId = farms?.[0]?.id || null;
+      if (!farmId) {
+        setBackendOnline(false);
+        return;
+      }
+
+      setActiveFarmId(farmId);
+
+      const mapRes = await apiFetch(`/api/farms/${farmId}/map`, { method: "GET" });
+      applyBackendMapToUI(mapRes);
+      setBackendOnline(true);
+
+      // Si el backend no trae view, intenta geolocalización una vez
+      const hasView =
+        mapRes?.farm?.view &&
+        Array.isArray(mapRes.farm.view.center) &&
+        typeof mapRes.farm.view.zoom === "number";
+
+      if (!hasView) {
+        try {
+          if ("geolocation" in navigator) {
+            navigator.geolocation.getCurrentPosition(
+              (pos) => {
+                const lon = pos.coords.longitude;
+                const lat = pos.coords.latitude;
+                const map = mapInstanceRef.current;
+                if (!map) return;
+                map.getView().setCenter(fromLonLat([lon, lat]));
+                map.getView().setZoom(16);
+                // Guardamos vista al backend (sin tocar dibujos)
+                scheduleAutosave(featuresList, {
+                  view: { center: [lon, lat], zoom: 16 },
+                });
+              },
+              () => {},
+              { enableHighAccuracy: true, timeout: 6000, maximumAge: 10000 }
+            );
+          }
+        } catch {
+          // no-op
+        }
+      }
+    } catch (err) {
+      console.warn("Backend load falló:", err?.message || err);
+      setBackendOnline(false);
     }
   };
+
+  // =========================
+  // MAP INIT + STYLE
+  // =========================
 
   // ✅ Auto-resize: si cambia el tamaño del contenedor, OpenLayers recalcula
   useEffect(() => {
     const container = mapRef.current;
     if (!container) return;
 
-    // Si el mapa aún no existe, igual dejamos el observer listo
     const ro = new ResizeObserver(() => {
       forceMapResize();
     });
@@ -207,7 +566,6 @@ export default function FarmMap({ focusZoneRequest }) {
     const handleWindowResize = () => forceMapResize();
     window.addEventListener("resize", handleWindowResize);
 
-    // Si vuelves a la pestaña del navegador, a veces el canvas necesita refresh
     const handleVisibility = () => {
       if (document.visibilityState === "visible") {
         forceMapResize();
@@ -223,7 +581,7 @@ export default function FarmMap({ focusZoneRequest }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Inicializar mapa y cargar datos
+  // Inicializar mapa y cargar datos (local fallback inicial)
   useEffect(() => {
     if (!apiKey || apiKey === "TU_API_KEY_AQUI") return;
 
@@ -231,24 +589,18 @@ export default function FarmMap({ focusZoneRequest }) {
       let centerLonLat = [-84.433, 10.34];
       let zoom = 15;
 
-      // Vista guardada
+      // Vista guardada (fallback)
       try {
         const savedView = localStorage.getItem(VIEW_KEY);
         if (savedView) {
           const parsed = JSON.parse(savedView);
-          if (
-            parsed &&
-            typeof parsed.lon === "number" &&
-            typeof parsed.lat === "number"
-          ) {
+          if (parsed && typeof parsed.lon === "number" && typeof parsed.lat === "number") {
             centerLonLat = [parsed.lon, parsed.lat];
           }
-          if (parsed && typeof parsed.zoom === "number") {
-            zoom = parsed.zoom;
-          }
+          if (parsed && typeof parsed.zoom === "number") zoom = parsed.zoom;
         }
-      } catch (err) {
-        console.warn("No se pudo leer la vista guardada:", err);
+      } catch {
+        // no-op
       }
 
       const baseLayer = new TileLayer({
@@ -323,10 +675,9 @@ export default function FarmMap({ focusZoneRequest }) {
 
       mapInstanceRef.current = map;
 
-      // ✅ IMPORTANTE: después de crear el mapa, forzamos recalcular tamaño
       forceMapResize();
 
-      // Cargar dibujos guardados
+      // Cargar dibujos guardados (fallback local)
       try {
         const savedDrawings = localStorage.getItem(DRAWINGS_KEY);
         if (savedDrawings) {
@@ -381,14 +732,10 @@ export default function FarmMap({ focusZoneRequest }) {
                   : generateName(safeKind, { current: counters });
 
               const finalColor =
-                color ||
-                pickColor(safeKind, { current: { ...colorIndexRef.current } });
+                color || pickColor(safeKind, { current: { ...colorIndexRef.current } });
 
-              const finalZoneType =
-                safeKind === "polygon" ? zoneType || "Zona libre" : null;
-
-              const finalStatus =
-                safeKind === "polygon" ? status || "Disponible" : null;
+              const finalZoneType = safeKind === "polygon" ? zoneType || "Zona libre" : null;
+              const finalStatus = safeKind === "polygon" ? status || "Disponible" : null;
 
               const finalComponents =
                 safeKind === "polygon" && Array.isArray(components)
@@ -435,13 +782,11 @@ export default function FarmMap({ focusZoneRequest }) {
 
             countersRef.current = counters;
             setFeaturesList(newList);
-
-            // ✅ por si la tabla cambió el layout
             forceMapResize();
           }
         }
-      } catch (err) {
-        console.warn("No se pudieron cargar los dibujos guardados:", err);
+      } catch {
+        // no-op
       }
 
       // Hover desde mapa → tabla
@@ -495,6 +840,8 @@ export default function FarmMap({ focusZoneRequest }) {
       map.on("pointermove", handlePointerMove);
       map.on("singleclick", handleSingleClick);
 
+      setMapReady(true);
+
       // Cleanup
       return () => {
         map.un("pointermove", handlePointerMove);
@@ -512,6 +859,13 @@ export default function FarmMap({ focusZoneRequest }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apiKey]);
 
+  // Cuando el mapa ya existe → carga desde backend
+  useEffect(() => {
+    if (!mapReady) return;
+    ensureFarmAndLoad();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mapReady]);
+
   // Sincronizar flag "hovered" en las features cuando cambia hoveredId
   useEffect(() => {
     const featuresMap = featuresMapRef.current;
@@ -522,9 +876,7 @@ export default function FarmMap({ focusZoneRequest }) {
 
   // Al terminar de dibujar algo
   const handleDrawEnd = (feature, mode) => {
-    const kind =
-      mode === "point" ? "point" : mode === "line" ? "line" : "polygon";
-
+    const kind = mode === "point" ? "point" : mode === "line" ? "line" : "polygon";
     const id = `${kind}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
     const color = pickColor(kind, colorIndexRef);
@@ -544,12 +896,7 @@ export default function FarmMap({ focusZoneRequest }) {
       zoneType,
       status,
       components,
-      geomType:
-        mode === "point"
-          ? "Point"
-          : mode === "line"
-          ? "LineString"
-          : "Polygon",
+      geomType: mode === "point" ? "Point" : mode === "line" ? "LineString" : "Polygon",
       selected: false,
       hovered: false,
     });
@@ -559,22 +906,12 @@ export default function FarmMap({ focusZoneRequest }) {
     setFeaturesList((prev) => {
       const updated = [
         ...prev,
-        {
-          id,
-          kind,
-          color,
-          name,
-          note,
-          zoneType,
-          status,
-          components,
-        },
+        { id, kind, color, name, note, zoneType, status, components },
       ];
-      persistDrawingsAndView(updated);
+      scheduleAutosave(updated);
       return updated;
     });
 
-    // ✅ por si la tabla/summary cambió layout
     forceMapResize();
   };
 
@@ -592,11 +929,7 @@ export default function FarmMap({ focusZoneRequest }) {
     if (drawMode === "move") return;
 
     const type =
-      drawMode === "point"
-        ? "Point"
-        : drawMode === "line"
-        ? "LineString"
-        : "Polygon";
+      drawMode === "point" ? "Point" : drawMode === "line" ? "LineString" : "Polygon";
 
     const draw = new Draw({
       source: vectorSource,
@@ -611,7 +944,6 @@ export default function FarmMap({ focusZoneRequest }) {
     map.addInteraction(draw);
     drawInteractionRef.current = draw;
 
-    // ✅ al cambiar modo, a veces cambian overlays/altura
     forceMapResize();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [drawMode]);
@@ -645,10 +977,8 @@ export default function FarmMap({ focusZoneRequest }) {
     if (feature) feature.set("name", value);
 
     setFeaturesList((prev) => {
-      const updated = prev.map((item) =>
-        item.id === id ? { ...item, name: value } : item
-      );
-      persistDrawingsAndView(updated);
+      const updated = prev.map((item) => (item.id === id ? { ...item, name: value } : item));
+      scheduleAutosave(updated);
       return updated;
     });
   };
@@ -661,7 +991,7 @@ export default function FarmMap({ focusZoneRequest }) {
       const updated = prev.map((item) =>
         item.id === id ? { ...item, zoneType: value } : item
       );
-      persistDrawingsAndView(updated);
+      scheduleAutosave(updated);
       return updated;
     });
   };
@@ -674,13 +1004,9 @@ export default function FarmMap({ focusZoneRequest }) {
       const updated = prev.map((item) =>
         item.id === id ? { ...item, status: value } : item
       );
-      persistDrawingsAndView(updated);
+      scheduleAutosave(updated);
       return updated;
     });
-  };
-
-  const handleZoneNameChange = (id, value) => {
-    handleNameChange(id, value);
   };
 
   const handleDeleteFeature = (id) => {
@@ -694,7 +1020,7 @@ export default function FarmMap({ focusZoneRequest }) {
 
     setFeaturesList((prev) => {
       const updated = prev.filter((item) => item.id !== id);
-      persistDrawingsAndView(updated);
+      scheduleAutosave(updated);
       return updated;
     });
 
@@ -702,19 +1028,27 @@ export default function FarmMap({ focusZoneRequest }) {
     if (expandedZoneId === id) setExpandedZoneId(null);
     if (hoveredId === id) setHoveredId(null);
 
-    // ✅ layout cambia
     forceMapResize();
   };
 
+  // Botón “usar vista como finca” → guarda vista al backend + cache
   const handleSaveViewClick = () => {
-    persistDrawingsAndView(featuresList);
+    const map = mapInstanceRef.current;
+    if (!map) return;
+
+    const view = map.getView();
+    const center = view.getCenter();
+    const zoom = view.getZoom();
+
+    if (!center || typeof zoom !== "number") return;
+
+    const [lon, lat] = toLonLat(center);
+    scheduleAutosave(featuresList, { view: { center: [lon, lat], zoom } });
   };
 
   // Abrir/cerrar panel de componentes (solo zonas)
   const handleToggleComponents = (zoneId) => {
     setExpandedZoneId((prev) => (prev === zoneId ? null : zoneId));
-
-    // ✅ abrir panel cambia layout
     setTimeout(() => forceMapResize(), 0);
   };
 
@@ -738,11 +1072,10 @@ export default function FarmMap({ focusZoneRequest }) {
 
         return { ...item, components };
       });
-      persistDrawingsAndView(updated);
+      scheduleAutosave(updated);
       return updated;
     });
 
-    // ✅ layout cambia
     setTimeout(() => forceMapResize(), 0);
   };
 
@@ -751,16 +1084,14 @@ export default function FarmMap({ focusZoneRequest }) {
       const updated = prev.map((item) => {
         if (item.id !== zoneId) return item;
         const current = Array.isArray(item.components) ? item.components : [];
-        const components = current.map((c) =>
-          c.id === compId ? { ...c, name: value } : c
-        );
+        const components = current.map((c) => (c.id === compId ? { ...c, name: value } : c));
 
         const feature = featuresMapRef.current[zoneId];
         if (feature) feature.set("components", components);
 
         return { ...item, components };
       });
-      persistDrawingsAndView(updated);
+      scheduleAutosave(updated);
       return updated;
     });
   };
@@ -770,16 +1101,14 @@ export default function FarmMap({ focusZoneRequest }) {
       const updated = prev.map((item) => {
         if (item.id !== zoneId) return item;
         const current = Array.isArray(item.components) ? item.components : [];
-        const components = current.map((c) =>
-          c.id === compId ? { ...c, note: value } : c
-        );
+        const components = current.map((c) => (c.id === compId ? { ...c, note: value } : c));
 
         const feature = featuresMapRef.current[zoneId];
         if (feature) feature.set("components", components);
 
         return { ...item, components };
       });
-      persistDrawingsAndView(updated);
+      scheduleAutosave(updated);
       return updated;
     });
   };
@@ -789,16 +1118,14 @@ export default function FarmMap({ focusZoneRequest }) {
       const updated = prev.map((item) => {
         if (item.id !== zoneId) return item;
         const current = Array.isArray(item.components) ? item.components : [];
-        const components = current.map((c) =>
-          c.id === compId ? { ...c, type: value } : c
-        );
+        const components = current.map((c) => (c.id === compId ? { ...c, type: value } : c));
 
         const feature = featuresMapRef.current[zoneId];
         if (feature) feature.set("components", components);
 
         return { ...item, components };
       });
-      persistDrawingsAndView(updated);
+      scheduleAutosave(updated);
       return updated;
     });
   };
@@ -815,21 +1142,20 @@ export default function FarmMap({ focusZoneRequest }) {
 
         return { ...item, components };
       });
-      persistDrawingsAndView(updated);
+      scheduleAutosave(updated);
       return updated;
     });
 
-    // ✅ layout cambia
     setTimeout(() => forceMapResize(), 0);
   };
 
   // Derivados
   const zonesOnly = featuresList.filter((f) => f.kind === "polygon");
-  const currentZone = expandedZoneId && zonesOnly.find((z) => z.id === expandedZoneId);
+  const currentZone =
+    expandedZoneId && zonesOnly.find((z) => z.id === expandedZoneId);
   const zoneComponents =
     currentZone && Array.isArray(currentZone.components) ? currentZone.components : [];
 
-  // 👉 Resumen rápido para el mini-dashboard
   const pointCount = featuresList.filter((f) => f.kind === "point").length;
   const lineCount = featuresList.filter((f) => f.kind === "line").length;
   const zoneCount = zonesOnly.length;
@@ -844,11 +1170,8 @@ export default function FarmMap({ focusZoneRequest }) {
 
   zonesOnly.forEach((z) => {
     const s = z.status || "Disponible";
-    if (statusCounts[s] !== undefined) {
-      statusCounts[s]++;
-    } else {
-      statusCounts.Otro++;
-    }
+    if (statusCounts[s] !== undefined) statusCounts[s]++;
+    else statusCounts.Otro++;
   });
 
   // 🔗 Cuando viene una orden desde Tareas para enfocar una zona
@@ -875,7 +1198,7 @@ export default function FarmMap({ focusZoneRequest }) {
           Falta configurar la llave de mapas (<code>VITE_MAPTILER_KEY</code>).
         </p>
         <p>
-          Creá una cuenta gratis en MapTiler, poné la key en el archivo
+          Creá una cuenta gratis en MapTiler, poné la key en el archivo{" "}
           <code>.env</code> y recargá la página.
         </p>
       </div>
@@ -921,6 +1244,13 @@ export default function FarmMap({ focusZoneRequest }) {
           <span className="status-pill status-info" />
           <span className="summary-label">
             {statusCounts["Cosecha próxima"]} cosecha próxima
+          </span>
+        </div>
+
+        {/* Indicador simple de estado backend */}
+        <div className="summary-chip" title="Estado del backend">
+          <span className="summary-label">
+            {backendOnline ? "Backend: OK" : "Backend: sin conexión"}
           </span>
         </div>
       </div>
