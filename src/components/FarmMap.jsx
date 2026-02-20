@@ -2,7 +2,7 @@
 
 import FarmSummary from "../components/farm/FarmSummary";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import "ol/ol.css";
 import "../styles/farm-map.css";
 
@@ -20,6 +20,10 @@ import { Style, Stroke, Fill, Circle as CircleStyle } from "ol/style";
 import Point from "ol/geom/Point";
 import LineString from "ol/geom/LineString";
 import Polygon from "ol/geom/Polygon";
+
+// Claves de localStorage (fallback / cache)
+const VIEW_KEY = "agromind_farm_view";
+const DRAWINGS_KEY = "agromind_farm_drawings";
 
 // Paletas de colores
 const POINT_COLORS = ["#f97316", "#22c55e", "#38bdf8", "#eab308", "#ec4899"];
@@ -67,19 +71,22 @@ function generateName(kind, countersRef) {
  */
 function getAuthToken() {
   return (
-    localStorage.getItem("token") ||
     localStorage.getItem("agromind_token") ||
+    localStorage.getItem("token") ||
     localStorage.getItem("agromind_auth_token") ||
+    localStorage.getItem("auth_token") ||
+    localStorage.getItem("jwt") ||
     ""
   );
 }
 
 /**
  * 🌐 API base
- * En producción setea VITE_API_URL en Vercel:
- * VITE_API_URL="https://agromind-backend-slem.onrender.com"
+ * En producción lo ideal es setear VITE_API_URL en tu .env del frontend:
+ * VITE_API_URL="https://tu-backend-render.onrender.com"
  */
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3001";
+const API_BASE =
+  import.meta.env.VITE_API_URL || "https://agromind-backend-slem.onrender.com";
 
 async function apiFetch(path, options = {}) {
   const token = getAuthToken();
@@ -148,7 +155,17 @@ export default function FarmMap({ focusZoneRequest }) {
   // Debounce autosave
   const autosaveTimerRef = useRef(null);
 
-  // ✅ Helper: forzar recalcular tamaño del mapa cuando el layout cambia
+  // =========================
+  // 🔎 BUSCADOR MANUAL (Geocoding)
+  // =========================
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchError, setSearchError] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [showResults, setShowResults] = useState(false);
+
+  const debouncedQuery = useMemo(() => searchQuery.trim(), [searchQuery]);
+
   const forceMapResize = () => {
     const map = mapInstanceRef.current;
     if (!map) return;
@@ -160,11 +177,6 @@ export default function FarmMap({ focusZoneRequest }) {
   // SERIALIZE / DESERIALIZE
   // =========================
 
-  /**
-   * Convierte featuresList + geometrías OL a payload para backend.
-   * Guardamos meta (color, note, zoneType, status) dentro de data,
-   * para no perder estética/estado en el reload.
-   */
   const buildBackendPayloadFromList = (list, options = {}) => {
     const map = mapInstanceRef.current;
     const featuresMap = featuresMapRef.current;
@@ -231,7 +243,6 @@ export default function FarmMap({ focusZoneRequest }) {
       }
     });
 
-    // Vista
     let viewToSave = options.view || null;
     if (!viewToSave) {
       const view = map.getView();
@@ -246,15 +257,11 @@ export default function FarmMap({ focusZoneRequest }) {
     return { view: viewToSave, points, lines, zones };
   };
 
-  /**
-   * Cargar data del backend y construir Features en OL + featuresList (UI).
-   */
   const applyBackendMapToUI = (data) => {
     const map = mapInstanceRef.current;
     const vectorSource = vectorSourceRef.current;
     if (!map || !vectorSource) return;
 
-    // Reset total
     vectorSource.clear();
     featuresMapRef.current = {};
     setSelectedId(null);
@@ -264,7 +271,6 @@ export default function FarmMap({ focusZoneRequest }) {
     const newList = [];
     const counters = { point: 0, line: 0, polygon: 0 };
 
-    // View
     const viewFromServer = data?.farm?.view;
     if (
       viewFromServer &&
@@ -289,6 +295,7 @@ export default function FarmMap({ focusZoneRequest }) {
         meta?.color || pickColor(kind, { current: { ...colorIndexRef.current } });
 
       const note = meta?.note || "";
+
       const zoneType = kind === "polygon" ? meta?.zoneType || "Zona libre" : null;
       const status = kind === "polygon" ? meta?.status || "Disponible" : null;
 
@@ -376,17 +383,66 @@ export default function FarmMap({ focusZoneRequest }) {
   };
 
   // =========================
-  // BACKEND LOAD / SAVE (ONLY)
+  // BACKEND LOAD / SAVE
   // =========================
 
   const scheduleAutosave = (list, options = {}) => {
-    if (!activeFarmId) return;
+    // Cache local mínimo (por si cae red)
+    try {
+      const payload = list
+        .map((item) => {
+          const feature = featuresMapRef.current[item.id];
+          if (!feature) return null;
+          const geometry = feature.getGeometry();
+          if (!geometry) return null;
 
-    const token = getAuthToken();
-    if (!token) {
-      setBackendOnline(false);
-      return;
+          const geomType = geometry.getType();
+          let coordinates;
+
+          if (geomType === "Point") {
+            coordinates = toLonLat(geometry.getCoordinates());
+          } else if (geomType === "LineString") {
+            coordinates = geometry.getCoordinates().map((coord) => toLonLat(coord));
+          } else if (geomType === "Polygon") {
+            coordinates = geometry.getCoordinates().map((ring) =>
+              ring.map((coord) => toLonLat(coord))
+            );
+          } else return null;
+
+          return {
+            id: item.id,
+            kind: item.kind,
+            color: item.color,
+            name: item.name,
+            note: item.note || "",
+            zoneType: item.zoneType || null,
+            status: item.status || null,
+            components: Array.isArray(item.components) ? item.components : [],
+            geomType,
+            coordinates,
+          };
+        })
+        .filter(Boolean);
+
+      localStorage.setItem(DRAWINGS_KEY, JSON.stringify(payload));
+
+      const map = mapInstanceRef.current;
+      if (map) {
+        const view = map.getView();
+        const center = view.getCenter();
+        const zoom = view.getZoom();
+        if (center && typeof zoom === "number") {
+          const [lon, lat] = toLonLat(center);
+          localStorage.setItem(VIEW_KEY, JSON.stringify({ lon, lat, zoom }));
+        }
+      }
+    } catch {
+      // no-op
     }
+
+    if (!activeFarmId) return;
+    const token = getAuthToken();
+    if (!token) return;
 
     if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
 
@@ -394,12 +450,10 @@ export default function FarmMap({ focusZoneRequest }) {
       try {
         const payload = buildBackendPayloadFromList(list, options);
         if (!payload) return;
-
         await apiFetch(`/api/farms/${activeFarmId}/map`, {
           method: "PUT",
           body: JSON.stringify(payload),
         });
-
         setBackendOnline(true);
       } catch (err) {
         console.warn("Autosave backend falló:", err?.message || err);
@@ -419,7 +473,6 @@ export default function FarmMap({ focusZoneRequest }) {
       const farmsRes = await apiFetch("/api/farms", { method: "GET" });
       let farms = farmsRes?.farms || [];
 
-      // Si no hay fincas, crea una
       if (!farms.length) {
         const created = await apiFetch("/api/farms", {
           method: "POST",
@@ -440,28 +493,32 @@ export default function FarmMap({ focusZoneRequest }) {
       applyBackendMapToUI(mapRes);
       setBackendOnline(true);
 
-      // Si el backend no trae view, intenta geolocalización una vez (y la guarda al backend)
+      // Si el backend no trae view, intentamos geolocalización (opcional)
       const hasView =
         mapRes?.farm?.view &&
         Array.isArray(mapRes.farm.view.center) &&
         typeof mapRes.farm.view.zoom === "number";
 
-      if (!hasView && "geolocation" in navigator) {
-        navigator.geolocation.getCurrentPosition(
-          (pos) => {
-            const lon = pos.coords.longitude;
-            const lat = pos.coords.latitude;
-            const map = mapInstanceRef.current;
-            if (!map) return;
-
-            map.getView().setCenter(fromLonLat([lon, lat]));
-            map.getView().setZoom(16);
-
-            scheduleAutosave(featuresList, { view: { center: [lon, lat], zoom: 16 } });
-          },
-          () => {},
-          { enableHighAccuracy: true, timeout: 6000, maximumAge: 10000 }
-        );
+      if (!hasView) {
+        try {
+          if ("geolocation" in navigator) {
+            navigator.geolocation.getCurrentPosition(
+              (pos) => {
+                const lon = pos.coords.longitude;
+                const lat = pos.coords.latitude;
+                const map = mapInstanceRef.current;
+                if (!map) return;
+                map.getView().setCenter(fromLonLat([lon, lat]));
+                map.getView().setZoom(16);
+                scheduleAutosave(featuresList, { view: { center: [lon, lat], zoom: 16 } });
+              },
+              () => {},
+              { enableHighAccuracy: true, timeout: 6000, maximumAge: 10000 }
+            );
+          }
+        } catch {
+          // no-op
+        }
       }
     } catch (err) {
       console.warn("Backend load falló:", err?.message || err);
@@ -469,7 +526,103 @@ export default function FarmMap({ focusZoneRequest }) {
     }
   };
 
-  // ✅ Auto-resize
+  // =========================
+  // 🔎 Geocoding (MapTiler)
+  // =========================
+
+  const geocodeSearch = async (q, signal) => {
+    if (!apiKey || apiKey === "TU_API_KEY_AQUI") {
+      throw new Error("Falta VITE_MAPTILER_KEY para buscar lugares.");
+    }
+
+    const query = encodeURIComponent(q.trim());
+    const url = `https://api.maptiler.com/geocoding/${query}.json?key=${apiKey}&limit=6&language=es`;
+
+    const res = await fetch(url, { signal });
+    if (!res.ok) throw new Error("No se pudo buscar el lugar.");
+    const data = await res.json();
+
+    const feats = Array.isArray(data?.features) ? data.features : [];
+    return feats
+      .map((f) => {
+        const center = f?.center;
+        if (!Array.isArray(center) || center.length !== 2) return null;
+        return {
+          id: f?.id || `${center[0]}-${center[1]}-${Math.random().toString(36).slice(2, 6)}`,
+          place_name:
+            f?.place_name ||
+            f?.text ||
+            "Ubicación",
+          center, // [lon, lat]
+        };
+      })
+      .filter(Boolean);
+  };
+
+  // Debounce de sugerencias al escribir
+  useEffect(() => {
+    const q = debouncedQuery;
+
+    if (!q || q.length < 3) {
+      setSearchResults([]);
+      setSearchError("");
+      setSearchLoading(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    setSearchLoading(true);
+    setSearchError("");
+
+    const t = setTimeout(async () => {
+      try {
+        const results = await geocodeSearch(q, controller.signal);
+        setSearchResults(results);
+        setShowResults(true);
+      } catch (err) {
+        if (err?.name === "AbortError") return;
+        setSearchResults([]);
+        setSearchError(err?.message || "Error buscando lugar.");
+      } finally {
+        setSearchLoading(false);
+      }
+    }, 350);
+
+    return () => {
+      clearTimeout(t);
+      controller.abort();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedQuery, apiKey]);
+
+  const goToLocation = (lon, lat, zoom = 16) => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+
+    map.getView().setCenter(fromLonLat([lon, lat]));
+    map.getView().setZoom(zoom);
+
+    // Guardamos vista en backend (y cache)
+    scheduleAutosave(featuresList, { view: { center: [lon, lat], zoom } });
+  };
+
+  const handlePickSearchResult = (item) => {
+    if (!item?.center) return;
+    const [lon, lat] = item.center;
+    goToLocation(lon, lat, 16);
+    setShowResults(false);
+  };
+
+  const handleSearchSubmit = (e) => {
+    e.preventDefault();
+    const first = searchResults?.[0];
+    if (first) handlePickSearchResult(first);
+  };
+
+  // =========================
+  // MAP INIT + STYLE
+  // =========================
+
   useEffect(() => {
     const container = mapRef.current;
     if (!container) return;
@@ -493,11 +646,26 @@ export default function FarmMap({ focusZoneRequest }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Inicializar mapa
   useEffect(() => {
     if (!apiKey || apiKey === "TU_API_KEY_AQUI") return;
 
     if (mapRef.current && !mapInstanceRef.current) {
+      let centerLonLat = [-84.433, 10.34];
+      let zoom = 15;
+
+      try {
+        const savedView = localStorage.getItem(VIEW_KEY);
+        if (savedView) {
+          const parsed = JSON.parse(savedView);
+          if (parsed && typeof parsed.lon === "number" && typeof parsed.lat === "number") {
+            centerLonLat = [parsed.lon, parsed.lat];
+          }
+          if (parsed && typeof parsed.zoom === "number") zoom = parsed.zoom;
+        }
+      } catch {
+        // no-op
+      }
+
       const baseLayer = new TileLayer({
         source: new XYZ({
           url: `https://api.maptiler.com/maps/hybrid/256/{z}/{x}/{y}.jpg?key=${apiKey}`,
@@ -533,7 +701,10 @@ export default function FarmMap({ focusZoneRequest }) {
 
           if (kind === "line") {
             return new Style({
-              stroke: new Stroke({ color, width: active ? 5 : 3 }),
+              stroke: new Stroke({
+                color,
+                width: active ? 5 : 3,
+              }),
             });
           }
 
@@ -548,7 +719,10 @@ export default function FarmMap({ focusZoneRequest }) {
           }
 
           return new Style({
-            stroke: new Stroke({ color, width: active ? 4 : 2 }),
+            stroke: new Stroke({
+              color,
+              width: active ? 4 : 2,
+            }),
           });
         },
       });
@@ -557,13 +731,96 @@ export default function FarmMap({ focusZoneRequest }) {
         target: mapRef.current,
         layers: [baseLayer, vectorLayer],
         view: new View({
-          center: fromLonLat([-84.433, 10.34]),
-          zoom: 15,
+          center: fromLonLat(centerLonLat),
+          zoom,
         }),
       });
 
       mapInstanceRef.current = map;
       forceMapResize();
+
+      // Fallback local drawings (no estorba al backend; solo evita perder todo si cae red)
+      try {
+        const savedDrawings = localStorage.getItem(DRAWINGS_KEY);
+        if (savedDrawings) {
+          const parsed = JSON.parse(savedDrawings);
+          if (Array.isArray(parsed)) {
+            const newList = [];
+            const counters = { point: 0, line: 0, polygon: 0 };
+
+            parsed.forEach((item) => {
+              const { id, kind, color, name, note, zoneType, status, components, geomType, coordinates } = item;
+              if (!id || !kind || !geomType || !coordinates) return;
+
+              let geometry = null;
+
+              if (geomType === "Point") geometry = new Point(fromLonLat(coordinates));
+              else if (geomType === "LineString") geometry = new LineString(coordinates.map((c) => fromLonLat(c)));
+              else if (geomType === "Polygon") geometry = new Polygon(coordinates.map((ring) => ring.map((c) => fromLonLat(c))));
+
+              if (!geometry) return;
+
+              const feature = new Feature(geometry);
+              const safeKind = kind === "point" || kind === "line" || kind === "polygon" ? kind : "point";
+
+              counters[safeKind] = (counters[safeKind] || 0) + 1;
+
+              const finalName = name && name.trim().length > 0 ? name : generateName(safeKind, { current: counters });
+              const finalColor = color || pickColor(safeKind, { current: { ...colorIndexRef.current } });
+              const finalZoneType = safeKind === "polygon" ? zoneType || "Zona libre" : null;
+              const finalStatus = safeKind === "polygon" ? status || "Disponible" : null;
+
+              const finalComponents =
+                safeKind === "polygon" && Array.isArray(components)
+                  ? components.map((c, idx) => ({
+                      id:
+                        c.id ||
+                        `comp-${idx}-${Date.now().toString(36)}${Math.random()
+                          .toString(36)
+                          .slice(2, 6)}`,
+                      name: c.name || "",
+                      note: c.note || "",
+                      type: c.type || "Otro",
+                    }))
+                  : [];
+
+              feature.setProperties({
+                id,
+                kind: safeKind,
+                color: finalColor,
+                name: finalName,
+                note: note || "",
+                zoneType: finalZoneType,
+                status: finalStatus,
+                components: finalComponents,
+                geomType,
+                selected: false,
+                hovered: false,
+              });
+
+              vectorSource.addFeature(feature);
+              featuresMapRef.current[id] = feature;
+
+              newList.push({
+                id,
+                kind: safeKind,
+                color: finalColor,
+                name: finalName,
+                note: note || "",
+                zoneType: finalZoneType,
+                status: finalStatus,
+                components: finalComponents,
+              });
+            });
+
+            countersRef.current = counters;
+            setFeaturesList(newList);
+            forceMapResize();
+          }
+        }
+      } catch {
+        // no-op
+      }
 
       const handlePointerMove = (evt) => {
         const mapInstance = mapInstanceRef.current;
@@ -604,9 +861,7 @@ export default function FarmMap({ focusZoneRequest }) {
           handleSelectFeature(foundId);
         } else {
           const vectorSourceLocal = vectorSourceRef.current;
-          if (vectorSourceLocal) {
-            vectorSourceLocal.getFeatures().forEach((f) => f.set("selected", false));
-          }
+          if (vectorSourceLocal) vectorSourceLocal.getFeatures().forEach((f) => f.set("selected", false));
           setSelectedId(null);
         }
       };
@@ -621,9 +876,7 @@ export default function FarmMap({ focusZoneRequest }) {
         map.un("singleclick", handleSingleClick);
 
         if (mapInstanceRef.current) {
-          if (drawInteractionRef.current) {
-            mapInstanceRef.current.removeInteraction(drawInteractionRef.current);
-          }
+          if (drawInteractionRef.current) mapInstanceRef.current.removeInteraction(drawInteractionRef.current);
           mapInstanceRef.current.setTarget(null);
           mapInstanceRef.current = null;
         }
@@ -632,14 +885,12 @@ export default function FarmMap({ focusZoneRequest }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apiKey]);
 
-  // Cuando el mapa ya existe → carga desde backend
   useEffect(() => {
     if (!mapReady) return;
     ensureFarmAndLoad();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mapReady]);
 
-  // Hover flag
   useEffect(() => {
     const featuresMap = featuresMapRef.current;
     Object.entries(featuresMap).forEach(([id, feature]) => {
@@ -647,13 +898,13 @@ export default function FarmMap({ focusZoneRequest }) {
     });
   }, [hoveredId]);
 
-  // Draw end
   const handleDrawEnd = (feature, mode) => {
     const kind = mode === "point" ? "point" : mode === "line" ? "line" : "polygon";
     const id = `${kind}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
     const color = pickColor(kind, colorIndexRef);
     const name = generateName(kind, countersRef);
+    const note = "";
 
     const zoneType = kind === "polygon" ? "Zona libre" : null;
     const status = kind === "polygon" ? "Disponible" : null;
@@ -664,7 +915,7 @@ export default function FarmMap({ focusZoneRequest }) {
       kind,
       color,
       name,
-      note: "",
+      note,
       zoneType,
       status,
       components,
@@ -676,7 +927,7 @@ export default function FarmMap({ focusZoneRequest }) {
     featuresMapRef.current[id] = feature;
 
     setFeaturesList((prev) => {
-      const updated = [...prev, { id, kind, color, name, note: "", zoneType, status, components }];
+      const updated = [...prev, { id, kind, color, name, note, zoneType, status, components }];
       scheduleAutosave(updated);
       return updated;
     });
@@ -684,7 +935,6 @@ export default function FarmMap({ focusZoneRequest }) {
     forceMapResize();
   };
 
-  // Draw tool
   useEffect(() => {
     const map = mapInstanceRef.current;
     const vectorSource = vectorSourceRef.current;
@@ -701,7 +951,10 @@ export default function FarmMap({ focusZoneRequest }) {
 
     const draw = new Draw({ source: vectorSource, type });
 
-    draw.on("drawend", (evt) => handleDrawEnd(evt.feature, drawMode));
+    draw.on("drawend", (evt) => {
+      const f = evt.feature;
+      handleDrawEnd(f, drawMode);
+    });
 
     map.addInteraction(draw);
     drawInteractionRef.current = draw;
@@ -710,7 +963,6 @@ export default function FarmMap({ focusZoneRequest }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [drawMode]);
 
-  // Select feature
   const handleSelectFeature = (id) => {
     const map = mapInstanceRef.current;
     const vectorSource = vectorSourceRef.current;
@@ -731,7 +983,6 @@ export default function FarmMap({ focusZoneRequest }) {
     setSelectedId(id);
   };
 
-  // Changes
   const handleNameChange = (id, value) => {
     const feature = featuresMapRef.current[id];
     if (feature) feature.set("name", value);
@@ -785,7 +1036,6 @@ export default function FarmMap({ focusZoneRequest }) {
     forceMapResize();
   };
 
-  // Save view button
   const handleSaveViewClick = () => {
     const map = mapInstanceRef.current;
     if (!map) return;
@@ -800,7 +1050,6 @@ export default function FarmMap({ focusZoneRequest }) {
     scheduleAutosave(featuresList, { view: { center: [lon, lat], zoom } });
   };
 
-  // Components panel
   const handleToggleComponents = (zoneId) => {
     setExpandedZoneId((prev) => (prev === zoneId ? null : zoneId));
     setTimeout(() => forceMapResize(), 0);
@@ -902,7 +1151,6 @@ export default function FarmMap({ focusZoneRequest }) {
     setTimeout(() => forceMapResize(), 0);
   };
 
-  // Derived
   const zonesOnly = featuresList.filter((f) => f.kind === "polygon");
   const currentZone = expandedZoneId && zonesOnly.find((z) => z.id === expandedZoneId);
   const zoneComponents = currentZone && Array.isArray(currentZone.components) ? currentZone.components : [];
@@ -925,7 +1173,6 @@ export default function FarmMap({ focusZoneRequest }) {
     else statusCounts.Otro++;
   });
 
-  // Focus zone from Tareas
   useEffect(() => {
     if (!focusZoneRequest || !focusZoneRequest.name) return;
     const normalized = focusZoneRequest.name.trim().toLowerCase();
@@ -939,6 +1186,18 @@ export default function FarmMap({ focusZoneRequest }) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusZoneRequest, zonesOnly]);
+
+  // Cerrar sugerencias si clickeas fuera
+  useEffect(() => {
+    const onDocClick = (e) => {
+      const el = e.target;
+      if (!el) return;
+      if (el.closest && el.closest(".agromind-search-wrap")) return;
+      setShowResults(false);
+    };
+    document.addEventListener("click", onDocClick);
+    return () => document.removeEventListener("click", onDocClick);
+  }, []);
 
   if (!apiKey || apiKey === "TU_API_KEY_AQUI") {
     return (
@@ -990,14 +1249,99 @@ export default function FarmMap({ focusZoneRequest }) {
           <span className="summary-label">{statusCounts["Cosecha próxima"]} cosecha próxima</span>
         </div>
 
-        {/* Indicador de estado backend */}
+        {/* Indicador simple de estado backend */}
         <div className="summary-chip" title="Estado del backend">
           <span className="summary-label">{backendOnline ? "Backend: OK" : "Backend: sin conexión"}</span>
         </div>
       </div>
 
       {/* Toolbar */}
-      <div className="farm-map-toolbar">
+      <div className="farm-map-toolbar" style={{ gap: "0.75rem" }}>
+        {/* 🔎 Buscador manual */}
+        <div
+          className="agromind-search-wrap"
+          style={{ position: "relative", flex: 1, maxWidth: 560 }}
+        >
+          <form onSubmit={handleSearchSubmit} style={{ display: "flex", gap: "0.5rem" }}>
+            <input
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setShowResults(true);
+              }}
+              onFocus={() => setShowResults(true)}
+              placeholder="Buscar lugar (ej: Ciudad Quesada, Dulce Nombre, San Carlos...)"
+              style={{
+                flex: 1,
+                padding: "0.65rem 0.8rem",
+                borderRadius: "999px",
+                border: "1px solid rgba(148,163,184,0.25)",
+                background: "rgba(2,6,23,0.35)",
+                color: "#e5e7eb",
+                outline: "none",
+              }}
+            />
+            <button
+              type="submit"
+              className="secondary-btn"
+              style={{ whiteSpace: "nowrap" }}
+              disabled={searchLoading || searchQuery.trim().length < 3}
+            >
+              {searchLoading ? "Buscando..." : "Ir"}
+            </button>
+          </form>
+
+          {searchError ? (
+            <div
+              style={{
+                marginTop: "0.35rem",
+                color: "#fca5a5",
+                fontSize: "0.9rem",
+              }}
+            >
+              {searchError}
+            </div>
+          ) : null}
+
+          {showResults && searchResults.length > 0 && (
+            <div
+              style={{
+                position: "absolute",
+                top: "calc(100% + 8px)",
+                left: 0,
+                right: 0,
+                zIndex: 50,
+                background: "rgba(2,6,23,0.96)",
+                border: "1px solid rgba(148,163,184,0.25)",
+                borderRadius: "14px",
+                overflow: "hidden",
+                boxShadow: "0 10px 30px rgba(0,0,0,0.35)",
+              }}
+            >
+              {searchResults.map((r) => (
+                <button
+                  key={r.id}
+                  type="button"
+                  onClick={() => handlePickSearchResult(r)}
+                  style={{
+                    width: "100%",
+                    textAlign: "left",
+                    padding: "0.7rem 0.85rem",
+                    background: "transparent",
+                    color: "#e5e7eb",
+                    border: "none",
+                    cursor: "pointer",
+                    display: "block",
+                  }}
+                  onMouseDown={(e) => e.preventDefault()}
+                >
+                  {r.place_name}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
         <div className="farm-map-tools-left">
           <button
             type="button"
@@ -1068,7 +1412,6 @@ export default function FarmMap({ focusZoneRequest }) {
                 onMouseEnter={() => setHoveredId(item.id)}
                 onMouseLeave={() => setHoveredId((prev) => (prev === item.id ? null : prev))}
               >
-                {/* Nombre + color */}
                 <div className="zone-col zone-name">
                   <span className="feature-color-pill" style={{ backgroundColor: item.color }} />
                   <input
@@ -1079,7 +1422,6 @@ export default function FarmMap({ focusZoneRequest }) {
                   />
                 </div>
 
-                {/* Tipo */}
                 <div className="zone-col zone-type">
                   {isZone ? (
                     <select
@@ -1101,7 +1443,6 @@ export default function FarmMap({ focusZoneRequest }) {
                   )}
                 </div>
 
-                {/* Estado */}
                 <div className="zone-col zone-status">
                   {isZone ? (
                     <select
@@ -1124,7 +1465,6 @@ export default function FarmMap({ focusZoneRequest }) {
                   )}
                 </div>
 
-                {/* Componentes / Acciones */}
                 <div className="zone-col zone-components">
                   {isZone && (
                     <>
@@ -1167,7 +1507,6 @@ export default function FarmMap({ focusZoneRequest }) {
         </div>
       )}
 
-      {/* Panel de componentes */}
       {expandedZoneId && currentZone && (
         <div className="farm-zone-components-panel">
           <div className="farm-zone-components-header">
