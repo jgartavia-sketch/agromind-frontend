@@ -13,7 +13,8 @@ export default function LoginScreen({ onLogin }) {
   const [error, setError] = useState("");
 
   const API_BASE = useMemo(() => {
-    const raw = import.meta.env.VITE_API_URL || "";
+    const raw =
+      import.meta.env.VITE_API_URL || "https://agromind-backend-slem.onrender.com";
     return raw.replace(/\/+$/, ""); // sin slash final
   }, []);
 
@@ -115,8 +116,8 @@ export default function LoginScreen({ onLogin }) {
 
       persistAuth(token, user);
 
-      // Le pasamos al App la sesión
-      onLogin?.({ ...user, token });
+      // ✅ Le pasamos al App la sesión en el formato correcto: { token, user }
+      onLogin?.({ token, user });
 
       // Limpieza visual
       setPass("");
