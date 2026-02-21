@@ -1,7 +1,3 @@
-
-
-
-
 // src/pages/TareasPage.jsx
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
@@ -11,42 +7,6 @@ import listPlugin from "@fullcalendar/list";
 
 import { useEffect, useMemo, useState } from "react";
 import "../styles/tasks.css";
-
-const STORAGE_KEY = "agromind_tasks_v1";
-const DRAWINGS_KEY = "agromind_farm_drawings"; // mismo key que usa el mapa
-
-const DEFAULT_TASKS = [
-  {
-    id: 1,
-    title: "Revisar cerca norte",
-    zone: "Cerca y límite de la propiedad",
-    type: "Mantenimiento",
-    priority: "Alta",
-    due: "2026-01-25",
-    status: "Pendiente",
-    owner: "José",
-  },
-  {
-    id: 2,
-    title: "Riego zona de vivero",
-    zone: "Zona de vivero",
-    type: "Riego",
-    priority: "Media",
-    due: "2026-01-23",
-    status: "En progreso",
-    owner: "Personal",
-  },
-  {
-    id: 3,
-    title: "Limpieza calle 1",
-    zone: "Calle 1",
-    type: "Mantenimiento",
-    priority: "Baja",
-    due: "2026-01-30",
-    status: "Completada",
-    owner: "José",
-  },
-];
 
 function getPriorityClass(priority) {
   switch (priority) {
@@ -88,139 +48,203 @@ const EMPTY_FORM = {
   owner: "",
 };
 
-export default function TareasPage({ onOpenZoneInMap }) {
-  const [tasks, setTasks] = useState(DEFAULT_TASKS);
+function pickLocalStorage(keys) {
+  for (const k of keys) {
+    const v = localStorage.getItem(k);
+    if (v && String(v).trim()) return String(v).trim();
+  }
+  return "";
+}
+
+function getAuthToken() {
+  return pickLocalStorage([
+    "agromind_token",
+    "agromind_jwt",
+    "token",
+    "jwt",
+    "access_token",
+  ]);
+}
+
+function getActiveFarmId() {
+  return pickLocalStorage([
+    "agromind_active_farm_id",
+    "activeFarmId",
+    "farmId",
+    "agromind_farm_id",
+  ]);
+}
+
+function toYYYYMMDD(value) {
+  // value puede venir como Date, ISO string o "YYYY-MM-DD"
+  if (!value) return "";
+  if (typeof value === "string") {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+    const d = new Date(value);
+    if (!Number.isNaN(d.getTime())) return d.toISOString().slice(0, 10);
+    return "";
+  }
+  const d = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toISOString().slice(0, 10);
+}
+
+export default function TareasPage({
+  onOpenZoneInMap,
+  zonesFromMap = [],
+  farmId: farmIdProp,
+  token: tokenProp,
+}) {
+  // ✅ Datos reales desde backend
+  const [tasks, setTasks] = useState([]);
+
+  // UI state
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
+
+  // Filtros
   const [statusFilter, setStatusFilter] = useState("Todas");
   const [typeFilter, setTypeFilter] = useState("Todas");
   const [zoneFilter, setZoneFilter] = useState("Todas");
   const [searchText, setSearchText] = useState("");
 
+  // Form
   const [formData, setFormData] = useState(EMPTY_FORM);
   const [editingId, setEditingId] = useState(null);
 
-  // 🔗 Zonas que vienen del mapa (polígonos)
-  const [mapZones, setMapZones] = useState([]);
+  // 🔗 Zonas
+  const mapZones = Array.isArray(zonesFromMap) ? zonesFromMap : [];
 
-  // Cargar tareas desde localStorage al montar
-  useEffect(() => {
+  // Config API
+  const API_BASE =
+    import.meta.env.VITE_API_URL ||
+    import.meta.env.VITE_API_BASE_URL ||
+    ""; // si está vacío, usa mismo origen
+
+  const token = tokenProp || getAuthToken();
+  const farmId = farmIdProp || getActiveFarmId();
+
+  function authHeaders() {
+    return {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    };
+  }
+
+  async function apiFetch(path, options = {}) {
+    const res = await fetch(`${API_BASE}${path}`, {
+      ...options,
+      headers: {
+        ...authHeaders(),
+        ...(options.headers || {}),
+      },
+    });
+
+    let data = null;
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setTasks(parsed);
-        }
+      data = await res.json();
+    } catch {
+      // no-op
+    }
+
+    if (!res.ok) {
+      const msg = data?.error || `Error HTTP ${res.status}`;
+      throw new Error(msg);
+    }
+    return data;
+  }
+
+  // =========================
+  // LOAD TASKS
+  // =========================
+  useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      setErrorMsg("");
+
+      if (!farmId) {
+        setTasks([]);
+        setErrorMsg(
+          "No se detectó una finca activa. Selecciona/crea una finca primero."
+        );
+        return;
       }
-    } catch (err) {
-      console.warn("No se pudieron cargar tareas desde localStorage:", err);
-    }
-  }, []);
-
-  // Guardar tareas en localStorage cuando cambian
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
-    } catch (err) {
-      console.warn("No se pudieron guardar tareas en localStorage:", err);
-    }
-  }, [tasks]);
-
-  // Cargar zonas desde el mapa (localStorage del FarmMap)
-  const refreshMapZones = () => {
-    try {
-      const raw = localStorage.getItem(DRAWINGS_KEY);
-      if (!raw) {
-        setMapZones([]);
+      if (!token) {
+        setTasks([]);
+        setErrorMsg("No hay token. Inicia sesión nuevamente.");
         return;
       }
 
-      const parsed = JSON.parse(raw);
-      if (!Array.isArray(parsed)) {
-        setMapZones([]);
-        return;
+      try {
+        setLoading(true);
+        const data = await apiFetch(`/api/farms/${farmId}/tasks`);
+        if (cancelled) return;
+
+        const list = Array.isArray(data?.tasks) ? data.tasks : [];
+        // Normalizamos due a YYYY-MM-DD para el UI
+        const normalized = list.map((t) => ({
+          ...t,
+          due: toYYYYMMDD(t.due),
+        }));
+
+        setTasks(normalized);
+      } catch (err) {
+        if (cancelled) return;
+        setErrorMsg(err?.message || "No se pudieron cargar las tareas.");
+        setTasks([]);
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-
-      const setNames = new Set();
-
-      parsed.forEach((item) => {
-        // Buscamos solo zonas (polígonos)
-        const isPolygon =
-          item.kind === "polygon" ||
-          item.geomType === "Polygon";
-
-        if (!isPolygon) return;
-
-        const name = (item.name || "").trim();
-        if (name.length > 0) {
-          setNames.add(name);
-        }
-      });
-
-      setMapZones(Array.from(setNames));
-    } catch (err) {
-      console.warn("No se pudieron leer zonas desde DRAWINGS_KEY:", err);
-      setMapZones([]);
     }
-  };
 
-  // Leer zonas del mapa al montar
-  useEffect(() => {
-    refreshMapZones();
-  }, []);
+    load();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [farmId, token, API_BASE]);
 
-  // Resumen general
+  // Resumen
   const summary = useMemo(() => {
     const total = tasks.length;
     const pending = tasks.filter((t) => t.status === "Pendiente").length;
     const inProgress = tasks.filter((t) => t.status === "En progreso").length;
     const done = tasks.filter((t) => t.status === "Completada").length;
-
     return { total, pending, inProgress, done };
   }, [tasks]);
 
-  // Zonas únicas para el filtro (tareas + mapa)
+  // Zonas para filtros
   const zoneOptions = useMemo(() => {
     const set = new Set();
-
-    // Zonas de tareas
-    tasks.forEach((t) => {
-      if (t.zone) set.add(t.zone);
-    });
-
-    // Zonas del mapa
-    mapZones.forEach((z) => {
-      if (z) set.add(z);
-    });
-
+    tasks.forEach((t) => t.zone && set.add(t.zone));
+    mapZones.forEach((z) => z && set.add(z));
     return Array.from(set);
   }, [tasks, mapZones]);
 
   const filteredTasks = tasks.filter((task) => {
     const matchStatus =
       statusFilter === "Todas" || task.status === statusFilter;
-
     const matchType = typeFilter === "Todas" || task.type === typeFilter;
-
     const matchZone = zoneFilter === "Todas" || task.zone === zoneFilter;
 
     const query = searchText.trim().toLowerCase();
     const matchSearch =
       query === "" ||
-      task.title.toLowerCase().includes(query) ||
+      (task.title || "").toLowerCase().includes(query) ||
       (task.zone || "").toLowerCase().includes(query) ||
-      task.type.toLowerCase().includes(query) ||
+      (task.type || "").toLowerCase().includes(query) ||
       (task.owner || "").toLowerCase().includes(query);
 
     return matchStatus && matchType && matchZone && matchSearch;
   });
 
-  // --------- MANEJO DEL FORMULARIO ---------
-
+  // =========================
+  // FORM
+  // =========================
   const handleFormChange = (field, value) => {
-    setFormData((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
+    setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleResetForm = () => {
@@ -228,8 +252,19 @@ export default function TareasPage({ onOpenZoneInMap }) {
     setEditingId(null);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+
+    setErrorMsg("");
+
+    if (!farmId) {
+      setErrorMsg("No hay finca activa. Selecciona/crea una finca primero.");
+      return;
+    }
+    if (!token) {
+      setErrorMsg("No hay token. Inicia sesión nuevamente.");
+      return;
+    }
 
     const trimmed = {
       ...formData,
@@ -242,27 +277,50 @@ export default function TareasPage({ onOpenZoneInMap }) {
       alert("La tarea necesita al menos un título.");
       return;
     }
-
     if (!trimmed.due) {
       alert("Define una fecha de vencimiento para la tarea.");
       return;
     }
 
-    if (editingId) {
-      // Modo edición
-      setTasks((prev) =>
-        prev.map((t) => (t.id === editingId ? { ...t, ...trimmed } : t))
-      );
-    } else {
-      // Modo creación
-      const newTask = {
-        id: Date.now(),
-        ...trimmed,
-      };
-      setTasks((prev) => [newTask, ...prev]);
-    }
+    try {
+      setSaving(true);
 
-    handleResetForm();
+      if (editingId) {
+        // UPDATE
+        const data = await apiFetch(`/api/farms/${farmId}/tasks/${editingId}`, {
+          method: "PUT",
+          body: JSON.stringify(trimmed),
+        });
+
+        const updated = data?.task
+          ? { ...data.task, due: toYYYYMMDD(data.task.due) }
+          : null;
+
+        if (updated) {
+          setTasks((prev) => prev.map((t) => (t.id === editingId ? updated : t)));
+        }
+      } else {
+        // CREATE
+        const data = await apiFetch(`/api/farms/${farmId}/tasks`, {
+          method: "POST",
+          body: JSON.stringify(trimmed),
+        });
+
+        const created = data?.task
+          ? { ...data.task, due: toYYYYMMDD(data.task.due) }
+          : null;
+
+        if (created) {
+          setTasks((prev) => [created, ...prev]);
+        }
+      }
+
+      handleResetForm();
+    } catch (err) {
+      setErrorMsg(err?.message || "No se pudo guardar la tarea.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleEditClick = (task) => {
@@ -278,38 +336,79 @@ export default function TareasPage({ onOpenZoneInMap }) {
     });
   };
 
-  const handleDeleteClick = (id) => {
+  const handleDeleteClick = async (id) => {
     const ok = window.confirm("¿Eliminar esta tarea?");
     if (!ok) return;
-    setTasks((prev) => prev.filter((t) => t.id !== id));
-    if (editingId === id) {
-      handleResetForm();
+
+    setErrorMsg("");
+
+    if (!farmId) {
+      setErrorMsg("No hay finca activa.");
+      return;
+    }
+    if (!token) {
+      setErrorMsg("No hay token. Inicia sesión nuevamente.");
+      return;
+    }
+
+    try {
+      setSaving(true);
+      await apiFetch(`/api/farms/${farmId}/tasks/${id}`, { method: "DELETE" });
+
+      setTasks((prev) => prev.filter((t) => t.id !== id));
+      if (editingId === id) handleResetForm();
+    } catch (err) {
+      setErrorMsg(err?.message || "No se pudo eliminar la tarea.");
+    } finally {
+      setSaving(false);
     }
   };
 
-  // --------- RENDER ---------
+  // Calendar events
+  const calendarEvents = useMemo(() => {
+    return tasks
+      .filter((t) => t?.due && t?.title)
+      .map((t) => ({
+        id: t.id,
+        title: t.title,
+        date: t.due,
+      }));
+  }, [tasks]);
 
+  // =========================
+  // RENDER
+  // =========================
   return (
     <div className="page">
-      {/* ENCABEZADO */}
       <header className="page-header">
         <h1>Tareas de la finca</h1>
         <p className="page-subtitle">
-          Organización operativa día a día. Tareas guardadas localmente en tu
-          navegador (modo demo sin backend). Zonas enlazadas con el mapa.
+          Operación diaria, con datos reales desde backend. Si el mapa es el
+          territorio, las tareas son la estrategia.
         </p>
       </header>
-  {/* ⬇️ NUEVA SECCIÓN IA (placeholder visual) */}
+
+      {/* Mensajes */}
+      {(errorMsg || loading) && (
+        <section className="card" style={{ marginBottom: "1rem" }}>
+          {loading ? (
+            <p style={{ margin: 0, opacity: 0.85 }}>Cargando tareas…</p>
+          ) : (
+            <p style={{ margin: 0, opacity: 0.85 }}>{errorMsg}</p>
+          )}
+        </section>
+      )}
+
+      {/* IA placeholder */}
       <section className="card ia-placeholder">
         <h3>Recomendaciones IA</h3>
         <p>
-          Aquí aparecerán sugerencias automáticas según zonas, clima, cultivos
-          y carga de trabajo. Próximamente.
+          Aquí aparecerán sugerencias automáticas según zonas, clima, cultivos y
+          carga de trabajo. Próximamente.
         </p>
       </section>
 
-
-      {/* MINI DASHBOARD DE TAREAS */}
+      {/* Dashboard */}
       <section className="tasks-summary">
         <div className="summary-card">
           <span className="summary-label">Total de tareas</span>
@@ -329,155 +428,156 @@ export default function TareasPage({ onOpenZoneInMap }) {
         </div>
         <div className="summary-card">
           <span className="summary-label">Completadas</span>
-          <span className="summary-value summary-value-ok">
-            {summary.done}
-          </span>
+          <span className="summary-value summary-value-ok">{summary.done}</span>
         </div>
       </section>
 
-      {/* FORMULARIO DE CREACIÓN / EDICIÓN */}
+      {/* Form */}
       <section className="task-editor card">
         <h3>{editingId ? "Editar tarea" : "Nueva tarea"}</h3>
 
-        <div className="task-editor-grid">
-          <div className="task-field">
-            <label>Título</label>
-            <input
-              type="text"
-              value={formData.title}
-              onChange={(e) => handleFormChange("title", e.target.value)}
-              placeholder="Ej: Revisar cerca norte"
-            />
-          </div>
-
-          <div className="task-field">
-            <label>Zona / elemento</label>
-            <div className="task-zone-input-row">
+        <form onSubmit={handleSubmit}>
+          <div className="task-editor-grid">
+            <div className="task-field">
+              <label>Título</label>
               <input
                 type="text"
-                value={formData.zone}
-                onChange={(e) => handleFormChange("zone", e.target.value)}
-                placeholder="Ej: Zona de vivero, Calle 1..."
+                value={formData.title}
+                onChange={(e) => handleFormChange("title", e.target.value)}
+                placeholder="Ej: Revisar cerca norte"
+                disabled={saving}
               />
-              {mapZones.length > 0 && (
-                <select
-                  value=""
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    if (!value) return;
-                    handleFormChange("zone", value);
-                  }}
-                >
-                  <option value="">Zonas del mapa</option>
-                  {mapZones.map((z) => (
-                    <option key={z} value={z}>
-                      {z}
-                    </option>
-                  ))}
-                </select>
-              )}
             </div>
-            {mapZones.length === 0 && (
-              <p className="task-hint">
-                Dibujá zonas en el mapa para poder seleccionarlas aquí.
-              </p>
+
+            <div className="task-field">
+              <label>Zona / elemento</label>
+              <div className="task-zone-input-row">
+                <input
+                  type="text"
+                  value={formData.zone}
+                  onChange={(e) => handleFormChange("zone", e.target.value)}
+                  placeholder="Ej: Zona de vivero, Calle 1..."
+                  disabled={saving}
+                />
+                {mapZones.length > 0 && (
+                  <select
+                    value=""
+                    disabled={saving}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (!value) return;
+                      handleFormChange("zone", value);
+                    }}
+                  >
+                    <option value="">Zonas del mapa</option>
+                    {mapZones.map((z) => (
+                      <option key={z} value={z}>
+                        {z}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+            </div>
+
+            <div className="task-field">
+              <label>Tipo</label>
+              <select
+                value={formData.type}
+                onChange={(e) => handleFormChange("type", e.target.value)}
+                disabled={saving}
+              >
+                {TIPOS.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="task-field">
+              <label>Prioridad</label>
+              <select
+                value={formData.priority}
+                onChange={(e) => handleFormChange("priority", e.target.value)}
+                disabled={saving}
+              >
+                {PRIORIDADES.map((p) => (
+                  <option key={p} value={p}>
+                    {p}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="task-field">
+              <label>Vence</label>
+              <input
+                type="date"
+                value={formData.due}
+                onChange={(e) => handleFormChange("due", e.target.value)}
+                disabled={saving}
+              />
+            </div>
+
+            <div className="task-field">
+              <label>Estado</label>
+              <select
+                value={formData.status}
+                onChange={(e) => handleFormChange("status", e.target.value)}
+                disabled={saving}
+              >
+                {ESTADOS.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="task-field">
+              <label>Responsable</label>
+              <input
+                type="text"
+                value={formData.owner}
+                onChange={(e) => handleFormChange("owner", e.target.value)}
+                placeholder="Ej: José, Personal..."
+                disabled={saving}
+              />
+            </div>
+          </div>
+
+          <div className="task-editor-actions">
+            <button type="submit" className="primary-btn" disabled={saving}>
+              {saving
+                ? "Guardando…"
+                : editingId
+                ? "Guardar cambios"
+                : "Crear tarea"}
+            </button>
+
+            {editingId && (
+              <button
+                type="button"
+                className="secondary-btn"
+                onClick={handleResetForm}
+                disabled={saving}
+              >
+                Cancelar edición
+              </button>
             )}
           </div>
-
-          <div className="task-field">
-            <label>Tipo</label>
-            <select
-              value={formData.type}
-              onChange={(e) => handleFormChange("type", e.target.value)}
-            >
-              {TIPOS.map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="task-field">
-            <label>Prioridad</label>
-            <select
-              value={formData.priority}
-              onChange={(e) => handleFormChange("priority", e.target.value)}
-            >
-              {PRIORIDADES.map((p) => (
-                <option key={p} value={p}>
-                  {p}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="task-field">
-            <label>Vence</label>
-            <input
-              type="date"
-              value={formData.due}
-              onChange={(e) => handleFormChange("due", e.target.value)}
-            />
-          </div>
-
-          <div className="task-field">
-            <label>Estado</label>
-            <select
-              value={formData.status}
-              onChange={(e) => handleFormChange("status", e.target.value)}
-            >
-              {ESTADOS.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="task-field">
-            <label>Responsable</label>
-            <input
-              type="text"
-              value={formData.owner}
-              onChange={(e) => handleFormChange("owner", e.target.value)}
-              placeholder="Ej: José, Personal..."
-            />
-          </div>
-        </div>
-
-        <div className="task-editor-actions">
-          <button type="button" className="primary-btn" onClick={handleSubmit}>
-            {editingId ? "Guardar cambios" : "Crear tarea"}
-          </button>
-          {editingId && (
-            <button
-              type="button"
-              className="secondary-btn"
-              onClick={handleResetForm}
-            >
-              Cancelar edición
-            </button>
-          )}
-
-          <button
-            type="button"
-            className="secondary-btn"
-            onClick={refreshMapZones}
-            style={{ marginLeft: "auto" }}
-          >
-            Actualizar zonas desde mapa
-          </button>
-        </div>
+        </form>
       </section>
 
-      {/* FILTROS */}
+      {/* Filtros */}
       <section className="filters-bar">
         <div className="filter-group">
           <label>Estado</label>
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
+            disabled={saving}
           >
             <option value="Todas">Todas</option>
             <option value="Pendiente">Pendiente</option>
@@ -491,6 +591,7 @@ export default function TareasPage({ onOpenZoneInMap }) {
           <select
             value={typeFilter}
             onChange={(e) => setTypeFilter(e.target.value)}
+            disabled={saving}
           >
             <option value="Todas">Todas</option>
             {TIPOS.map((t) => (
@@ -506,6 +607,7 @@ export default function TareasPage({ onOpenZoneInMap }) {
           <select
             value={zoneFilter}
             onChange={(e) => setZoneFilter(e.target.value)}
+            disabled={saving}
           >
             <option value="Todas">Todas</option>
             {zoneOptions.map((z) => (
@@ -523,11 +625,12 @@ export default function TareasPage({ onOpenZoneInMap }) {
             placeholder="Buscar por tarea, zona o responsable..."
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
+            disabled={saving}
           />
         </div>
       </section>
 
-      {/* TABLA PRINCIPAL */}
+      {/* Tabla */}
       <section className="card">
         <table className="data-table">
           <thead>
@@ -560,6 +663,7 @@ export default function TareasPage({ onOpenZoneInMap }) {
                           type="button"
                           className="link-button"
                           onClick={() => onOpenZoneInMap(task.zone)}
+                          disabled={saving}
                         >
                           Ver en mapa
                         </button>
@@ -581,6 +685,7 @@ export default function TareasPage({ onOpenZoneInMap }) {
                       type="button"
                       className="small-btn"
                       onClick={() => handleEditClick(task)}
+                      disabled={saving}
                     >
                       Editar
                     </button>
@@ -588,6 +693,7 @@ export default function TareasPage({ onOpenZoneInMap }) {
                       type="button"
                       className="small-btn small-btn-danger"
                       onClick={() => handleDeleteClick(task.id)}
+                      disabled={saving}
                     >
                       Borrar
                     </button>
@@ -595,38 +701,35 @@ export default function TareasPage({ onOpenZoneInMap }) {
                 </td>
               </tr>
             ))}
+
             {filteredTasks.length === 0 && (
               <tr>
                 <td colSpan={8} style={{ textAlign: "center", opacity: 0.7 }}>
-                  No hay tareas que coincidan con el filtro.
+                  {loading
+                    ? "Cargando…"
+                    : "No hay tareas todavía. Creá la primera."}
                 </td>
               </tr>
             )}
           </tbody>
         </table>
       </section>
-   
-     {/* ===== CALENDARIO ===== */}
+
+      {/* Calendario */}
       <section className="card tasks-calendar">
         <h3>Calendario de tareas</h3>
 
         <FullCalendar
-          plugins={[
-            dayGridPlugin,
-            timeGridPlugin,
-            interactionPlugin,
-            listPlugin,
-          ]}
+          plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin, listPlugin]}
           initialView="dayGridMonth"
           headerToolbar={{
             left: "prev,next today",
             center: "title",
-            right:
-              "dayGridMonth,timeGridWeek,timeGridDay,listYear",
+            right: "dayGridMonth,timeGridWeek,timeGridDay,listYear",
           }}
           locale="es"
           height="auto"
-          events={[]}
+          events={calendarEvents}
         />
       </section>
     </div>
