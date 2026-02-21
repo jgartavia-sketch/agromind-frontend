@@ -53,9 +53,46 @@ function getActiveFarmId() {
   ]);
 }
 
+function toYYYYMMDD(value) {
+  if (!value) return "—";
+  if (typeof value === "string") {
+    // ISO o YYYY-MM-DD
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+    const d = new Date(value);
+    if (!Number.isNaN(d.getTime())) return d.toISOString().slice(0, 10);
+    return "—";
+  }
+  const d = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(d.getTime())) return "—";
+  return d.toISOString().slice(0, 10);
+}
+
+function buildMonthlyChartData(movements) {
+  // Devuelve [{ month: "2026-02", ingresos: 150000, gastos: 25000, balance: 125000 }, ...]
+  const map = new Map();
+
+  for (const m of movements) {
+    const month = toYYYYMMDD(m.date).slice(0, 7); // YYYY-MM
+    if (!month || month.includes("—")) continue;
+
+    const prev = map.get(month) || { month, ingresos: 0, gastos: 0, balance: 0 };
+    const amount = Number(m.amount || 0);
+
+    if (m.type === "Ingreso") prev.ingresos += amount;
+    else if (m.type === "Gasto") prev.gastos += amount;
+
+    prev.balance = prev.ingresos - prev.gastos;
+    map.set(month, prev);
+  }
+
+  // Orden ascendente por mes
+  return Array.from(map.values()).sort((a, b) => a.month.localeCompare(b.month));
+}
+
 export default function FinanzasPage({ farmId: farmIdProp, token: tokenProp }) {
   const [movements, setMovements] = useState([]);
   const [showModal, setShowModal] = useState(false);
+  const [editingMovement, setEditingMovement] = useState(null);
 
   // UI state
   const [loading, setLoading] = useState(false);
@@ -102,7 +139,7 @@ export default function FinanzasPage({ farmId: farmIdProp, token: tokenProp }) {
   }
 
   // =========================
-  // LOAD MOVEMENTS (REAL)
+  // (2) LOAD MOVEMENTS (REAL) AL ENTRAR
   // =========================
   useEffect(() => {
     let cancelled = false;
@@ -125,12 +162,18 @@ export default function FinanzasPage({ farmId: farmIdProp, token: tokenProp }) {
 
       try {
         setLoading(true);
-        // ✅ Ruta canon para finanzas
         const data = await apiFetch(`/api/farms/${farmId}/finance/movements`);
         if (cancelled) return;
 
         const list = Array.isArray(data?.movements) ? data.movements : [];
-        setMovements(list);
+
+        // Normalizamos la fecha para el UI (si viene ISO)
+        const normalized = list.map((m) => ({
+          ...m,
+          date: toYYYYMMDD(m.date),
+        }));
+
+        setMovements(normalized);
       } catch (err) {
         if (cancelled) return;
         setErrorMsg(err?.message || "No se pudieron cargar los movimientos.");
@@ -148,10 +191,7 @@ export default function FinanzasPage({ farmId: farmIdProp, token: tokenProp }) {
   }, [farmId, token, API_BASE]);
 
   // Resumen (para tarjetas superiores)
-  const resumenZona = useMemo(
-    () => summarizeMovements(movements),
-    [movements]
-  );
+  const resumenZona = useMemo(() => summarizeMovements(movements), [movements]);
 
   const summary = useMemo(() => {
     const ingresos = movements
@@ -167,6 +207,12 @@ export default function FinanzasPage({ farmId: farmIdProp, token: tokenProp }) {
 
     return { ingresos, gastos, balance, margin };
   }, [movements]);
+
+  // (3) Chart real
+  const monthlyChartData = useMemo(
+    () => buildMonthlyChartData(movements),
+    [movements]
+  );
 
   const rowsToRender =
     movements.length > 0
@@ -193,7 +239,7 @@ export default function FinanzasPage({ farmId: farmIdProp, token: tokenProp }) {
         ];
 
   // =========================
-  // CREATE MOVEMENT (REAL)
+  // CREATE / UPDATE MOVEMENT (REAL)
   // =========================
   const handleSaveMovement = async (mov) => {
     setErrorMsg("");
@@ -210,26 +256,91 @@ export default function FinanzasPage({ farmId: farmIdProp, token: tokenProp }) {
     try {
       setSaving(true);
 
-      // ✅ Ruta canon para finanzas
-      const data = await apiFetch(`/api/farms/${farmId}/finance/movements`, {
-        method: "POST",
-        body: JSON.stringify(mov),
-      });
+      // Si viene id => edit (PUT). Si no => create (POST)
+      if (mov?.id) {
+        const data = await apiFetch(
+          `/api/farms/${farmId}/finance/movements/${mov.id}`,
+          {
+            method: "PUT",
+            body: JSON.stringify(mov),
+          }
+        );
 
-      const created = data?.movement || data?.mov || null;
-      if (created) {
-        setMovements((prev) => [created, ...prev]);
+        const updated = data?.movement ? { ...data.movement } : null;
+
+        if (updated) {
+          updated.date = toYYYYMMDD(updated.date);
+          setMovements((prev) =>
+            prev.map((x) => (x.id === updated.id ? updated : x))
+          );
+        }
       } else {
-        // fallback seguro: si backend responde raro, al menos no rompemos UI
-        setMovements((prev) => [mov, ...prev]);
+        const data = await apiFetch(`/api/farms/${farmId}/finance/movements`, {
+          method: "POST",
+          body: JSON.stringify(mov),
+        });
+
+        const created = data?.movement || null;
+        if (created) {
+          created.date = toYYYYMMDD(created.date);
+          setMovements((prev) => [created, ...prev]);
+        }
       }
 
+      setEditingMovement(null);
       setShowModal(false);
     } catch (err) {
       setErrorMsg(err?.message || "No se pudo guardar el movimiento.");
     } finally {
       setSaving(false);
     }
+  };
+
+  // =========================
+  // (1) DELETE MOVEMENT (REAL) DESDE LA TABLA
+  // =========================
+  const handleDeleteMovement = async (movementId) => {
+    const ok = window.confirm("¿Eliminar este movimiento?");
+    if (!ok) return;
+
+    setErrorMsg("");
+
+    if (!farmId) {
+      setErrorMsg("No hay finca activa.");
+      return;
+    }
+    if (!token) {
+      setErrorMsg("No hay token. Inicia sesión nuevamente.");
+      return;
+    }
+
+    try {
+      setSaving(true);
+
+      await apiFetch(
+        `/api/farms/${farmId}/finance/movements/${movementId}`,
+        {
+          method: "DELETE",
+        }
+      );
+
+      setMovements((prev) => prev.filter((m) => m.id !== movementId));
+    } catch (err) {
+      setErrorMsg(err?.message || "No se pudo eliminar el movimiento.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleEditMovement = (mov) => {
+    // no editar placeholders
+    if (mov?.id?.toString().includes("placeholder")) return;
+
+    setEditingMovement({
+      ...mov,
+      date: toYYYYMMDD(mov.date),
+    });
+    setShowModal(true);
   };
 
   return (
@@ -271,8 +382,8 @@ export default function FinanzasPage({ farmId: farmIdProp, token: tokenProp }) {
             />
           </section>
 
-          {/* Chart por ahora seguro: si no hay data, va vacío */}
-          <ZoneMonthlyChart data={[]} />
+          {/* (3) Chart real */}
+          <ZoneMonthlyChart data={monthlyChartData} />
         </section>
 
         {/* FINANZAS REALES */}
@@ -287,7 +398,10 @@ export default function FinanzasPage({ farmId: farmIdProp, token: tokenProp }) {
 
             <button
               className="btn-primary"
-              onClick={() => setShowModal(true)}
+              onClick={() => {
+                setEditingMovement(null);
+                setShowModal(true);
+              }}
               disabled={saving}
             >
               + Agregar movimiento
@@ -326,32 +440,54 @@ export default function FinanzasPage({ farmId: farmIdProp, token: tokenProp }) {
                   <th>Tipo</th>
                   <th style={{ textAlign: "right" }}>Monto</th>
                   <th>Nota</th>
+                  <th>Acciones</th>
                 </tr>
               </thead>
               <tbody>
-                {rowsToRender.map((mov) => (
-                  <tr
-                    key={mov.id}
-                    className={
-                      mov.id?.toString().includes("placeholder")
-                        ? "row-placeholder"
-                        : ""
-                    }
-                  >
-                    <td>{mov.date}</td>
-                    <td>{mov.concept}</td>
-                    <td>{mov.category}</td>
-                    <td>
-                      <span className={getTypePillClass(mov.type)}>
-                        {mov.type}
-                      </span>
-                    </td>
-                    <td style={{ textAlign: "right" }}>
-                      {formatMoneyCRC(mov.amount)}
-                    </td>
-                    <td>{mov.note}</td>
-                  </tr>
-                ))}
+                {rowsToRender.map((mov) => {
+                  const isPlaceholder =
+                    mov.id?.toString().includes("placeholder");
+
+                  return (
+                    <tr
+                      key={mov.id}
+                      className={isPlaceholder ? "row-placeholder" : ""}
+                    >
+                      <td>{toYYYYMMDD(mov.date)}</td>
+                      <td>{mov.concept}</td>
+                      <td>{mov.category}</td>
+                      <td>
+                        <span className={getTypePillClass(mov.type)}>
+                          {mov.type}
+                        </span>
+                      </td>
+                      <td style={{ textAlign: "right" }}>
+                        {formatMoneyCRC(mov.amount)}
+                      </td>
+                      <td>{mov.note}</td>
+                      <td>
+                        <div className="task-actions">
+                          <button
+                            type="button"
+                            className="small-btn"
+                            disabled={saving || isPlaceholder}
+                            onClick={() => handleEditMovement(mov)}
+                          >
+                            Editar
+                          </button>
+                          <button
+                            type="button"
+                            className="small-btn small-btn-danger"
+                            disabled={saving || isPlaceholder}
+                            onClick={() => handleDeleteMovement(mov.id)}
+                          >
+                            Borrar
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </section>
@@ -359,8 +495,13 @@ export default function FinanzasPage({ farmId: farmIdProp, token: tokenProp }) {
 
         {showModal && (
           <AddMovementModal
-            onClose={() => setShowModal(false)}
+            onClose={() => {
+              setEditingMovement(null);
+              setShowModal(false);
+            }}
             onSave={handleSaveMovement}
+            saving={saving}
+            initialMovement={editingMovement}
           />
         )}
       </div>

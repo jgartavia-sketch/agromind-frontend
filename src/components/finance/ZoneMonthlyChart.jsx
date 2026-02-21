@@ -1,65 +1,57 @@
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  CartesianGrid,
-} from "recharts";
+// src/components/finance/ZoneMonthlyChart.jsx
+function formatMoneyCRC(value) {
+  const n = Number(value || 0);
+  return n.toLocaleString("es-CR", {
+    style: "currency",
+    currency: "CRC",
+    maximumFractionDigits: 0,
+  });
+}
 
 export default function ZoneMonthlyChart({ data = [] }) {
-  const hasData = data.length > 0;
+  const safe = Array.isArray(data) ? data : [];
 
   return (
-    <div className="card finance-chart">
-      <h4>Evolución mensual de la zona</h4>
+    <section className="card" style={{ marginTop: "1rem" }}>
+      <h3 style={{ marginTop: 0 }}>Resumen mensual</h3>
+      <p style={{ marginTop: "0.25rem", opacity: 0.8 }}>
+        Ingresos, gastos y balance por mes (datos reales).
+      </p>
 
-      {!hasData && (
-        <p className="chart-placeholder">
-          Aún no hay datos financieros registrados.  
-          Agrega movimientos para visualizar ingresos, gastos y balance.
-        </p>
+      {safe.length === 0 ? (
+        <div style={{ opacity: 0.75, padding: "0.75rem 0" }}>
+          Aún no hay suficientes movimientos para graficar por mes.
+        </div>
+      ) : (
+        <div style={{ overflowX: "auto" }}>
+          <table className="data-table" style={{ minWidth: 620 }}>
+            <thead>
+              <tr>
+                <th>Mes</th>
+                <th style={{ textAlign: "right" }}>Ingresos</th>
+                <th style={{ textAlign: "right" }}>Gastos</th>
+                <th style={{ textAlign: "right" }}>Balance</th>
+              </tr>
+            </thead>
+            <tbody>
+              {safe.map((row) => (
+                <tr key={row.month}>
+                  <td>{row.month}</td>
+                  <td style={{ textAlign: "right" }}>
+                    {formatMoneyCRC(row.ingresos)}
+                  </td>
+                  <td style={{ textAlign: "right" }}>
+                    {formatMoneyCRC(row.gastos)}
+                  </td>
+                  <td style={{ textAlign: "right" }}>
+                    {formatMoneyCRC(row.balance)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
-
-      <ResponsiveContainer width="100%" height={280}>
-        <LineChart data={data}>
-          <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-          <XAxis dataKey="mes" />
-          <YAxis />
-          <Tooltip
-            formatter={(value) =>
-              value.toLocaleString("es-CR", {
-                style: "currency",
-                currency: "CRC",
-                maximumFractionDigits: 0,
-              })
-            }
-          />
-
-          <Line
-            type="monotone"
-            dataKey="Ingresos"
-            stroke="#22c55e"
-            strokeWidth={2}
-            dot={false}
-          />
-          <Line
-            type="monotone"
-            dataKey="Gastos"
-            stroke="#ef4444"
-            strokeWidth={2}
-            dot={false}
-          />
-          <Line
-            type="monotone"
-            dataKey="Balance"
-            stroke="#38bdf8"
-            strokeWidth={2}
-            dot={false}
-          />
-        </LineChart>
-      </ResponsiveContainer>
-    </div>
+    </section>
   );
 }
