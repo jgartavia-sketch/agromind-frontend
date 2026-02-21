@@ -38,11 +38,21 @@ const PRIORIDADES = ["Alta", "Media", "Baja"];
 const TIPOS = ["Riego", "Alimentación", "Mantenimiento", "Cosecha"];
 const ESTADOS = ["Pendiente", "En progreso", "Completada"];
 
+function todayLocalYYYYMMDD() {
+  const d = new Date();
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
 const EMPTY_FORM = {
   title: "",
   zone: "",
   type: "Mantenimiento",
   priority: "Media",
+  // ⚠️ "due" se mantiene internamente para compatibilidad con backend/calendario,
+  // pero ya no se muestra en el formulario.
   due: "",
   status: "Pendiente",
   owner: "",
@@ -277,10 +287,13 @@ export default function TareasPage({
       alert("La tarea necesita al menos un título.");
       return;
     }
-    if (!trimmed.due) {
-      alert("Define una fecha de vencimiento para la tarea.");
-      return;
-    }
+
+    // ✅ Ya no pedimos "Vence" en UI.
+    // Para no romper backend/calendario, enviamos una fecha automática si viene vacía.
+    const payload = {
+      ...trimmed,
+      due: trimmed.due || todayLocalYYYYMMDD(),
+    };
 
     try {
       setSaving(true);
@@ -289,7 +302,7 @@ export default function TareasPage({
         // UPDATE
         const data = await apiFetch(`/api/farms/${farmId}/tasks/${editingId}`, {
           method: "PUT",
-          body: JSON.stringify(trimmed),
+          body: JSON.stringify(payload),
         });
 
         const updated = data?.task
@@ -297,13 +310,15 @@ export default function TareasPage({
           : null;
 
         if (updated) {
-          setTasks((prev) => prev.map((t) => (t.id === editingId ? updated : t)));
+          setTasks((prev) =>
+            prev.map((t) => (t.id === editingId ? updated : t))
+          );
         }
       } else {
         // CREATE
         const data = await apiFetch(`/api/farms/${farmId}/tasks`, {
           method: "POST",
-          body: JSON.stringify(trimmed),
+          body: JSON.stringify(payload),
         });
 
         const created = data?.task
@@ -330,6 +345,7 @@ export default function TareasPage({
       zone: task.zone || "",
       type: task.type || "Mantenimiento",
       priority: task.priority || "Media",
+      // Se mantiene internamente, aunque no se muestre en el form.
       due: task.due || "",
       status: task.status || "Pendiente",
       owner: task.owner || "",
@@ -510,15 +526,7 @@ export default function TareasPage({
               </select>
             </div>
 
-            <div className="task-field">
-              <label>Vence</label>
-              <input
-                type="date"
-                value={formData.due}
-                onChange={(e) => handleFormChange("due", e.target.value)}
-                disabled={saving}
-              />
-            </div>
+            {/* ✅ Campo "Vence" eliminado del formulario */}
 
             <div className="task-field">
               <label>Estado</label>
@@ -639,7 +647,7 @@ export default function TareasPage({
               <th>Tarea</th>
               <th>Zona / elemento</th>
               <th>Tipo</th>
-              <th>Vence</th>
+              {/* ✅ Columna "Vence" eliminada */}
               <th>Estado</th>
               <th>Responsable</th>
               <th>Acciones</th>
@@ -672,7 +680,6 @@ export default function TareasPage({
                   </div>
                 </td>
                 <td>{task.type}</td>
-                <td>{task.due}</td>
                 <td>
                   <span className={getStatusClass(task.status)}>
                     {task.status}
@@ -704,7 +711,7 @@ export default function TareasPage({
 
             {filteredTasks.length === 0 && (
               <tr>
-                <td colSpan={8} style={{ textAlign: "center", opacity: 0.7 }}>
+                <td colSpan={7} style={{ textAlign: "center", opacity: 0.7 }}>
                   {loading
                     ? "Cargando…"
                     : "No hay tareas todavía. Creá la primera."}
