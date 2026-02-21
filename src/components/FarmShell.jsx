@@ -1,18 +1,49 @@
 // src/components/FarmShell.jsx
-
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import FarmMap from "./FarmMap";
 import TareasPage from "../pages/TareasPage";
 import FinanzasPage from "../pages/FinanzasPage";
 import DispositivosPage from "../pages/DispositivosPage";
 import InvestigadorPage from "../pages/InvestigadorPage";
 import ProductosPage from "../pages/ProductosPage";
-import Footer from "./Footer"; // ✅ NUEVO
+import Footer from "./Footer";
 import "../styles/farm-shell.css";
+
+// Helpers: fuente única para token/farmId (sin “magia” dispersa)
+function pickLocalStorage(keys) {
+  for (const k of keys) {
+    const v = localStorage.getItem(k);
+    if (v && String(v).trim()) return String(v).trim();
+  }
+  return "";
+}
+
+function getAuthToken() {
+  return pickLocalStorage([
+    "agromind_token",
+    "agromind_jwt",
+    "token",
+    "jwt",
+    "access_token",
+  ]);
+}
+
+function getActiveFarmId() {
+  return pickLocalStorage([
+    "agromind_active_farm_id",
+    "activeFarmId",
+    "farmId",
+    "agromind_farm_id",
+  ]);
+}
 
 export default function FarmShell({ user, onLogout }) {
   const [activeTab, setActiveTab] = useState("mapa");
   const [focusZoneRequest, setFocusZoneRequest] = useState(null);
+
+  // ✅ Token y farmId desde aquí (una sola fuente)
+  const token = useMemo(() => getAuthToken(), []);
+  const farmId = useMemo(() => getActiveFarmId(), []);
 
   const handleTabChange = (tab) => {
     setActiveTab(tab);
@@ -50,9 +81,7 @@ export default function FarmShell({ user, onLogout }) {
             <button
               key={key}
               type="button"
-              className={
-                activeTab === key ? "nav-tab nav-tab-active" : "nav-tab"
-              }
+              className={activeTab === key ? "nav-tab nav-tab-active" : "nav-tab"}
               onClick={() => handleTabChange(key)}
             >
               {label}
@@ -78,9 +107,15 @@ export default function FarmShell({ user, onLogout }) {
           {activeTab === "mapa" && (
             <FarmMap focusZoneRequest={focusZoneRequest} />
           )}
+
           {activeTab === "tareas" && (
-            <TareasPage onOpenZoneInMap={handleOpenZoneInMap} />
+            <TareasPage
+              onOpenZoneInMap={handleOpenZoneInMap}
+              token={token}
+              farmId={farmId}
+            />
           )}
+
           {activeTab === "finanzas" && <FinanzasPage />}
           {activeTab === "dispositivos" && <DispositivosPage />}
           {activeTab === "investigador" && <InvestigadorPage />}
@@ -88,7 +123,6 @@ export default function FarmShell({ user, onLogout }) {
         </section>
       </main>
 
-      {/* ✅ Footer en todas las páginas dentro del shell */}
       <Footer />
     </div>
   );
