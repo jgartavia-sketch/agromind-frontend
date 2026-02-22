@@ -46,7 +46,7 @@
 }
 
 /* =====================================================
-   CARDS
+   CARDS (resumen / métricas) -> se quedan en grid
 ===================================================== */
 
 .finance-ia-cards {
@@ -101,6 +101,88 @@
 
 .finance-card.warning .meta { color: var(--warn); }
 .finance-card.success .meta { color: var(--ok); }
+
+/* =====================================================
+   ✅ SUGERENCIAS HORIZONTALES (scroll izquierda→derecha)
+   USAR:
+   - Contenedor: .finance-ia-suggestions
+   - Cada tarjeta: .finance-ia-suggestion-card
+===================================================== */
+
+.finance-ia-suggestions {
+  display: flex;
+  gap: 0.8rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.2rem 0 0.6rem;
+  margin: 0.75rem 0 1rem;
+
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+
+  /* mejora en iOS */
+  -webkit-overflow-scrolling: touch;
+}
+
+.finance-ia-suggestions::-webkit-scrollbar {
+  height: 10px;
+}
+
+.finance-ia-suggestions::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.finance-ia-suggestions::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.12);
+  border-radius: 999px;
+}
+
+.finance-ia-suggestion-card {
+  flex: 0 0 320px;            /* ancho fijo premium */
+  max-width: 320px;
+  scroll-snap-align: start;
+
+  background: var(--bg-card);
+  border-radius: var(--radius-md);
+  padding: 0.9rem;
+  border: 1px solid rgba(255,255,255,0.06);
+
+  transition: transform var(--transition-fast),
+              box-shadow var(--transition-fast),
+              border-color var(--transition-fast);
+}
+
+.finance-ia-suggestion-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 30px rgba(0,0,0,0.35);
+  border-color: rgba(56,189,248,0.25);
+}
+
+.finance-ia-suggestion-title {
+  font-size: 0.9rem;
+  font-weight: 650;
+  margin: 0 0 0.35rem;
+}
+
+.finance-ia-suggestion-text {
+  font-size: 0.82rem;
+  color: var(--text-soft);
+  line-height: 1.45;
+  margin: 0 0 0.75rem;
+}
+
+.finance-ia-suggestion-actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+@media (max-width: 520px) {
+  .finance-ia-suggestion-card {
+    flex-basis: 85%;
+    max-width: 85%;
+  }
+}
 
 /* =====================================================
    TABS
