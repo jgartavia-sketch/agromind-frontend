@@ -1,5 +1,5 @@
 // src/components/FarmShell.jsx
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import FarmMap from "./FarmMap";
 import TareasPage from "../pages/TareasPage";
 import FinanzasPage from "../pages/FinanzasPage";
@@ -18,32 +18,59 @@ function pickLocalStorage(keys) {
   return "";
 }
 
+const TOKEN_KEYS = [
+  "agromind_token",
+  "agromind_jwt",
+  "token",
+  "jwt",
+  "access_token",
+];
+
+const FARMID_KEYS = [
+  "agromind_active_farm_id",
+  "activeFarmId",
+  "farmId",
+  "agromind_farm_id",
+];
+
 function getAuthToken() {
-  return pickLocalStorage([
-    "agromind_token",
-    "agromind_jwt",
-    "token",
-    "jwt",
-    "access_token",
-  ]);
+  return pickLocalStorage(TOKEN_KEYS);
 }
 
 function getActiveFarmId() {
-  return pickLocalStorage([
-    "agromind_active_farm_id",
-    "activeFarmId",
-    "farmId",
-    "agromind_farm_id",
-  ]);
+  return pickLocalStorage(FARMID_KEYS);
+}
+
+function clearLocalStorage(keys) {
+  for (const k of keys) localStorage.removeItem(k);
 }
 
 export default function FarmShell({ user, onLogout }) {
   const [activeTab, setActiveTab] = useState("mapa");
   const [focusZoneRequest, setFocusZoneRequest] = useState(null);
 
-  // ✅ Token y farmId desde aquí (una sola fuente)
-  const token = useMemo(() => getAuthToken(), []);
-  const farmId = useMemo(() => getActiveFarmId(), []);
+  // ✅ estado reactivo (NO congelado)
+  const [token, setToken] = useState(() => getAuthToken());
+  const [farmId, setFarmId] = useState(() => getActiveFarmId());
+
+  // ✅ si cambia localStorage (login/logout en otra parte), nos enteramos
+  useEffect(() => {
+    const sync = () => {
+      setToken(getAuthToken());
+      setFarmId(getActiveFarmId());
+    };
+
+    // evento nativo (entre tabs) + fallback (mismo tab) por seguridad
+    window.addEventListener("storage", sync);
+
+    // “poll” ligero: evita quedarnos pegados si login/logout ocurre sin storage event
+    const t = setInterval(sync, 800);
+
+    return () => {
+      window.removeEventListener("storage", sync);
+      clearInterval(t);
+    };
+  }, []);
 
   const handleTabChange = (tab) => {
     setActiveTab(tab);
@@ -56,6 +83,24 @@ export default function FarmShell({ user, onLogout }) {
       ts: Date.now(),
     });
     setActiveTab("mapa");
+  };
+
+  // ✅ Logout “a prueba de usuarios”
+  const handleLogoutClick = () => {
+    // limpia token + finca activa (y cualquier rastro)
+    clearLocalStorage(TOKEN_KEYS);
+    clearLocalStorage(FARMID_KEYS);
+
+    // refresca estado local inmediato
+    setToken("");
+    setFarmId("");
+
+    // vuelve a mapa por higiene visual
+    setActiveTab("mapa");
+    setFocusZoneRequest(null);
+
+    // delega flujo de logout real (backend/estado global)
+    if (onLogout) onLogout();
   };
 
   return (
@@ -94,7 +139,7 @@ export default function FarmShell({ user, onLogout }) {
             <button
               type="button"
               className="farm-logout-btn"
-              onClick={onLogout}
+              onClick={handleLogoutClick}
             >
               Cerrar sesión
             </button>
@@ -104,9 +149,7 @@ export default function FarmShell({ user, onLogout }) {
 
       <main className="farm-shell-main">
         <section className="farm-shell-map-card">
-          {activeTab === "mapa" && (
-            <FarmMap focusZoneRequest={focusZoneRequest} />
-          )}
+          {activeTab === "mapa" && <FarmMap focusZoneRequest={focusZoneRequest} />}
 
           {activeTab === "tareas" && (
             <TareasPage
