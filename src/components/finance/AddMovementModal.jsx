@@ -68,22 +68,23 @@ export default function AddMovementModal({
     const invoiceNumber = String(form.invoiceNumber || "").trim();
 
     if (!concept) {
-      alert("Escribe un concepto (ej: venta, compra, etc.).");
+      alert("Escribe un concepto.");
       return;
     }
 
     if (type !== "Ingreso" && type !== "Gasto") {
-      alert('Tipo inválido. Debe ser "Ingreso" o "Gasto".');
+      alert('Tipo inválido.');
       return;
     }
 
-    const amountNum = Number(String(form.amount || "").replaceAll(",", "").trim());
+    const amountNum = Number(
+      String(form.amount || "").replaceAll(",", "").trim()
+    );
     if (!Number.isFinite(amountNum) || amountNum < 0) {
-      alert("Monto inválido. Debe ser un número >= 0.");
+      alert("Monto inválido.");
       return;
     }
 
-    // factura: opcional; si viene vacía, mandamos null para limpiar
     const invoiceClean = invoiceNumber ? invoiceNumber.slice(0, 80) : null;
 
     const payload = {
@@ -186,7 +187,6 @@ export default function AddMovementModal({
                 type="text"
                 value={form.concept}
                 onChange={(e) => setField("concept", e.target.value)}
-                placeholder="Ej: cosecha, venta, compra de fertilizante..."
                 disabled={saving}
               />
             </div>
@@ -197,7 +197,6 @@ export default function AddMovementModal({
                 type="text"
                 value={form.category}
                 onChange={(e) => setField("category", e.target.value)}
-                placeholder="Ej: ventas, insumos, transporte..."
                 disabled={saving}
               />
             </div>
@@ -208,27 +207,21 @@ export default function AddMovementModal({
                 type="number"
                 value={form.amount}
                 onChange={(e) => setField("amount", e.target.value)}
-                placeholder="Ej: 25000"
                 disabled={saving}
                 min="0"
                 step="1"
               />
             </div>
 
-            {/* ✅ NUEVO: FACTURA */}
             <div className="task-field" style={{ gridColumn: "1 / -1" }}>
               <label>Número de factura (opcional)</label>
               <input
                 type="text"
                 value={form.invoiceNumber}
                 onChange={(e) => setField("invoiceNumber", e.target.value)}
-                placeholder="Ej: F-000123 / #A45 / N/D"
                 disabled={saving}
                 maxLength={80}
               />
-              <small style={{ display: "block", marginTop: "0.35rem", opacity: 0.7 }}>
-                Útil para auditoría y soporte. Si lo dejás vacío, no se guarda.
-              </small>
             </div>
 
             <div className="task-field" style={{ gridColumn: "1 / -1" }}>
@@ -237,7 +230,6 @@ export default function AddMovementModal({
                 type="text"
                 value={form.note}
                 onChange={(e) => setField("note", e.target.value)}
-                placeholder="Opcional"
                 disabled={saving}
               />
             </div>
