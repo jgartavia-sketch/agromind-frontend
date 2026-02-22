@@ -138,9 +138,7 @@ export default function TareasPage({
   const mapZones = Array.isArray(zonesFromMap) ? zonesFromMap : [];
 
   const API_BASE =
-    import.meta.env.VITE_API_URL ||
-    import.meta.env.VITE_API_BASE_URL ||
-    "";
+    import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || "";
 
   const token = tokenProp || getAuthToken();
   const farmId = farmIdProp || getActiveFarmId();
@@ -244,7 +242,6 @@ export default function TareasPage({
         const list = Array.isArray(data?.suggestions) ? data.suggestions : [];
         setSuggestions(list);
       } catch (err) {
-        // No matamos la pantalla por IA: si falla, solo no mostramos sugerencias
         if (cancelled) return;
         setSuggestions([]);
       } finally {
@@ -330,7 +327,6 @@ export default function TareasPage({
     const payload = sug?.actionPayload || null;
     if (!payload) return;
 
-    // No queremos sobrescribir todo con basura: saneamos mínimo
     const next = {
       ...EMPTY_FORM,
       title: (payload.title || "").toString(),
@@ -346,10 +342,7 @@ export default function TareasPage({
     setEditingId(null);
     setFormData(next);
 
-    // UX: ocultamos la sugerencia para que el usuario sienta progreso
     ignoreSuggestion(sug);
-
-    // y lo llevamos al editor
     scrollToEditor();
   };
 
@@ -485,7 +478,6 @@ export default function TareasPage({
     }
   };
 
-  // Calendar events: rango start->due (end exclusivo en FullCalendar)
   const calendarEvents = useMemo(() => {
     return tasks
       .filter((t) => t?.start && t?.due && t?.title)
@@ -530,29 +522,30 @@ export default function TareasPage({
             está en control.)
           </p>
         ) : (
-          <div className="ia-suggestions-list">
+          <div className="ai-suggestions-list">
             {visibleSuggestions.map((s) => {
               const id = String(s?.id || s?._id || Math.random());
               const level = s?.level || "info";
               const title = s?.title || "Sugerencia";
               const message = s?.message || "";
               const canAdd = !!s?.actionPayload;
+              const zone = s?.zone ? String(s.zone) : "";
 
               return (
-                <div key={id} className={getSuggestionClass(level)}>
-                  <div className="ia-suggestion-header">
-                    <strong>{title}</strong>
-                    {s?.zone ? (
-                      <span className="ia-suggestion-zone">{s.zone}</span>
-                    ) : null}
+                <div key={id} className={`ai-suggestion-card ${getSuggestionClass(level)}`}>
+                  <div className="ai-suggestion-head">
+                    <div className="ai-suggestion-title">{title}</div>
+                    {zone ? <div className="ai-suggestion-chip">{zone}</div> : null}
                   </div>
 
-                  <p className="ia-suggestion-message">{message}</p>
+                  {message ? (
+                    <div className="ai-suggestion-message">{message}</div>
+                  ) : null}
 
-                  <div className="ia-suggestion-actions">
+                  <div className="ai-suggestion-actions">
                     <button
                       type="button"
-                      className="primary-btn"
+                      className="ai-suggestion-btn-primary"
                       disabled={!canAdd || saving}
                       onClick={() => applySuggestionToForm(s)}
                       title={
@@ -566,7 +559,7 @@ export default function TareasPage({
 
                     <button
                       type="button"
-                      className="secondary-btn"
+                      className="ai-suggestion-btn-ghost"
                       disabled={saving}
                       onClick={() => ignoreSuggestion(s)}
                     >
@@ -885,9 +878,7 @@ export default function TareasPage({
             {filteredTasks.length === 0 && (
               <tr>
                 <td colSpan={9} style={{ textAlign: "center", opacity: 0.7 }}>
-                  {loading
-                    ? "Cargando…"
-                    : "No hay tareas todavía. Creá la primera."}
+                  {loading ? "Cargando…" : "No hay tareas todavía. Creá la primera."}
                 </td>
               </tr>
             )}
