@@ -38,21 +38,12 @@ const PRIORIDADES = ["Alta", "Media", "Baja"];
 const TIPOS = ["Riego", "Alimentación", "Mantenimiento", "Cosecha"];
 const ESTADOS = ["Pendiente", "En progreso", "Completada"];
 
-function todayLocalYYYYMMDD() {
-  const d = new Date();
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  return `${yyyy}-${mm}-${dd}`;
-}
-
 const EMPTY_FORM = {
   title: "",
   zone: "",
   type: "Mantenimiento",
   priority: "Media",
-  // ⚠️ "due" se mantiene internamente para compatibilidad con backend/calendario,
-  // pero ya no se muestra en el formulario.
+  start: "",
   due: "",
   status: "Pendiente",
   owner: "",
@@ -86,7 +77,6 @@ function getActiveFarmId() {
 }
 
 function toYYYYMMDD(value) {
-  // value puede venir como Date, ISO string o "YYYY-MM-DD"
   if (!value) return "";
   if (typeof value === "string") {
     if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
@@ -99,38 +89,40 @@ function toYYYYMMDD(value) {
   return d.toISOString().slice(0, 10);
 }
 
+function addDaysYYYYMMDD(dateStr, days) {
+  if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return "";
+  const d = new Date(`${dateStr}T12:00:00.000Z`);
+  if (Number.isNaN(d.getTime())) return "";
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
 export default function TareasPage({
   onOpenZoneInMap,
   zonesFromMap = [],
   farmId: farmIdProp,
   token: tokenProp,
 }) {
-  // ✅ Datos reales desde backend
   const [tasks, setTasks] = useState([]);
 
-  // UI state
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
-  // Filtros
   const [statusFilter, setStatusFilter] = useState("Todas");
   const [typeFilter, setTypeFilter] = useState("Todas");
   const [zoneFilter, setZoneFilter] = useState("Todas");
   const [searchText, setSearchText] = useState("");
 
-  // Form
   const [formData, setFormData] = useState(EMPTY_FORM);
   const [editingId, setEditingId] = useState(null);
 
-  // 🔗 Zonas
   const mapZones = Array.isArray(zonesFromMap) ? zonesFromMap : [];
 
-  // Config API
   const API_BASE =
     import.meta.env.VITE_API_URL ||
     import.meta.env.VITE_API_BASE_URL ||
-    ""; // si está vacío, usa mismo origen
+    "";
 
   const token = tokenProp || getAuthToken();
   const farmId = farmIdProp || getActiveFarmId();
@@ -154,9 +146,7 @@ export default function TareasPage({
     let data = null;
     try {
       data = await res.json();
-    } catch {
-      // no-op
-    }
+    } catch {}
 
     if (!res.ok) {
       const msg = data?.error || `Error HTTP ${res.status}`;
@@ -193,9 +183,9 @@ export default function TareasPage({
         if (cancelled) return;
 
         const list = Array.isArray(data?.tasks) ? data.tasks : [];
-        // Normalizamos due a YYYY-MM-DD para el UI
         const normalized = list.map((t) => ({
           ...t,
+          start: toYYYYMMDD(t.start),
           due: toYYYYMMDD(t.due),
         }));
 
@@ -216,7 +206,6 @@ export default function TareasPage({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [farmId, token, API_BASE]);
 
-  // Resumen
   const summary = useMemo(() => {
     const total = tasks.length;
     const pending = tasks.filter((t) => t.status === "Pendiente").length;
@@ -225,7 +214,6 @@ export default function TareasPage({
     return { total, pending, inProgress, done };
   }, [tasks]);
 
-  // Zonas para filtros
   const zoneOptions = useMemo(() => {
     const set = new Set();
     tasks.forEach((t) => t.zone && set.add(t.zone));
@@ -264,7 +252,6 @@ export default function TareasPage({
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
     setErrorMsg("");
 
     if (!farmId) {
@@ -288,41 +275,53 @@ export default function TareasPage({
       return;
     }
 
-    // ✅ Ya no pedimos "Vence" en UI.
-    // Para no romper backend/calendario, enviamos una fecha automática si viene vacía.
-    const payload = {
-      ...trimmed,
-      due: trimmed.due || todayLocalYYYYMMDD(),
-    };
+    if (!trimmed.start) {
+      alert("Define una fecha de inicio.");
+      return;
+    }
+
+    if (!trimmed.due) {
+      alert("Define una fecha de vencimiento.");
+      return;
+    }
+
+    if (trimmed.start > trimmed.due) {
+      alert("Inicio no puede ser posterior a Vence.");
+      return;
+    }
 
     try {
       setSaving(true);
 
       if (editingId) {
-        // UPDATE
         const data = await apiFetch(`/api/farms/${farmId}/tasks/${editingId}`, {
           method: "PUT",
-          body: JSON.stringify(payload),
+          body: JSON.stringify(trimmed),
         });
 
         const updated = data?.task
-          ? { ...data.task, due: toYYYYMMDD(data.task.due) }
+          ? {
+              ...data.task,
+              start: toYYYYMMDD(data.task.start),
+              due: toYYYYMMDD(data.task.due),
+            }
           : null;
 
         if (updated) {
-          setTasks((prev) =>
-            prev.map((t) => (t.id === editingId ? updated : t))
-          );
+          setTasks((prev) => prev.map((t) => (t.id === editingId ? updated : t)));
         }
       } else {
-        // CREATE
         const data = await apiFetch(`/api/farms/${farmId}/tasks`, {
           method: "POST",
-          body: JSON.stringify(payload),
+          body: JSON.stringify(trimmed),
         });
 
         const created = data?.task
-          ? { ...data.task, due: toYYYYMMDD(data.task.due) }
+          ? {
+              ...data.task,
+              start: toYYYYMMDD(data.task.start),
+              due: toYYYYMMDD(data.task.due),
+            }
           : null;
 
         if (created) {
@@ -345,7 +344,7 @@ export default function TareasPage({
       zone: task.zone || "",
       type: task.type || "Mantenimiento",
       priority: task.priority || "Media",
-      // Se mantiene internamente, aunque no se muestre en el form.
+      start: task.start || "",
       due: task.due || "",
       status: task.status || "Pendiente",
       owner: task.owner || "",
@@ -380,20 +379,19 @@ export default function TareasPage({
     }
   };
 
-  // Calendar events
+  // Calendar events: rango start->due (end exclusivo en FullCalendar)
   const calendarEvents = useMemo(() => {
     return tasks
-      .filter((t) => t?.due && t?.title)
+      .filter((t) => t?.start && t?.due && t?.title)
       .map((t) => ({
         id: t.id,
         title: t.title,
-        date: t.due,
+        start: t.start,
+        end: addDaysYYYYMMDD(t.due, 1),
+        allDay: true,
       }));
   }, [tasks]);
 
-  // =========================
-  // RENDER
-  // =========================
   return (
     <div className="page">
       <header className="page-header">
@@ -404,7 +402,6 @@ export default function TareasPage({
         </p>
       </header>
 
-      {/* Mensajes */}
       {(errorMsg || loading) && (
         <section className="card" style={{ marginBottom: "1rem" }}>
           {loading ? (
@@ -415,7 +412,6 @@ export default function TareasPage({
         </section>
       )}
 
-      {/* IA placeholder */}
       <section className="card ia-placeholder">
         <h3>Recomendaciones IA</h3>
         <p>
@@ -424,7 +420,6 @@ export default function TareasPage({
         </p>
       </section>
 
-      {/* Dashboard */}
       <section className="tasks-summary">
         <div className="summary-card">
           <span className="summary-label">Total de tareas</span>
@@ -448,7 +443,6 @@ export default function TareasPage({
         </div>
       </section>
 
-      {/* Form */}
       <section className="task-editor card">
         <h3>{editingId ? "Editar tarea" : "Nueva tarea"}</h3>
 
@@ -526,7 +520,25 @@ export default function TareasPage({
               </select>
             </div>
 
-            {/* ✅ Campo "Vence" eliminado del formulario */}
+            <div className="task-field">
+              <label>Inicio</label>
+              <input
+                type="date"
+                value={formData.start}
+                onChange={(e) => handleFormChange("start", e.target.value)}
+                disabled={saving}
+              />
+            </div>
+
+            <div className="task-field">
+              <label>Vence</label>
+              <input
+                type="date"
+                value={formData.due}
+                onChange={(e) => handleFormChange("due", e.target.value)}
+                disabled={saving}
+              />
+            </div>
 
             <div className="task-field">
               <label>Estado</label>
@@ -557,11 +569,7 @@ export default function TareasPage({
 
           <div className="task-editor-actions">
             <button type="submit" className="primary-btn" disabled={saving}>
-              {saving
-                ? "Guardando…"
-                : editingId
-                ? "Guardar cambios"
-                : "Crear tarea"}
+              {saving ? "Guardando…" : editingId ? "Guardar cambios" : "Crear tarea"}
             </button>
 
             {editingId && (
@@ -578,7 +586,6 @@ export default function TareasPage({
         </form>
       </section>
 
-      {/* Filtros */}
       <section className="filters-bar">
         <div className="filter-group">
           <label>Estado</label>
@@ -638,7 +645,6 @@ export default function TareasPage({
         </div>
       </section>
 
-      {/* Tabla */}
       <section className="card">
         <table className="data-table">
           <thead>
@@ -647,7 +653,8 @@ export default function TareasPage({
               <th>Tarea</th>
               <th>Zona / elemento</th>
               <th>Tipo</th>
-              {/* ✅ Columna "Vence" eliminada */}
+              <th>Inicio</th>
+              <th>Vence</th>
               <th>Estado</th>
               <th>Responsable</th>
               <th>Acciones</th>
@@ -680,6 +687,8 @@ export default function TareasPage({
                   </div>
                 </td>
                 <td>{task.type}</td>
+                <td>{task.start}</td>
+                <td>{task.due}</td>
                 <td>
                   <span className={getStatusClass(task.status)}>
                     {task.status}
@@ -711,10 +720,8 @@ export default function TareasPage({
 
             {filteredTasks.length === 0 && (
               <tr>
-                <td colSpan={7} style={{ textAlign: "center", opacity: 0.7 }}>
-                  {loading
-                    ? "Cargando…"
-                    : "No hay tareas todavía. Creá la primera."}
+                <td colSpan={9} style={{ textAlign: "center", opacity: 0.7 }}>
+                  {loading ? "Cargando…" : "No hay tareas todavía. Creá la primera."}
                 </td>
               </tr>
             )}
@@ -722,7 +729,6 @@ export default function TareasPage({
         </table>
       </section>
 
-      {/* Calendario */}
       <section className="card tasks-calendar">
         <h3>Calendario de tareas</h3>
 
