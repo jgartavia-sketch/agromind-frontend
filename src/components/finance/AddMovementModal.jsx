@@ -16,6 +16,7 @@ const EMPTY = {
   category: "",
   type: "Ingreso",
   amount: "",
+  invoiceNumber: "",
   note: "",
 };
 
@@ -40,6 +41,11 @@ export default function AddMovementModal({
         initialMovement.amount === 0 || initialMovement.amount
           ? String(initialMovement.amount)
           : "",
+      invoiceNumber:
+        typeof initialMovement.invoiceNumber === "string" &&
+        initialMovement.invoiceNumber.trim()
+          ? initialMovement.invoiceNumber.trim()
+          : "",
       note: initialMovement.note || "",
     };
   }, [initialMovement]);
@@ -59,6 +65,7 @@ export default function AddMovementModal({
     const category = String(form.category || "").trim();
     const type = String(form.type || "").trim();
     const note = String(form.note || "").trim();
+    const invoiceNumber = String(form.invoiceNumber || "").trim();
 
     if (!concept) {
       alert("Escribe un concepto (ej: venta, compra, etc.).");
@@ -76,6 +83,9 @@ export default function AddMovementModal({
       return;
     }
 
+    // factura: opcional; si viene vacía, mandamos null para limpiar
+    const invoiceClean = invoiceNumber ? invoiceNumber.slice(0, 80) : null;
+
     const payload = {
       ...(form.id ? { id: form.id } : {}),
       date: form.date || todayYYYYMMDD(),
@@ -83,6 +93,7 @@ export default function AddMovementModal({
       category: category || "General",
       type,
       amount: amountNum,
+      invoiceNumber: invoiceClean,
       note: note || null,
     };
 
@@ -202,6 +213,22 @@ export default function AddMovementModal({
                 min="0"
                 step="1"
               />
+            </div>
+
+            {/* ✅ NUEVO: FACTURA */}
+            <div className="task-field" style={{ gridColumn: "1 / -1" }}>
+              <label>Número de factura (opcional)</label>
+              <input
+                type="text"
+                value={form.invoiceNumber}
+                onChange={(e) => setField("invoiceNumber", e.target.value)}
+                placeholder="Ej: F-000123 / #A45 / N/D"
+                disabled={saving}
+                maxLength={80}
+              />
+              <small style={{ display: "block", marginTop: "0.35rem", opacity: 0.7 }}>
+                Útil para auditoría y soporte. Si lo dejás vacío, no se guarda.
+              </small>
             </div>
 
             <div className="task-field" style={{ gridColumn: "1 / -1" }}>

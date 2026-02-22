@@ -139,7 +139,7 @@ export default function FinanzasPage({ farmId: farmIdProp, token: tokenProp }) {
   }
 
   // =========================
-  // (2) LOAD MOVEMENTS (REAL) AL ENTRAR
+  // LOAD MOVEMENTS (REAL) AL ENTRAR
   // =========================
   useEffect(() => {
     let cancelled = false;
@@ -167,10 +167,14 @@ export default function FinanzasPage({ farmId: farmIdProp, token: tokenProp }) {
 
         const list = Array.isArray(data?.movements) ? data.movements : [];
 
-        // Normalizamos la fecha para el UI (si viene ISO)
+        // Normalizamos la fecha + invoiceNumber para el UI
         const normalized = list.map((m) => ({
           ...m,
           date: toYYYYMMDD(m.date),
+          invoiceNumber:
+            typeof m.invoiceNumber === "string" && m.invoiceNumber.trim()
+              ? m.invoiceNumber.trim()
+              : "",
         }));
 
         setMovements(normalized);
@@ -208,7 +212,7 @@ export default function FinanzasPage({ farmId: farmIdProp, token: tokenProp }) {
     return { ingresos, gastos, balance, margin };
   }, [movements]);
 
-  // (3) Chart real
+  // Chart real
   const monthlyChartData = useMemo(
     () => buildMonthlyChartData(movements),
     [movements]
@@ -226,6 +230,7 @@ export default function FinanzasPage({ farmId: farmIdProp, token: tokenProp }) {
             type: "Ingreso",
             amount: 0,
             note: "—",
+            invoiceNumber: "—",
           },
           {
             id: "placeholder-2",
@@ -235,6 +240,7 @@ export default function FinanzasPage({ farmId: farmIdProp, token: tokenProp }) {
             type: "Gasto",
             amount: 0,
             note: "—",
+            invoiceNumber: "—",
           },
         ];
 
@@ -270,6 +276,12 @@ export default function FinanzasPage({ farmId: farmIdProp, token: tokenProp }) {
 
         if (updated) {
           updated.date = toYYYYMMDD(updated.date);
+          updated.invoiceNumber =
+            typeof updated.invoiceNumber === "string" &&
+            updated.invoiceNumber.trim()
+              ? updated.invoiceNumber.trim()
+              : "";
+
           setMovements((prev) =>
             prev.map((x) => (x.id === updated.id ? updated : x))
           );
@@ -283,6 +295,12 @@ export default function FinanzasPage({ farmId: farmIdProp, token: tokenProp }) {
         const created = data?.movement || null;
         if (created) {
           created.date = toYYYYMMDD(created.date);
+          created.invoiceNumber =
+            typeof created.invoiceNumber === "string" &&
+            created.invoiceNumber.trim()
+              ? created.invoiceNumber.trim()
+              : "";
+
           setMovements((prev) => [created, ...prev]);
         }
       }
@@ -297,7 +315,7 @@ export default function FinanzasPage({ farmId: farmIdProp, token: tokenProp }) {
   };
 
   // =========================
-  // (1) DELETE MOVEMENT (REAL) DESDE LA TABLA
+  // DELETE MOVEMENT (REAL) DESDE LA TABLA
   // =========================
   const handleDeleteMovement = async (movementId) => {
     const ok = window.confirm("¿Eliminar este movimiento?");
@@ -317,12 +335,9 @@ export default function FinanzasPage({ farmId: farmIdProp, token: tokenProp }) {
     try {
       setSaving(true);
 
-      await apiFetch(
-        `/api/farms/${farmId}/finance/movements/${movementId}`,
-        {
-          method: "DELETE",
-        }
-      );
+      await apiFetch(`/api/farms/${farmId}/finance/movements/${movementId}`, {
+        method: "DELETE",
+      });
 
       setMovements((prev) => prev.filter((m) => m.id !== movementId));
     } catch (err) {
@@ -339,6 +354,10 @@ export default function FinanzasPage({ farmId: farmIdProp, token: tokenProp }) {
     setEditingMovement({
       ...mov,
       date: toYYYYMMDD(mov.date),
+      invoiceNumber:
+        typeof mov.invoiceNumber === "string" && mov.invoiceNumber.trim()
+          ? mov.invoiceNumber.trim()
+          : "",
     });
     setShowModal(true);
   };
@@ -382,7 +401,7 @@ export default function FinanzasPage({ farmId: farmIdProp, token: tokenProp }) {
             />
           </section>
 
-          {/* (3) Chart real */}
+          {/* Chart real */}
           <ZoneMonthlyChart data={monthlyChartData} />
         </section>
 
@@ -424,10 +443,7 @@ export default function FinanzasPage({ farmId: farmIdProp, token: tokenProp }) {
               value={formatMoneyCRC(summary.balance)}
               variant={summary.balance >= 0 ? "pos" : "neg"}
             />
-            <FinanceCard
-              label="Margen"
-              value={`${summary.margin.toFixed(1)}%`}
-            />
+            <FinanceCard label="Margen" value={`${summary.margin.toFixed(1)}%`} />
           </section>
 
           <section className="finance-table card">
@@ -439,6 +455,7 @@ export default function FinanzasPage({ farmId: farmIdProp, token: tokenProp }) {
                   <th>Categoría</th>
                   <th>Tipo</th>
                   <th style={{ textAlign: "right" }}>Monto</th>
+                  <th>Factura</th>
                   <th>Nota</th>
                   <th>Acciones</th>
                 </tr>
@@ -464,6 +481,7 @@ export default function FinanzasPage({ farmId: farmIdProp, token: tokenProp }) {
                       <td style={{ textAlign: "right" }}>
                         {formatMoneyCRC(mov.amount)}
                       </td>
+                      <td>{mov.invoiceNumber || "—"}</td>
                       <td>{mov.note}</td>
                       <td>
                         <div className="task-actions">
