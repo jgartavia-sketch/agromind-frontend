@@ -34,6 +34,19 @@ function getStatusClass(status) {
   }
 }
 
+function getSuggestionClass(level) {
+  switch (level) {
+    case "alert":
+      return "ia-suggestion ia-alert";
+    case "warning":
+      return "ia-suggestion ia-warning";
+    case "info":
+      return "ia-suggestion ia-info";
+    default:
+      return "ia-suggestion";
+  }
+}
+
 const PRIORIDADES = ["Alta", "Media", "Baja"];
 const TIPOS = ["Riego", "Alimentación", "Mantenimiento", "Cosecha"];
 const ESTADOS = ["Pendiente", "En progreso", "Completada"];
@@ -108,6 +121,11 @@ export default function TareasPage({
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+
+  // ✅ IA Suggestions
+  const [suggestions, setSuggestions] = useState([]);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+  const [ignoredSuggestions, setIgnoredSuggestions] = useState(() => new Set());
 
   const [statusFilter, setStatusFilter] = useState("Todas");
   const [typeFilter, setTypeFilter] = useState("Todas");
@@ -206,6 +224,41 @@ export default function TareasPage({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [farmId, token, API_BASE]);
 
+  // =========================
+  // LOAD IA SUGGESTIONS
+  // =========================
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadSuggestions() {
+      if (!farmId || !token) {
+        setSuggestions([]);
+        return;
+      }
+
+      try {
+        setLoadingSuggestions(true);
+        const data = await apiFetch(`/api/farms/${farmId}/tasks/suggestions`);
+        if (cancelled) return;
+
+        const list = Array.isArray(data?.suggestions) ? data.suggestions : [];
+        setSuggestions(list);
+      } catch (err) {
+        // No matamos la pantalla por IA: si falla, solo no mostramos sugerencias
+        if (cancelled) return;
+        setSuggestions([]);
+      } finally {
+        if (!cancelled) setLoadingSuggestions(false);
+      }
+    }
+
+    loadSuggestions();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [farmId, token, API_BASE]);
+
   const summary = useMemo(() => {
     const total = tasks.length;
     const pending = tasks.filter((t) => t.status === "Pendiente").length;
@@ -238,6 +291,14 @@ export default function TareasPage({
     return matchStatus && matchType && matchZone && matchSearch;
   });
 
+  const visibleSuggestions = useMemo(() => {
+    const list = Array.isArray(suggestions) ? suggestions : [];
+    return list.filter((s) => {
+      const id = s?.id || s?._id || "";
+      return id ? !ignoredSuggestions.has(String(id)) : true;
+    });
+  }, [suggestions, ignoredSuggestions]);
+
   // =========================
   // FORM
   // =========================
@@ -248,6 +309,48 @@ export default function TareasPage({
   const handleResetForm = () => {
     setFormData(EMPTY_FORM);
     setEditingId(null);
+  };
+
+  const scrollToEditor = () => {
+    const el = document.querySelector(".task-editor");
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  const ignoreSuggestion = (sug) => {
+    const id = sug?.id || sug?._id;
+    if (!id) return;
+    setIgnoredSuggestions((prev) => {
+      const next = new Set(prev);
+      next.add(String(id));
+      return next;
+    });
+  };
+
+  const applySuggestionToForm = (sug) => {
+    const payload = sug?.actionPayload || null;
+    if (!payload) return;
+
+    // No queremos sobrescribir todo con basura: saneamos mínimo
+    const next = {
+      ...EMPTY_FORM,
+      title: (payload.title || "").toString(),
+      zone: (payload.zone || "").toString(),
+      type: payload.type || "Mantenimiento",
+      priority: payload.priority || "Media",
+      start: toYYYYMMDD(payload.start),
+      due: toYYYYMMDD(payload.due),
+      status: payload.status || "Pendiente",
+      owner: (payload.owner || "").toString(),
+    };
+
+    setEditingId(null);
+    setFormData(next);
+
+    // UX: ocultamos la sugerencia para que el usuario sienta progreso
+    ignoreSuggestion(sug);
+
+    // y lo llevamos al editor
+    scrollToEditor();
   };
 
   const handleSubmit = async (e) => {
@@ -308,7 +411,9 @@ export default function TareasPage({
           : null;
 
         if (updated) {
-          setTasks((prev) => prev.map((t) => (t.id === editingId ? updated : t)));
+          setTasks((prev) =>
+            prev.map((t) => (t.id === editingId ? updated : t))
+          );
         }
       } else {
         const data = await apiFetch(`/api/farms/${farmId}/tasks`, {
@@ -349,6 +454,7 @@ export default function TareasPage({
       status: task.status || "Pendiente",
       owner: task.owner || "",
     });
+    scrollToEditor();
   };
 
   const handleDeleteClick = async (id) => {
@@ -412,12 +518,66 @@ export default function TareasPage({
         </section>
       )}
 
+      {/* IA */}
       <section className="card ia-placeholder">
         <h3>Recomendaciones IA</h3>
-        <p>
-          Aquí aparecerán sugerencias automáticas según zonas, clima, cultivos y
-          carga de trabajo. Próximamente.
-        </p>
+
+        {loadingSuggestions ? (
+          <p style={{ margin: 0, opacity: 0.85 }}>Analizando tu operación…</p>
+        ) : visibleSuggestions.length === 0 ? (
+          <p style={{ margin: 0, opacity: 0.85 }}>
+            No hay sugerencias por ahora. (Eso también es una victoria: tu finca
+            está en control.)
+          </p>
+        ) : (
+          <div className="ia-suggestions-list">
+            {visibleSuggestions.map((s) => {
+              const id = String(s?.id || s?._id || Math.random());
+              const level = s?.level || "info";
+              const title = s?.title || "Sugerencia";
+              const message = s?.message || "";
+              const canAdd = !!s?.actionPayload;
+
+              return (
+                <div key={id} className={getSuggestionClass(level)}>
+                  <div className="ia-suggestion-header">
+                    <strong>{title}</strong>
+                    {s?.zone ? (
+                      <span className="ia-suggestion-zone">{s.zone}</span>
+                    ) : null}
+                  </div>
+
+                  <p className="ia-suggestion-message">{message}</p>
+
+                  <div className="ia-suggestion-actions">
+                    <button
+                      type="button"
+                      className="primary-btn"
+                      disabled={!canAdd || saving}
+                      onClick={() => applySuggestionToForm(s)}
+                      title={
+                        canAdd
+                          ? "Precarga el formulario para que lo edites y lo guardes como tarea real"
+                          : "Esta sugerencia es informativa (no genera tarea)"
+                      }
+                    >
+                      + Agregar a tareas
+                    </button>
+
+                    <button
+                      type="button"
+                      className="secondary-btn"
+                      disabled={saving}
+                      onClick={() => ignoreSuggestion(s)}
+                    >
+                      Ignorar
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </section>
 
       <section className="tasks-summary">
@@ -569,7 +729,11 @@ export default function TareasPage({
 
           <div className="task-editor-actions">
             <button type="submit" className="primary-btn" disabled={saving}>
-              {saving ? "Guardando…" : editingId ? "Guardar cambios" : "Crear tarea"}
+              {saving
+                ? "Guardando…"
+                : editingId
+                ? "Guardar cambios"
+                : "Crear tarea"}
             </button>
 
             {editingId && (
@@ -721,7 +885,9 @@ export default function TareasPage({
             {filteredTasks.length === 0 && (
               <tr>
                 <td colSpan={9} style={{ textAlign: "center", opacity: 0.7 }}>
-                  {loading ? "Cargando…" : "No hay tareas todavía. Creá la primera."}
+                  {loading
+                    ? "Cargando…"
+                    : "No hay tareas todavía. Creá la primera."}
                 </td>
               </tr>
             )}
