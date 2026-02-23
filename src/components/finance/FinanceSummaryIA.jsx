@@ -62,6 +62,42 @@ function safeNum(x) {
   return Number.isFinite(n) ? n : 0;
 }
 
+// =========================
+// Normalizador de payload para Tasks (backend exige start/due YYYY-MM-DD)
+// Soporta legacy: dueDate / description
+// =========================
+function toYYYYMMDDSafe(v) {
+  if (!v) return "";
+  if (typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v.trim())) return v.trim();
+  const d = new Date(v);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toISOString().slice(0, 10);
+}
+
+function normalizeTaskPayload(raw) {
+  const p = raw && typeof raw === "object" ? raw : {};
+
+  // due: preferir due, luego dueDate, luego start, luego hoy
+  const due =
+    toYYYYMMDDSafe(p.due) ||
+    toYYYYMMDDSafe(p.dueDate) ||
+    toYYYYMMDDSafe(p.start) ||
+    toYYYYMMDDSafe(new Date());
+
+  const start = toYYYYMMDDSafe(p.start) || due;
+
+  return {
+    title: String(p.title || "Tarea sugerida").slice(0, 120),
+    zone: String(p.zone || "").slice(0, 120),
+    type: String(p.type || "Mantenimiento").slice(0, 80),
+    priority: String(p.priority || "Media").slice(0, 40),
+    start,
+    due,
+    status: String(p.status || "Pendiente").slice(0, 40),
+    owner: String(p.owner || "").slice(0, 80),
+  };
+}
+
 // -------------------------
 // Motor local de insights (fallback sin backend)
 // -------------------------
@@ -374,7 +410,9 @@ export default function FinanceSummaryIA({
       try {
         setLoading(true);
         const ts = Date.now();
-        const data = await apiFetch(`/api/farms/${farmId}/finance/insights?ts=${ts}`);
+        const data = await apiFetch(
+          `/api/farms/${farmId}/finance/insights?ts=${ts}`
+        );
         if (cancelled) return;
         setInsights(data || null);
       } catch (err) {
@@ -415,7 +453,9 @@ export default function FinanceSummaryIA({
   // - si el server trae sugerencias (>0), usamos esas
   // - si el server trae [] o no trae, usamos las locales (datos reales)
   const suggestionsBase = useMemo(() => {
-    const serverList = Array.isArray(insights?.suggestions) ? insights.suggestions : null;
+    const serverList = Array.isArray(insights?.suggestions)
+      ? insights.suggestions
+      : null;
     if (serverList && serverList.length > 0) return serverList;
     return Array.isArray(localInsights?.suggestions) ? localInsights.suggestions : [];
   }, [insights, localInsights]);
@@ -476,6 +516,17 @@ export default function FinanceSummaryIA({
     });
   };
 
+  const fireTasksRefresh = () => {
+    try {
+      window.dispatchEvent(
+        new CustomEvent("agromind:tasks:refresh", { detail: { farmId } })
+      );
+      localStorage.setItem("agromind_tasks_refresh", String(Date.now()));
+    } catch {
+      // no-op
+    }
+  };
+
   const handleAddToTasks = async (s) => {
     const id = String(s?.id || "");
     try {
@@ -489,12 +540,17 @@ export default function FinanceSummaryIA({
 
       setSavingId(id || "saving");
 
+      // ✅ Normalizar SIEMPRE al formato que tu backend acepta
+      const normalized = normalizeTaskPayload(payload);
+
       await apiFetch(`/api/farms/${farmId}/tasks`, {
         method: "POST",
-        body: JSON.stringify(payload),
+        body: JSON.stringify(normalized),
       });
 
+      // ✅ Ocultar sugerencia + refrescar tareas
       handleIgnore(s);
+      fireTasksRefresh();
     } catch (err) {
       setErrorMsg(err?.message || "No se pudo crear la tarea desde la sugerencia.");
     } finally {
@@ -645,7 +701,8 @@ export default function FinanceSummaryIA({
                 <b>{effectiveInsights?.audit?.missingCategory ?? 0}</b>
               </li>
               <li>
-                “General”: <b>{effectiveInsights?.audit?.tooGeneralCategory ?? 0}</b>
+                “General”:{" "}
+                <b>{effectiveInsights?.audit?.tooGeneralCategory ?? 0}</b>
               </li>
               <li>
                 Concepto genérico:{" "}
@@ -681,7 +738,9 @@ export default function FinanceSummaryIA({
                   <div className="finance-ia-suggestion-title">
                     {s.title || "Sugerencia"}
                   </div>
-                  <div className="finance-ia-suggestion-text">{s.message || ""}</div>
+                  <div className="finance-ia-suggestion-text">
+                    {s.message || ""}
+                  </div>
 
                   <div className="finance-ia-suggestion-actions">
                     <button
