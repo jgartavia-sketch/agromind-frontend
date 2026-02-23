@@ -1,3 +1,4 @@
+// src/components/finance/FinanceSummaryIA.jsx
 import { useEffect, useMemo, useState } from "react";
 import "./finance-summary-ia.css";
 
@@ -37,10 +38,10 @@ function formatMoneyCRC(value) {
   });
 }
 
-export default function FinanceSummaryIA() {
+export default function FinanceSummaryIA({ farmId: farmIdProp, token: tokenProp }) {
   const [tab, setTab] = useState("estado"); // estado | alertas | auditor
   const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const [savingId, setSavingId] = useState(null); // id de sugerencia que se está guardando
   const [errorMsg, setErrorMsg] = useState("");
 
   const [insights, setInsights] = useState(null);
@@ -51,8 +52,8 @@ export default function FinanceSummaryIA() {
     import.meta.env.VITE_API_BASE_URL ||
     "";
 
-  const token = getAuthToken();
-  const farmId = getActiveFarmId();
+  const token = tokenProp || getAuthToken();
+  const farmId = farmIdProp || getActiveFarmId();
 
   function authHeaders() {
     return {
@@ -122,50 +123,82 @@ export default function FinanceSummaryIA() {
 
   const suggestions = useMemo(() => {
     const list = Array.isArray(insights?.suggestions) ? insights.suggestions : [];
-    return list.filter((s) => s?.id && !ignored.has(s.id));
+    return list
+      .map((s) => ({
+        ...s,
+        id: String(s?.id || ""),
+      }))
+      .filter((s) => s.id && !ignored.has(s.id));
   }, [insights, ignored]);
 
   const summaryCards = useMemo(() => {
     const s = insights?.summary;
     if (!s) return [];
+    const month = s.month || "—";
+
     return [
-      { label: "Ingresos", value: formatMoneyCRC(s.ingresos), meta: s.month, cls: "success" },
-      { label: "Gastos", value: formatMoneyCRC(s.gastos), meta: s.month, cls: "warning" },
-      { label: "Balance", value: formatMoneyCRC(s.balance), meta: `Margen ${Number(s.margen || 0).toFixed(1)}%`, cls: "" },
-      { label: "Score", value: `${insights?.healthScore ?? 0}/100`, meta: "Salud financiera", cls: "" },
+      {
+        label: "Ingresos",
+        value: formatMoneyCRC(s.ingresos),
+        meta: month,
+        cls: "success",
+      },
+      {
+        label: "Gastos",
+        value: formatMoneyCRC(s.gastos),
+        meta: month,
+        cls: "warning",
+      },
+      {
+        label: "Balance",
+        value: formatMoneyCRC(s.balance),
+        meta: `Margen ${Number(s.margen || 0).toFixed(1)}%`,
+        cls: "",
+      },
+      {
+        label: "Score",
+        value: `${insights?.healthScore ?? 0}/100`,
+        meta: "Salud financiera",
+        cls: "",
+      },
     ];
   }, [insights]);
 
   const handleIgnore = (s) => {
-    if (!s?.id) return;
+    const id = String(s?.id || "");
+    if (!id) return;
+
     setIgnored((prev) => {
       const next = new Set(prev);
-      next.add(s.id);
+      next.add(id);
       return next;
     });
   };
 
   const handleAddToTasks = async (s) => {
+    const id = String(s?.id || "");
     try {
       setErrorMsg("");
 
       if (!farmId) return setErrorMsg("No hay finca activa.");
       if (!token) return setErrorMsg("No hay token.");
 
-      if (!s?.actionPayload) return;
+      const payload = s?.actionPayload || null;
+      if (!payload) return;
 
-      setSaving(true);
+      setSavingId(id || "saving");
+
       await apiFetch(`/api/farms/${farmId}/tasks`, {
         method: "POST",
-        body: JSON.stringify(s.actionPayload),
+        body: JSON.stringify(payload),
       });
 
-      // si se creó, la escondemos del carrusel
+      // Si se creó, se oculta del carrusel
       handleIgnore(s);
     } catch (err) {
       setErrorMsg(err?.message || "No se pudo crear la tarea desde la sugerencia.");
     } finally {
-      setSaving(false);
+      setSavingId(null);
     }
   };
 
@@ -174,7 +207,11 @@ export default function FinanceSummaryIA() {
       <header className="finance-ia-header">
         <h3>Estado financiero del mes</h3>
         <p className="finance-ia-sub">
-          {loading ? "Cargando…" : errorMsg ? errorMsg : "Resumen, alertas y sugerencias"}
+          {loading
+            ? "Cargando…"
+            : errorMsg
+            ? errorMsg
+            : "Resumen, alertas y sugerencias"}
         </p>
       </header>
 
@@ -216,13 +253,25 @@ export default function FinanceSummaryIA() {
 
       {/* Tabs */}
       <nav className="finance-ia-tabs">
-        <button type="button" className={`tab ${tab === "estado" ? "active" : ""}`} onClick={() => setTab("estado")}>
+        <button
+          type="button"
+          className={`tab ${tab === "estado" ? "active" : ""}`}
+          onClick={() => setTab("estado")}
+        >
           Estado
         </button>
-        <button type="button" className={`tab ${tab === "alertas" ? "active" : ""}`} onClick={() => setTab("alertas")}>
+        <button
+          type="button"
+          className={`tab ${tab === "alertas" ? "active" : ""}`}
+          onClick={() => setTab("alertas")}
+        >
           Alertas
         </button>
-        <button type="button" className={`tab ${tab === "auditor" ? "active" : ""}`} onClick={() => setTab("auditor")}>
+        <button
+          type="button"
+          className={`tab ${tab === "auditor" ? "active" : ""}`}
+          onClick={() => setTab("auditor")}
+        >
           Auditor
         </button>
       </nav>
@@ -236,9 +285,16 @@ export default function FinanceSummaryIA() {
               <b>{formatMoneyCRC(insights?.projection90 || 0)}</b> (90 días)
             </p>
 
-            <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", opacity: 0.9 }}>
+            <div
+              style={{
+                display: "flex",
+                gap: "0.75rem",
+                flexWrap: "wrap",
+                opacity: 0.9,
+              }}
+            >
               {(insights?.topCategories || []).map((c) => (
-                <span key={c.category} style={{ fontSize: "0.85rem" }}>
+                <span key={c.category || Math.random()} style={{ fontSize: "0.85rem" }}>
                   <b>{c.category}</b>: {formatMoneyCRC(c.total)}
                 </span>
               ))}
@@ -249,12 +305,14 @@ export default function FinanceSummaryIA() {
         {tab === "alertas" && (
           <>
             {(insights?.anomalies || []).length === 0 ? (
-              <p style={{ margin: 0, opacity: 0.85 }}>Sin alertas detectadas este mes.</p>
+              <p style={{ margin: 0, opacity: 0.85 }}>
+                Sin alertas detectadas este mes.
+              </p>
             ) : (
               <ul style={{ margin: 0, paddingLeft: "1.1rem" }}>
-                {insights.anomalies.map((a, i) => (
+                {(insights?.anomalies || []).map((a, i) => (
                   <li key={i} style={{ marginBottom: "0.35rem" }}>
-                    <b>{a.title}</b> — {a.message}
+                    <b>{a?.title || "Alerta"}</b> — {a?.message || ""}
                   </li>
                 ))}
               </ul>
@@ -265,11 +323,21 @@ export default function FinanceSummaryIA() {
         {tab === "auditor" && (
           <>
             <ul style={{ margin: 0, paddingLeft: "1.1rem" }}>
-              <li>Sin categoría: <b>{insights?.audit?.missingCategory ?? 0}</b></li>
-              <li>“General”: <b>{insights?.audit?.tooGeneralCategory ?? 0}</b></li>
-              <li>Concepto genérico: <b>{insights?.audit?.genericConcept ?? 0}</b></li>
-              <li>Posibles duplicados: <b>{insights?.audit?.possibleDuplicates ?? 0}</b></li>
-              <li>Gastos sin factura: <b>{insights?.audit?.invoiceMissing ?? 0}</b></li>
+              <li>
+                Sin categoría: <b>{insights?.audit?.missingCategory ?? 0}</b>
+              </li>
+              <li>
+                “General”: <b>{insights?.audit?.tooGeneralCategory ?? 0}</b>
+              </li>
+              <li>
+                Concepto genérico: <b>{insights?.audit?.genericConcept ?? 0}</b>
+              </li>
+              <li>
+                Posibles duplicados: <b>{insights?.audit?.possibleDuplicates ?? 0}</b>
+              </li>
+              <li>
+                Gastos sin factura: <b>{insights?.audit?.invoiceMissing ?? 0}</b>
+              </li>
             </ul>
           </>
         )}
@@ -285,31 +353,47 @@ export default function FinanceSummaryIA() {
           </p>
         ) : (
           <div className="finance-ia-suggestions">
-            {suggestions.map((s) => (
-              <div key={s.id} className="finance-ia-suggestion-card">
-                <div className="finance-ia-suggestion-title">{s.title || "Sugerencia"}</div>
-                <div className="finance-ia-suggestion-text">{s.message || ""}</div>
+            {suggestions.map((s) => {
+              const busy = savingId && savingId === s.id;
 
-                <div className="finance-ia-suggestion-actions">
-                  <button
-                    type="button"
-                    className="small-btn"
-                    disabled={saving || !s.actionPayload}
-                    onClick={() => handleAddToTasks(s)}
-                  >
-                    {saving ? "…" : "Agregar"}
-                  </button>
-                  <button
-                    type="button"
-                    className="small-btn small-btn-danger"
-                    disabled={saving}
-                    onClick={() => handleIgnore(s)}
-                  >
-                    Ignorar
-                  </button>
+              return (
+                <div key={s.id} className="finance-ia-suggestion-card">
+                  <div className="finance-ia-suggestion-title">
+                    {s.title || "Sugerencia"}
+                  </div>
+                  <div className="finance-ia-suggestion-text">
+                    {s.message || ""}
+                  </div>
+
+                  <div className="finance-ia-suggestion-actions">
+                    <button
+                      type="button"
+                      className="primary-btn"
+                      disabled={!!savingId || !s.actionPayload}
+                      onClick={() => handleAddToTasks(s)}
+                      style={{ padding: "0.35rem 0.8rem", fontSize: "0.85rem" }}
+                      title={
+                        s.actionPayload
+                          ? "Crear tarea a partir de esta sugerencia"
+                          : "Sugerencia informativa"
+                      }
+                    >
+                      {busy ? "Creando…" : "Agregar"}
+                    </button>
+
+                    <button
+                      type="button"
+                      className="secondary-btn"
+                      disabled={!!savingId}
+                      onClick={() => handleIgnore(s)}
+                      style={{ padding: "0.35rem 0.8rem", fontSize: "0.85rem" }}
+                    >
+                      Ignorar
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

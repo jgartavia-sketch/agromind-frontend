@@ -522,7 +522,8 @@ export default function TareasPage({
             está en control.)
           </p>
         ) : (
-          <div className="ai-suggestions-list">
+          // ✅ Carrusel horizontal: scroll izquierda→derecha
+          <div className="ai-suggestions-list ai-suggestions-row">
             {visibleSuggestions.map((s) => {
               const id = String(s?.id || s?._id || Math.random());
               const level = s?.level || "info";
@@ -532,10 +533,15 @@ export default function TareasPage({
               const zone = s?.zone ? String(s.zone) : "";
 
               return (
-                <div key={id} className={`ai-suggestion-card ${getSuggestionClass(level)}`}>
+                <div
+                  key={id}
+                  className={`ai-suggestion-card ai-suggestion-card-h ${getSuggestionClass(level)}`}
+                >
                   <div className="ai-suggestion-head">
                     <div className="ai-suggestion-title">{title}</div>
-                    {zone ? <div className="ai-suggestion-chip">{zone}</div> : null}
+                    {zone ? (
+                      <div className="ai-suggestion-chip">{zone}</div>
+                    ) : null}
                   </div>
 
                   {message ? (

@@ -429,3 +429,61 @@
   margin-bottom: 16px;
   font-weight: 600;
 }
+/* =====================================================
+   IA SUGGESTIONS — carrusel horizontal (scroll →)
+===================================================== */
+
+.ai-suggestions-row {
+  display: flex;
+  gap: 0.8rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.25rem 0 0.75rem;
+  margin-top: 0.75rem;
+
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+
+.ai-suggestions-row::-webkit-scrollbar {
+  height: 10px;
+}
+.ai-suggestions-row::-webkit-scrollbar-track {
+  background: transparent;
+}
+.ai-suggestions-row::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+}
+
+/* cada card: ancho premium fijo para “panel ejecutivo” */
+.ai-suggestion-card-h {
+  flex: 0 0 320px;
+  max-width: 320px;
+  scroll-snap-align: start;
+}
+
+@media (max-width: 520px) {
+  .ai-suggestion-card-h {
+    flex-basis: 85%;
+    max-width: 85%;
+  }
+}
+/* =====================================================
+   OVERRIDE FINAL: carrusel IA (no columna)
+   ===================================================== */
+
+/* Si el contenedor tiene ambas clases, manda el carrusel */
+.ai-suggestions-list.ai-suggestions-row {
+  flex-direction: row;
+  align-items: stretch;
+}
+
+/* Para que las cards se vean como “tarjetas” y no se estiren raro */
+.ai-suggestions-list.ai-suggestions-row .ai-suggestion-card {
+  height: 100%;
+}
+.ai-suggestions-list.ai-suggestions-row .ai-suggestion-actions {
+  justify-content: flex-end;
+}

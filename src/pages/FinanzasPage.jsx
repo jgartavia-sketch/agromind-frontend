@@ -89,6 +89,31 @@ function buildMonthlyChartData(movements) {
   return Array.from(map.values()).sort((a, b) => a.month.localeCompare(b.month));
 }
 
+// -------------------------
+// Helpers Activos (UI <-> Backend)
+// -------------------------
+function withQtyInName(name, qty) {
+  const base = String(name || "").trim();
+  const q = Number(qty || 1);
+  if (!base) return "";
+  if (!Number.isFinite(q) || q <= 1) return base;
+  // Evita duplicar si ya trae (xN)
+  if (/\(x\d+\)\s*$/.test(base)) return base;
+  return `${base} (x${Math.trunc(q)})`;
+}
+
+function extractQtyFromName(name) {
+  const s = String(name || "");
+  const m = /\(x(\d+)\)\s*$/.exec(s);
+  if (!m) return { cleanName: s.trim(), qty: 1 };
+  const qty = Number(m[1] || 1);
+  const cleanName = s.replace(/\(x\d+\)\s*$/, "").trim();
+  return {
+    cleanName: cleanName || s.trim(),
+    qty: Number.isFinite(qty) && qty > 0 ? qty : 1,
+  };
+}
+
 export default function FinanzasPage({ farmId: farmIdProp, token: tokenProp }) {
   const [movements, setMovements] = useState([]);
   const [showModal, setShowModal] = useState(false);
@@ -98,6 +123,23 @@ export default function FinanzasPage({ farmId: farmIdProp, token: tokenProp }) {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+
+  // =========================
+  // ACTIVOS (PERSISTENTES)
+  // =========================
+  const [assets, setAssets] = useState([]);
+  const [assetsLoading, setAssetsLoading] = useState(false);
+  const [assetsSaving, setAssetsSaving] = useState(false);
+  const [assetsError, setAssetsError] = useState("");
+
+  const [assetName, setAssetName] = useState("");
+  const [assetType, setAssetType] = useState("Equipo"); // mapea a category en backend
+  const [assetQty, setAssetQty] = useState(1);
+  const [assetUnitValue, setAssetUnitValue] = useState("");
+
+  const totalAssetsValue = useMemo(() => {
+    return assets.reduce((acc, a) => acc + Number(a.totalValue || 0), 0);
+  }, [assets]);
 
   // Config API
   const API_BASE =
@@ -188,6 +230,70 @@ export default function FinanzasPage({ farmId: farmIdProp, token: tokenProp }) {
     }
 
     load();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [farmId, token, API_BASE]);
+
+  // =========================
+  // LOAD ASSETS (REAL) AL ENTRAR
+  // =========================
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadAssets() {
+      setAssetsError("");
+
+      if (!farmId) {
+        setAssets([]);
+        setAssetsError("No se detectó una finca activa para cargar activos.");
+        return;
+      }
+      if (!token) {
+        setAssets([]);
+        setAssetsError("No hay token. Inicia sesión nuevamente.");
+        return;
+      }
+
+      try {
+        setAssetsLoading(true);
+        const data = await apiFetch(`/api/farms/${farmId}/finance/assets`);
+        if (cancelled) return;
+
+        const list = Array.isArray(data?.assets) ? data.assets : [];
+
+        // Mapeo backend -> UI
+        const normalized = list.map((a) => {
+          const { cleanName, qty } = extractQtyFromName(a?.name);
+          const unit = Number(a?.purchaseValue || 0);
+          const total = Math.max(0, qty) * Math.max(0, unit);
+
+          return {
+            id: a.id,
+            name: cleanName || a?.name || "",
+            type: a?.category || "Equipo",
+            qty,
+            unitValue: unit,
+            totalValue: total,
+            // extras por si luego hacemos edición avanzada:
+            purchaseDate: a?.purchaseDate,
+            usefulLifeYears: a?.usefulLifeYears,
+            residualValue: a?.residualValue,
+          };
+        });
+
+        setAssets(normalized);
+      } catch (err) {
+        if (cancelled) return;
+        setAssetsError(err?.message || "No se pudieron cargar los activos.");
+        setAssets([]);
+      } finally {
+        if (!cancelled) setAssetsLoading(false);
+      }
+    }
+
+    loadAssets();
     return () => {
       cancelled = true;
     };
@@ -362,6 +468,113 @@ export default function FinanzasPage({ farmId: farmIdProp, token: tokenProp }) {
     setShowModal(true);
   };
 
+  // =========================
+  // CREATE ASSET (REAL)
+  // =========================
+  const handleAddAsset = async () => {
+    setAssetsError("");
+
+    if (!farmId) {
+      setAssetsError("No hay finca activa. Selecciona/crea una finca primero.");
+      return;
+    }
+    if (!token) {
+      setAssetsError("No hay token. Inicia sesión nuevamente.");
+      return;
+    }
+
+    const name = String(assetName || "").trim();
+    const qty = Number(assetQty || 0);
+    const unit = Number(assetUnitValue || 0);
+
+    if (!name) {
+      setAssetsError("Escribe un nombre para el activo.");
+      return;
+    }
+
+    const safeQty = Number.isFinite(qty) && qty > 0 ? qty : 1;
+    const safeUnit = Number.isFinite(unit) && unit >= 0 ? unit : 0;
+
+    const payload = {
+      name: withQtyInName(name, safeQty),
+      category: assetType || "Equipo",
+      purchaseValue: Math.trunc(safeUnit),
+      // Mantenerlo simple por ahora:
+      purchaseDate: new Date().toISOString(),
+      usefulLifeYears: 5,
+      residualValue: 0,
+    };
+
+    try {
+      setAssetsSaving(true);
+      const data = await apiFetch(`/api/farms/${farmId}/finance/assets`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+
+      const created = data?.asset || null;
+      if (created) {
+        const parsed = extractQtyFromName(created.name);
+        const total = parsed.qty * Number(created.purchaseValue || 0);
+
+        const uiAsset = {
+          id: created.id,
+          name: parsed.cleanName,
+          type: created.category || "Equipo",
+          qty: parsed.qty,
+          unitValue: Number(created.purchaseValue || 0),
+          totalValue: total,
+          purchaseDate: created.purchaseDate,
+          usefulLifeYears: created.usefulLifeYears,
+          residualValue: created.residualValue,
+        };
+
+        setAssets((prev) => [uiAsset, ...prev]);
+
+        setAssetName("");
+        setAssetType("Equipo");
+        setAssetQty(1);
+        setAssetUnitValue("");
+      }
+    } catch (err) {
+      setAssetsError(err?.message || "No se pudo guardar el activo.");
+    } finally {
+      setAssetsSaving(false);
+    }
+  };
+
+  // =========================
+  // DELETE ASSET (REAL)
+  // =========================
+  const handleDeleteAsset = async (assetId) => {
+    const ok = window.confirm("¿Eliminar este activo?");
+    if (!ok) return;
+
+    setAssetsError("");
+
+    if (!farmId) {
+      setAssetsError("No hay finca activa.");
+      return;
+    }
+    if (!token) {
+      setAssetsError("No hay token. Inicia sesión nuevamente.");
+      return;
+    }
+
+    try {
+      setAssetsSaving(true);
+      await apiFetch(`/api/farms/${farmId}/finance/assets/${assetId}`, {
+        method: "DELETE",
+      });
+
+      setAssets((prev) => prev.filter((a) => a.id !== assetId));
+    } catch (err) {
+      setAssetsError(err?.message || "No se pudo eliminar el activo.");
+    } finally {
+      setAssetsSaving(false);
+    }
+  };
+
   return (
     <div className="page finance-page">
       <div className="finance-container">
@@ -508,6 +721,157 @@ export default function FinanzasPage({ farmId: farmIdProp, token: tokenProp }) {
                 })}
               </tbody>
             </table>
+          </section>
+
+          {/* =========================
+              ACTIVOS (ABAJO DE FINANZAS) - PERSISTENTES
+             ========================= */}
+          <section className="finance-assets card" style={{ marginTop: "1rem" }}>
+            <header className="page-header page-header-actions">
+              <div>
+                <h2>Activos</h2>
+                <p className="page-subtitle">
+                  Equipos, infraestructura y recursos con valor económico
+                </p>
+              </div>
+
+              <button
+                className="btn-secondary"
+                type="button"
+                onClick={handleAddAsset}
+                disabled={assetsSaving || !assetName.trim()}
+                title={!assetName.trim() ? "Escribe un nombre para el activo" : ""}
+              >
+                {assetsSaving ? "Guardando…" : "+ Agregar activo"}
+              </button>
+            </header>
+
+            {(assetsError || assetsLoading) && (
+              <div style={{ marginBottom: "0.75rem", opacity: 0.85 }}>
+                {assetsLoading ? "Cargando activos…" : assetsError}
+              </div>
+            )}
+
+            <div className="asset-form" style={{ display: "grid", gap: "0.75rem" }}>
+              <div
+                style={{
+                  display: "grid",
+                  gap: "0.5rem",
+                  gridTemplateColumns: "2fr 1fr",
+                }}
+              >
+                <input
+                  className="input"
+                  type="text"
+                  placeholder="Nombre (Ej: Tractor, Bomba, Invernadero)"
+                  value={assetName}
+                  onChange={(e) => setAssetName(e.target.value)}
+                />
+
+                <select
+                  className="input"
+                  value={assetType}
+                  onChange={(e) => setAssetType(e.target.value)}
+                >
+                  <option value="Equipo">Equipo</option>
+                  <option value="Infraestructura">Infraestructura</option>
+                  <option value="Herramienta">Herramienta</option>
+                  <option value="Animal">Animal</option>
+                  <option value="Vehículo">Vehículo</option>
+                  <option value="Otro">Otro</option>
+                </select>
+              </div>
+
+              <div
+                style={{
+                  display: "grid",
+                  gap: "0.5rem",
+                  gridTemplateColumns: "1fr 1fr 1fr",
+                }}
+              >
+                <input
+                  className="input"
+                  type="number"
+                  min="1"
+                  step="1"
+                  placeholder="Cantidad"
+                  value={assetQty}
+                  onChange={(e) => setAssetQty(e.target.value)}
+                />
+                <input
+                  className="input"
+                  type="number"
+                  min="0"
+                  step="1000"
+                  placeholder="Valor unitario (₡)"
+                  value={assetUnitValue}
+                  onChange={(e) => setAssetUnitValue(e.target.value)}
+                />
+                <div
+                  className="input"
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "0.6rem 0.75rem",
+                    opacity: 0.9,
+                  }}
+                >
+                  <span>Total activos</span>
+                  <strong>{formatMoneyCRC(totalAssetsValue)}</strong>
+                </div>
+              </div>
+            </div>
+
+            <div className="finance-table" style={{ marginTop: "0.75rem" }}>
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Activo</th>
+                    <th>Tipo</th>
+                    <th style={{ textAlign: "right" }}>Cantidad</th>
+                    <th style={{ textAlign: "right" }}>Valor unitario</th>
+                    <th style={{ textAlign: "right" }}>Total</th>
+                    <th>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {assets.length === 0 ? (
+                    <tr className="row-placeholder">
+                      <td colSpan="6" style={{ opacity: 0.7 }}>
+                        No hay activos registrados todavía.
+                      </td>
+                    </tr>
+                  ) : (
+                    assets.map((a) => (
+                      <tr key={a.id}>
+                        <td>{a.name}</td>
+                        <td>{a.type}</td>
+                        <td style={{ textAlign: "right" }}>{Number(a.qty || 0)}</td>
+                        <td style={{ textAlign: "right" }}>
+                          {formatMoneyCRC(a.unitValue)}
+                        </td>
+                        <td style={{ textAlign: "right" }}>
+                          {formatMoneyCRC(a.totalValue)}
+                        </td>
+                        <td>
+                          <div className="task-actions">
+                            <button
+                              type="button"
+                              className="small-btn small-btn-danger"
+                              disabled={assetsSaving}
+                              onClick={() => handleDeleteAsset(a.id)}
+                            >
+                              Borrar
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </section>
         </section>
 
