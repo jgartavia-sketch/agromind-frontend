@@ -1,13 +1,9 @@
 // src/pages/InvestigadorPage.jsx
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import "../styles/investigador.css";
 
 export default function InvestigadorPage() {
-  const videoRef = useRef(null);
-  const canvasRef = useRef(null);
-
-  const [cameraOn, setCameraOn] = useState(false);
-  const [stream, setStream] = useState(null);
+  const fileInputRef = useRef(null);
 
   const [imageDataUrl, setImageDataUrl] = useState("");
   const [notes, setNotes] = useState("");
@@ -32,111 +28,10 @@ export default function InvestigadorPage() {
     );
   }, []);
 
-  useEffect(() => {
-    return () => stopCamera();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  async function startCamera() {
+  function openPicker() {
     setError("");
     setResult(null);
-
-    if (!navigator.mediaDevices?.getUserMedia) {
-      setError("Este navegador no soporta cámara.");
-      return;
-    }
-
-    try {
-      const s = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment" },
-        audio: false,
-      });
-
-      setStream(s);
-      setCameraOn(true);
-
-      const video = videoRef.current;
-      if (!video) return;
-
-      // iOS/Safari: forzar atributos antes de play
-      video.autoplay = true;
-      video.muted = true;
-      video.playsInline = true;
-      video.setAttribute("playsinline", "true");
-      video.setAttribute("muted", "true");
-      video.setAttribute("autoplay", "true");
-
-      video.srcObject = s;
-
-      // iOS: esperar metadata y luego play
-      video.onloadedmetadata = async () => {
-        try {
-          await video.play();
-        } catch (_) {
-          // Si falla autoplay, igual dejamos la cámara abierta y el usuario puede reintentar
-        }
-      };
-    } catch (e) {
-      const msg = String(e?.name || e?.message || e || "");
-      if (msg.includes("NotAllowed")) {
-        setError(
-          "Permiso de cámara denegado. Actívalo en el candadito del navegador y recarga."
-        );
-      } else if (msg.includes("NotFound")) {
-        setError(
-          "No se encontró cámara disponible. Usa “Subir foto” como alternativa."
-        );
-      } else if (msg.includes("NotReadable")) {
-        setError(
-          "La cámara está ocupada por otra app. Cierra Zoom/Meet/WhatsApp e intenta de nuevo."
-        );
-      } else {
-        setError(`No se pudo acceder a la cámara. (${msg || "Error"})`);
-      }
-    }
-  }
-
-  function stopCamera() {
-    try {
-      if (stream) stream.getTracks().forEach((t) => t.stop());
-    } catch (_) {
-      // ignore
-    } finally {
-      setStream(null);
-      setCameraOn(false);
-    }
-  }
-
-  function takePhoto() {
-    setError("");
-    setResult(null);
-
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-
-    if (!video || !canvas) {
-      setError("Cámara no lista todavía.");
-      return;
-    }
-
-    const w = video.videoWidth || 1280;
-    const h = video.videoHeight || 720;
-
-    if (!w || !h) {
-      setError(
-        "La cámara está encendida pero no está entregando imagen. Prueba “Subir foto”."
-      );
-      return;
-    }
-
-    canvas.width = w;
-    canvas.height = h;
-
-    const ctx = canvas.getContext("2d");
-    ctx.drawImage(video, 0, 0, w, h);
-
-    const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
-    setImageDataUrl(dataUrl);
+    fileInputRef.current?.click();
   }
 
   async function handleFilePick(e) {
@@ -151,6 +46,9 @@ export default function InvestigadorPage() {
       return;
     }
 
+    // Para poder volver a escoger la misma foto si se equivocan
+    e.target.value = "";
+
     const reader = new FileReader();
     reader.onload = () => setImageDataUrl(String(reader.result || ""));
     reader.onerror = () => setError("No se pudo leer la imagen.");
@@ -163,7 +61,7 @@ export default function InvestigadorPage() {
 
     if (!farmId?.trim()) {
       setError(
-        "No se detectó tu finca activa. Entra al Mapa, selecciona tu finca, y vuelve aquí."
+        "No se detectó tu finca activa. Entra al Mapa, selecciona tu finca y vuelve aquí."
       );
       return;
     }
@@ -246,7 +144,7 @@ export default function InvestigadorPage() {
       <header className="investigador-header">
         <h1>Investigador</h1>
         <p className="investigador-subtitle">
-          Toma una foto y recibe recomendaciones prácticas.
+          Toma o sube una foto y recibe recomendaciones prácticas.
         </p>
       </header>
 
@@ -302,46 +200,14 @@ export default function InvestigadorPage() {
       <section className="investigador-action card">
         <div style={{ display: "grid", gap: "0.75rem" }}>
           <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-            {!cameraOn ? (
-              <button
-                type="button"
-                className="investigador-camera-btn"
-                onClick={startCamera}
-              >
-                📷 Abrir cámara
-              </button>
-            ) : (
-              <>
-                <button
-                  type="button"
-                  className="investigador-camera-btn"
-                  onClick={takePhoto}
-                >
-                  📸 Tomar foto
-                </button>
-                <button
-                  type="button"
-                  className="investigador-camera-btn"
-                  onClick={stopCamera}
-                  style={{ opacity: 0.9 }}
-                >
-                  ✖ Cerrar cámara
-                </button>
-              </>
-            )}
-
-            <label
+            <button
+              type="button"
               className="investigador-camera-btn"
-              style={{ cursor: "pointer", display: "inline-flex" }}
+              onClick={openPicker}
+              title="En celular abre cámara o galería. En laptop abre archivos."
             >
-              ⬆ Subir foto
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleFilePick}
-                style={{ display: "none" }}
-              />
-            </label>
+              📷 Tomar o subir foto
+            </button>
 
             <button
               type="button"
@@ -363,29 +229,15 @@ export default function InvestigadorPage() {
             </button>
           </div>
 
-          {cameraOn && (
-            <div style={{ display: "grid", gap: "0.5rem" }}>
-              <video
-                ref={videoRef}
-                autoPlay
-                muted
-                playsInline
-                style={{
-                  width: "100%",
-                  borderRadius: "1rem",
-                  border: "1px solid rgba(255,255,255,0.12)",
-                  background: "rgba(2,6,23,0.6)",
-                  minHeight: "220px",
-                }}
-              />
-              <p className="investigador-hint">
-                Si no se ve nada, usa “Subir foto”. En laptop es normal que
-                algunos navegadores bloqueen cámara según permisos.
-              </p>
-            </div>
-          )}
-
-          <canvas ref={canvasRef} style={{ display: "none" }} />
+          {/* Input escondido: la clave del flujo multi-dispositivo */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            onChange={handleFilePick}
+            style={{ display: "none" }}
+          />
 
           {imageDataUrl && (
             <div style={{ display: "grid", gap: "0.5rem" }}>
@@ -423,6 +275,7 @@ export default function InvestigadorPage() {
         {result?.ok ? (
           <div className="investigador-card card">
             <span className="investigador-type">Resultado</span>
+
             <h3>
               {result?.result?.category === "plant"
                 ? "🌿 Planta"
@@ -459,9 +312,9 @@ export default function InvestigadorPage() {
         ) : (
           <div className="investigador-card card" style={{ opacity: 0.9 }}>
             <span className="investigador-type">Estado</span>
-            <h3>Listo para capturar</h3>
+            <h3>Listo para analizar</h3>
             <p className="investigador-note">
-              Abre cámara o sube una foto y presiona “Analizar”.
+              Presiona “Tomar o subir foto”, luego “Analizar”.
             </p>
 
             <details style={{ marginTop: "0.75rem" }}>
