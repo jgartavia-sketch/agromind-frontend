@@ -1,5 +1,5 @@
 // src/components/finance/FinanceSummaryIA.jsx
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import "./finance-summary-ia.css";
 
 function pickLocalStorage(keys) {
@@ -54,7 +54,7 @@ function toYYYYMMDD(value) {
 function getMonthKey(dateStr) {
   const d = toYYYYMMDD(dateStr);
   if (!d || d.includes("—")) return "";
-  return d.slice(0, 7);
+  return d.slice(0, 7); // YYYY-MM
 }
 
 function safeNum(x) {
@@ -67,7 +67,10 @@ function safeNum(x) {
 // -------------------------
 function buildLocalInsights({ movements = [], assets = [], summary = null }) {
   const now = new Date();
-  const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(
+    2,
+    "0"
+  )}`;
 
   const ingresos = summary
     ? safeNum(summary.ingresos)
@@ -84,67 +87,90 @@ function buildLocalInsights({ movements = [], assets = [], summary = null }) {
   const balance = summary ? safeNum(summary.balance) : ingresos - gastos;
   const margen = ingresos > 0 ? (balance / ingresos) * 100 : 0;
 
+  // categorías top (por total)
   const catMap = new Map();
   for (const m of movements) {
     const cat = String(m.category || "Sin categoría").trim() || "Sin categoría";
     const amt = safeNum(m.amount);
-    catMap.set(cat, (catMap.get(cat) || 0) + amt);
+    const prev = catMap.get(cat) || 0;
+    catMap.set(cat, prev + amt);
   }
   const topCategories = Array.from(catMap.entries())
     .map(([category, total]) => ({ category, total }))
     .sort((a, b) => b.total - a.total)
     .slice(0, 5);
 
+  // Auditoría simple
   const missingCategory = movements.filter(
-    (m) => !String(m.category || "").trim() || String(m.category).trim() === "—"
+    (m) =>
+      !String(m.category || "").trim() || String(m.category).trim() === "—"
   ).length;
-
   const tooGeneralCategory = movements.filter(
     (m) => String(m.category || "").trim().toLowerCase() === "general"
   ).length;
-
   const genericConcept = movements.filter((m) => {
     const c = String(m.concept || "").trim().toLowerCase();
-    return !c || c === "—" || c === "varios" || c === "misc" || c === "compra" || c === "venta";
+    return (
+      !c ||
+      c === "—" ||
+      c === "varios" ||
+      c === "misc" ||
+      c === "compra" ||
+      c === "venta"
+    );
   }).length;
 
   const invoiceMissing = movements.filter(
     (m) =>
       m.type === "Gasto" &&
-      (!String(m.invoiceNumber || "").trim() || String(m.invoiceNumber).trim() === "—")
+      (!String(m.invoiceNumber || "").trim() ||
+        String(m.invoiceNumber).trim() === "—")
   ).length;
 
+  // posibles duplicados: mismo concepto + mismo monto + misma fecha
   const seen = new Set();
   let possibleDuplicates = 0;
   for (const m of movements) {
-    const key = `${toYYYYMMDD(m.date)}|${String(m.concept || "").trim().toLowerCase()}|${safeNum(m.amount)}`;
+    const key = `${toYYYYMMDD(m.date)}|${String(m.concept || "")
+      .trim()
+      .toLowerCase()}|${safeNum(m.amount)}`;
     if (seen.has(key)) possibleDuplicates += 1;
     else seen.add(key);
   }
 
+  // Proyección: promedio neto diario * N (usa mes actual si hay, si no todo)
   const monthMovs = movements.filter((m) => getMonthKey(m.date) === monthKey);
   const basis = monthMovs.length > 0 ? monthMovs : movements;
 
   const dailyNet = (() => {
     if (basis.length === 0) return 0;
+
     const dates = basis
       .map((m) => new Date(toYYYYMMDD(m.date)))
       .filter((d) => !Number.isNaN(d.getTime()))
       .sort((a, b) => a - b);
 
     if (dates.length === 0) return 0;
+
     const first = dates[0];
     const last = dates[dates.length - 1];
-    const days = Math.max(1, Math.round((last - first) / (1000 * 60 * 60 * 24)) + 1);
+    const days =
+      Math.max(1, Math.round((last - first) / (1000 * 60 * 60 * 24)) + 1) || 1;
 
-    const inc = basis.filter((m) => m.type === "Ingreso").reduce((acc, m) => acc + safeNum(m.amount), 0);
-    const exp = basis.filter((m) => m.type === "Gasto").reduce((acc, m) => acc + safeNum(m.amount), 0);
+    const inc = basis
+      .filter((m) => m.type === "Ingreso")
+      .reduce((acc, m) => acc + safeNum(m.amount), 0);
+    const exp = basis
+      .filter((m) => m.type === "Gasto")
+      .reduce((acc, m) => acc + safeNum(m.amount), 0);
+
     return (inc - exp) / days;
   })();
 
   const projection30 = dailyNet * 30;
   const projection90 = dailyNet * 90;
 
+  // health score simple
   let healthScore = 50;
   if (margen >= 20) healthScore += 20;
   else if (margen >= 10) healthScore += 10;
@@ -160,6 +186,7 @@ function buildLocalInsights({ movements = [], assets = [], summary = null }) {
 
   healthScore = Math.max(0, Math.min(100, Math.round(healthScore)));
 
+  // sugerencias (acciones)
   const suggestions = [];
 
   if (movements.length === 0) {
@@ -212,7 +239,9 @@ function buildLocalInsights({ movements = [], assets = [], summary = null }) {
       suggestions.push({
         id: "local-margin",
         title: "Margen bajo",
-        message: `Tu margen está en ${margen.toFixed(1)}%. Recomendación: revisar gastos “silenciosos” (insumos, transporte, reparaciones) y renegociar costos.`,
+        message: `Tu margen está en ${margen.toFixed(
+          1
+        )}%. Recomendación: revisar gastos “silenciosos” (insumos, transporte, reparaciones) y renegociar costos.`,
         actionPayload: {
           title: "Revisión de costos para mejorar margen",
           description:
@@ -229,7 +258,9 @@ function buildLocalInsights({ movements = [], assets = [], summary = null }) {
       suggestions.push({
         id: "local-topcat",
         title: "Tu categoría dominante",
-        message: `La categoría con mayor movimiento es “${top.category}” (${formatMoneyCRC(top.total)}). Usala como KPI: ¿es inversión estratégica o fuga?`,
+        message: `La categoría con mayor movimiento es “${top.category}” (${formatMoneyCRC(
+          top.total
+        )}). Usala como KPI: ¿es inversión estratégica o fuga?`,
         actionPayload: null,
       });
     }
@@ -286,10 +317,9 @@ export default function FinanceSummaryIA({
   const [loading, setLoading] = useState(false);
   const [savingId, setSavingId] = useState(null);
   const [errorMsg, setErrorMsg] = useState("");
+
   const [insights, setInsights] = useState(null);
   const [ignored, setIgnored] = useState(() => new Set());
-
-  const lastFetchKeyRef = useRef(""); // evita doble fetch “idéntico”
 
   const API_BASE =
     apiBaseProp ||
@@ -303,92 +333,52 @@ export default function FinanceSummaryIA({
   function authHeaders() {
     return {
       "Content-Type": "application/json",
-      Accept: "application/json",
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     };
   }
 
   async function apiFetch(path, options = {}) {
-    const url = `${API_BASE}${path}`;
-    const res = await fetch(url, {
-      cache: "no-store",
+    const res = await fetch(`${API_BASE}${path}`, {
       ...options,
+      cache: "no-store",
       headers: {
         ...authHeaders(),
         ...(options.headers || {}),
       },
     });
 
-    const ct = String(res.headers.get("content-type") || "").toLowerCase();
     let data = null;
-
     try {
-      if (ct.includes("application/json")) {
-        data = await res.json();
-      } else {
-        // si viene vacío o no-json, lo leemos como texto para detectar “200 sin body”
-        const text = await res.text();
-        data = text ? { _raw: text } : null;
-      }
+      data = await res.json();
     } catch {
-      data = null;
+      // no-op
     }
 
     if (!res.ok) {
       const msg = data?.error || `Error HTTP ${res.status}`;
       throw new Error(msg);
     }
-
-    // 200 OK pero sin JSON útil
-    if (!data || typeof data !== "object" || Array.isArray(data)) {
-      throw new Error("Respuesta vacía o inválida del servidor.");
-    }
-
-    // si vino texto raw, también lo tratamos como inválido
-    if (data && data._raw) {
-      throw new Error("Servidor respondió sin JSON (respuesta inválida).");
-    }
-
     return data;
   }
 
   useEffect(() => {
-    if (!farmId) {
-      setErrorMsg("No se detectó una finca activa.");
-      setInsights(null);
-      return;
-    }
-    if (!token) {
-      setErrorMsg("No hay token. Inicia sesión nuevamente.");
-      setInsights(null);
-      return;
-    }
-
-    const fetchKey = `${API_BASE}|${farmId}|${token.slice(0, 12)}`;
-    if (lastFetchKeyRef.current === fetchKey) {
-      // misma combinación: evitamos el “doble disparo”
-      return;
-    }
-    lastFetchKeyRef.current = fetchKey;
-
-    const controller = new AbortController();
     let cancelled = false;
 
     async function load() {
       setErrorMsg("");
       setInsights(null);
 
+      if (!farmId) return setErrorMsg("No se detectó una finca activa.");
+      if (!token) return setErrorMsg("No hay token. Inicia sesión nuevamente.");
+
       try {
         setLoading(true);
-        const data = await apiFetch(`/api/farms/${farmId}/finance/insights?ts=${Date.now()}`, {
-          signal: controller.signal,
-        });
+        const ts = Date.now();
+        const data = await apiFetch(`/api/farms/${farmId}/finance/insights?ts=${ts}`);
         if (cancelled) return;
         setInsights(data || null);
       } catch (err) {
         if (cancelled) return;
-        if (String(err?.name || "") === "AbortError") return;
-
         setErrorMsg(
           err?.message ||
             "No se pudieron cargar los insights del servidor. Mostrando análisis local."
@@ -400,31 +390,44 @@ export default function FinanceSummaryIA({
     }
 
     load();
-
     return () => {
       cancelled = true;
-      controller.abort();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [farmId, token, API_BASE]);
 
-  const effectiveInsights = useMemo(() => {
-    if (insights) return { ...insights, source: "server" };
+  // Siempre calculamos local para poder “rellenar” sugerencias si el server no trae
+  const localInsights = useMemo(() => {
     return buildLocalInsights({
       movements,
       assets,
       summary: summary || resumenZona,
     });
-  }, [insights, movements, assets, summary, resumenZona]);
+  }, [movements, assets, summary, resumenZona]);
+
+  // Si hay server insights, los usamos para métricas; si no, usamos local completo
+  const effectiveInsights = useMemo(() => {
+    if (insights) return { ...insights, source: "server" };
+    return localInsights;
+  }, [insights, localInsights]);
+
+  // ✅ SUGERENCIAS HÍBRIDAS:
+  // - si el server trae sugerencias (>0), usamos esas
+  // - si el server trae [] o no trae, usamos las locales (datos reales)
+  const suggestionsBase = useMemo(() => {
+    const serverList = Array.isArray(insights?.suggestions) ? insights.suggestions : null;
+    if (serverList && serverList.length > 0) return serverList;
+    return Array.isArray(localInsights?.suggestions) ? localInsights.suggestions : [];
+  }, [insights, localInsights]);
 
   const suggestions = useMemo(() => {
-    const list = Array.isArray(effectiveInsights?.suggestions)
-      ? effectiveInsights.suggestions
-      : [];
-    return list
-      .map((s) => ({ ...s, id: String(s?.id || "") }))
+    return suggestionsBase
+      .map((s) => ({
+        ...s,
+        id: String(s?.id || ""),
+      }))
       .filter((s) => s.id && !ignored.has(s.id));
-  }, [effectiveInsights, ignored]);
+  }, [suggestionsBase, ignored]);
 
   const summaryCards = useMemo(() => {
     const s = effectiveInsights?.summary;
@@ -432,8 +435,18 @@ export default function FinanceSummaryIA({
     const month = s.month || "—";
 
     return [
-      { label: "Ingresos", value: formatMoneyCRC(s.ingresos), meta: month, cls: "success" },
-      { label: "Gastos", value: formatMoneyCRC(s.gastos), meta: month, cls: "warning" },
+      {
+        label: "Ingresos",
+        value: formatMoneyCRC(s.ingresos),
+        meta: month,
+        cls: "success",
+      },
+      {
+        label: "Gastos",
+        value: formatMoneyCRC(s.gastos),
+        meta: month,
+        cls: "warning",
+      },
       {
         label: "Balance",
         value: formatMoneyCRC(s.balance),
@@ -443,7 +456,10 @@ export default function FinanceSummaryIA({
       {
         label: "Score",
         value: `${effectiveInsights?.healthScore ?? 0}/100`,
-        meta: effectiveInsights?.source === "server" ? "Salud financiera (IA)" : "Salud financiera (local)",
+        meta:
+          effectiveInsights?.source === "server"
+            ? "Salud financiera (IA)"
+            : "Salud financiera (local)",
         cls: "",
       },
     ];
@@ -452,6 +468,7 @@ export default function FinanceSummaryIA({
   const handleIgnore = (s) => {
     const id = String(s?.id || "");
     if (!id) return;
+
     setIgnored((prev) => {
       const next = new Set(prev);
       next.add(id);
@@ -489,13 +506,24 @@ export default function FinanceSummaryIA({
     if (parentLoading || loading) return "Cargando…";
     if (parentError) return parentError;
     if (errorMsg) return errorMsg;
-    if (effectiveInsights?.source === "server") return "Resumen, alertas y sugerencias (IA)";
+
+    const serverHasSuggestions =
+      Array.isArray(insights?.suggestions) && insights.suggestions.length > 0;
+
+    if (effectiveInsights?.source === "server" && serverHasSuggestions) {
+      return "Resumen, alertas y sugerencias (IA)";
+    }
+    if (effectiveInsights?.source === "server" && !serverHasSuggestions) {
+      return "IA activa (server) · sugerencias (local) por ahora";
+    }
     return "Resumen, alertas y sugerencias (análisis local)";
   })();
 
   const projection30 = safeNum(effectiveInsights?.projection30);
   const projection90 = safeNum(effectiveInsights?.projection90);
-  const topCategories = Array.isArray(effectiveInsights?.topCategories) ? effectiveInsights.topCategories : [];
+  const topCategories = Array.isArray(effectiveInsights?.topCategories)
+    ? effectiveInsights.topCategories
+    : [];
 
   return (
     <section className="finance-ia-shell">
@@ -507,10 +535,26 @@ export default function FinanceSummaryIA({
       <div className="finance-ia-cards">
         {summaryCards.length === 0 ? (
           <>
-            <div className="finance-card"><div className="label">Ingresos</div><div className="value">₡0</div><div className="meta">—</div></div>
-            <div className="finance-card"><div className="label">Gastos</div><div className="value">₡0</div><div className="meta">—</div></div>
-            <div className="finance-card"><div className="label">Balance</div><div className="value">₡0</div><div className="meta">—</div></div>
-            <div className="finance-card"><div className="label">Score</div><div className="value">0/100</div><div className="meta">—</div></div>
+            <div className="finance-card">
+              <div className="label">Ingresos</div>
+              <div className="value">₡0</div>
+              <div className="meta">—</div>
+            </div>
+            <div className="finance-card">
+              <div className="label">Gastos</div>
+              <div className="value">₡0</div>
+              <div className="meta">—</div>
+            </div>
+            <div className="finance-card">
+              <div className="label">Balance</div>
+              <div className="value">₡0</div>
+              <div className="meta">—</div>
+            </div>
+            <div className="finance-card">
+              <div className="label">Score</div>
+              <div className="value">0/100</div>
+              <div className="meta">—</div>
+            </div>
           </>
         ) : (
           summaryCards.map((c, idx) => (
@@ -524,9 +568,27 @@ export default function FinanceSummaryIA({
       </div>
 
       <nav className="finance-ia-tabs">
-        <button type="button" className={`tab ${tab === "estado" ? "active" : ""}`} onClick={() => setTab("estado")}>Estado</button>
-        <button type="button" className={`tab ${tab === "alertas" ? "active" : ""}`} onClick={() => setTab("alertas")}>Alertas</button>
-        <button type="button" className={`tab ${tab === "auditor" ? "active" : ""}`} onClick={() => setTab("auditor")}>Auditor</button>
+        <button
+          type="button"
+          className={`tab ${tab === "estado" ? "active" : ""}`}
+          onClick={() => setTab("estado")}
+        >
+          Estado
+        </button>
+        <button
+          type="button"
+          className={`tab ${tab === "alertas" ? "active" : ""}`}
+          onClick={() => setTab("alertas")}
+        >
+          Alertas
+        </button>
+        <button
+          type="button"
+          className={`tab ${tab === "auditor" ? "active" : ""}`}
+          onClick={() => setTab("auditor")}
+        >
+          Auditor
+        </button>
       </nav>
 
       <div className="finance-ia-content">
@@ -537,9 +599,19 @@ export default function FinanceSummaryIA({
               <b>{formatMoneyCRC(projection90)}</b> (90 días)
             </p>
 
-            <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", opacity: 0.9 }}>
+            <div
+              style={{
+                display: "flex",
+                gap: "0.75rem",
+                flexWrap: "wrap",
+                opacity: 0.9,
+              }}
+            >
               {topCategories.map((c, idx) => (
-                <span key={`${c.category || "cat"}-${idx}`} style={{ fontSize: "0.85rem" }}>
+                <span
+                  key={`${c.category || "cat"}-${idx}`}
+                  style={{ fontSize: "0.85rem" }}
+                >
                   <b>{c.category}</b>: {formatMoneyCRC(c.total)}
                 </span>
               ))}
@@ -550,7 +622,9 @@ export default function FinanceSummaryIA({
         {tab === "alertas" && (
           <>
             {(effectiveInsights?.anomalies || []).length === 0 ? (
-              <p style={{ margin: 0, opacity: 0.85 }}>Sin alertas detectadas este mes.</p>
+              <p style={{ margin: 0, opacity: 0.85 }}>
+                Sin alertas detectadas este mes.
+              </p>
             ) : (
               <ul style={{ margin: 0, paddingLeft: "1.1rem" }}>
                 {(effectiveInsights?.anomalies || []).map((a, i) => (
@@ -564,13 +638,29 @@ export default function FinanceSummaryIA({
         )}
 
         {tab === "auditor" && (
-          <ul style={{ margin: 0, paddingLeft: "1.1rem" }}>
-            <li>Sin categoría: <b>{effectiveInsights?.audit?.missingCategory ?? 0}</b></li>
-            <li>“General”: <b>{effectiveInsights?.audit?.tooGeneralCategory ?? 0}</b></li>
-            <li>Concepto genérico: <b>{effectiveInsights?.audit?.genericConcept ?? 0}</b></li>
-            <li>Posibles duplicados: <b>{effectiveInsights?.audit?.possibleDuplicates ?? 0}</b></li>
-            <li>Gastos sin factura: <b>{effectiveInsights?.audit?.invoiceMissing ?? 0}</b></li>
-          </ul>
+          <>
+            <ul style={{ margin: 0, paddingLeft: "1.1rem" }}>
+              <li>
+                Sin categoría:{" "}
+                <b>{effectiveInsights?.audit?.missingCategory ?? 0}</b>
+              </li>
+              <li>
+                “General”: <b>{effectiveInsights?.audit?.tooGeneralCategory ?? 0}</b>
+              </li>
+              <li>
+                Concepto genérico:{" "}
+                <b>{effectiveInsights?.audit?.genericConcept ?? 0}</b>
+              </li>
+              <li>
+                Posibles duplicados:{" "}
+                <b>{effectiveInsights?.audit?.possibleDuplicates ?? 0}</b>
+              </li>
+              <li>
+                Gastos sin factura:{" "}
+                <b>{effectiveInsights?.audit?.invoiceMissing ?? 0}</b>
+              </li>
+            </ul>
+          </>
         )}
       </div>
 
@@ -578,7 +668,9 @@ export default function FinanceSummaryIA({
         <h4 style={{ margin: "0 0 0.55rem" }}>Sugerencias</h4>
 
         {suggestions.length === 0 ? (
-          <p style={{ margin: 0, opacity: 0.75, fontSize: "0.85rem" }}>No hay sugerencias disponibles.</p>
+          <p style={{ margin: 0, opacity: 0.75, fontSize: "0.85rem" }}>
+            No hay sugerencias disponibles.
+          </p>
         ) : (
           <div className="finance-ia-suggestions">
             {suggestions.map((s) => {
@@ -586,7 +678,9 @@ export default function FinanceSummaryIA({
 
               return (
                 <div key={s.id} className="finance-ia-suggestion-card">
-                  <div className="finance-ia-suggestion-title">{s.title || "Sugerencia"}</div>
+                  <div className="finance-ia-suggestion-title">
+                    {s.title || "Sugerencia"}
+                  </div>
                   <div className="finance-ia-suggestion-text">{s.message || ""}</div>
 
                   <div className="finance-ia-suggestion-actions">
@@ -596,7 +690,11 @@ export default function FinanceSummaryIA({
                       disabled={!!savingId || !s.actionPayload}
                       onClick={() => handleAddToTasks(s)}
                       style={{ padding: "0.35rem 0.8rem", fontSize: "0.85rem" }}
-                      title={s.actionPayload ? "Crear tarea a partir de esta sugerencia" : "Sugerencia informativa"}
+                      title={
+                        s.actionPayload
+                          ? "Crear tarea a partir de esta sugerencia"
+                          : "Sugerencia informativa"
+                      }
                     >
                       {busy ? "Creando…" : "Agregar"}
                     </button>
