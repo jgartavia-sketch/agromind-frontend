@@ -591,7 +591,17 @@ export default function FinanzasPage({ farmId: farmIdProp, token: tokenProp }) {
 
         {/* IA */}
         <section className="finance-ia-section">
-          <FinanceSummaryIA />
+          <FinanceSummaryIA
+            movements={movements}
+            assets={assets}
+            summary={summary}
+            resumenZona={resumenZona}
+            loading={loading}
+            errorMsg={errorMsg}
+            farmId={farmId}
+            token={token}
+            apiBase={API_BASE}
+          />
         </section>
 
         {/* RESUMEN FINANCIERO */}

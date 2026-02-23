@@ -38,7 +38,249 @@ function formatMoneyCRC(value) {
   });
 }
 
-export default function FinanceSummaryIA({ farmId: farmIdProp, token: tokenProp }) {
+function toYYYYMMDD(value) {
+  if (!value) return "—";
+  if (typeof value === "string") {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+    const d = new Date(value);
+    if (!Number.isNaN(d.getTime())) return d.toISOString().slice(0, 10);
+    return "—";
+  }
+  const d = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(d.getTime())) return "—";
+  return d.toISOString().slice(0, 10);
+}
+
+function getMonthKey(dateStr) {
+  const d = toYYYYMMDD(dateStr);
+  if (!d || d.includes("—")) return "";
+  return d.slice(0, 7); // YYYY-MM
+}
+
+function safeNum(x) {
+  const n = Number(x || 0);
+  return Number.isFinite(n) ? n : 0;
+}
+
+// -------------------------
+// Motor local de insights (fallback sin backend)
+// -------------------------
+function buildLocalInsights({ movements = [], assets = [], summary = null }) {
+  const now = new Date();
+  const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+
+  const ingresos = summary ? safeNum(summary.ingresos) : movements
+    .filter((m) => m.type === "Ingreso")
+    .reduce((acc, m) => acc + safeNum(m.amount), 0);
+
+  const gastos = summary ? safeNum(summary.gastos) : movements
+    .filter((m) => m.type === "Gasto")
+    .reduce((acc, m) => acc + safeNum(m.amount), 0);
+
+  const balance = summary ? safeNum(summary.balance) : ingresos - gastos;
+  const margen = ingresos > 0 ? (balance / ingresos) * 100 : 0;
+
+  // categorías top (por total)
+  const catMap = new Map();
+  for (const m of movements) {
+    const cat = String(m.category || "Sin categoría").trim() || "Sin categoría";
+    const amt = safeNum(m.amount);
+    const prev = catMap.get(cat) || 0;
+    catMap.set(cat, prev + amt);
+  }
+  const topCategories = Array.from(catMap.entries())
+    .map(([category, total]) => ({ category, total }))
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 5);
+
+  // Auditoría simple
+  const missingCategory = movements.filter((m) => !String(m.category || "").trim() || String(m.category).trim() === "—").length;
+  const tooGeneralCategory = movements.filter((m) => String(m.category || "").trim().toLowerCase() === "general").length;
+  const genericConcept = movements.filter((m) => {
+    const c = String(m.concept || "").trim().toLowerCase();
+    return !c || c === "—" || c === "varios" || c === "misc" || c === "compra" || c === "venta";
+  }).length;
+
+  const invoiceMissing = movements.filter((m) => m.type === "Gasto" && (!String(m.invoiceNumber || "").trim() || String(m.invoiceNumber).trim() === "—")).length;
+
+  // posibles duplicados: mismo concepto + mismo monto + misma fecha
+  const seen = new Set();
+  let possibleDuplicates = 0;
+  for (const m of movements) {
+    const key = `${toYYYYMMDD(m.date)}|${String(m.concept || "").trim().toLowerCase()}|${safeNum(m.amount)}`;
+    if (seen.has(key)) possibleDuplicates += 1;
+    else seen.add(key);
+  }
+
+  // Proyecciones simplonas pero útiles: promedio neto diario * N
+  // (si hay datos del mes actual, usa eso; si no, usa todo)
+  const monthMovs = movements.filter((m) => getMonthKey(m.date) === monthKey);
+  const basis = monthMovs.length > 0 ? monthMovs : movements;
+
+  const dailyNet = (() => {
+    if (basis.length === 0) return 0;
+    // calcular rango de días basado en fechas disponibles
+    const dates = basis
+      .map((m) => new Date(toYYYYMMDD(m.date)))
+      .filter((d) => !Number.isNaN(d.getTime()))
+      .sort((a, b) => a - b);
+
+    if (dates.length === 0) return 0;
+    const first = dates[0];
+    const last = dates[dates.length - 1];
+    const days = Math.max(1, Math.round((last - first) / (1000 * 60 * 60 * 24)) + 1);
+
+    const inc = basis.filter((m) => m.type === "Ingreso").reduce((acc, m) => acc + safeNum(m.amount), 0);
+    const exp = basis.filter((m) => m.type === "Gasto").reduce((acc, m) => acc + safeNum(m.amount), 0);
+    return (inc - exp) / days;
+  })();
+
+  const projection30 = dailyNet * 30;
+  const projection90 = dailyNet * 90;
+
+  // health score (heurística simple)
+  // + si margen bueno, + si hay facturas, - si demasiada categoría missing
+  let healthScore = 50;
+  if (margen >= 20) healthScore += 20;
+  else if (margen >= 10) healthScore += 10;
+  else if (margen < 0) healthScore -= 20;
+
+  const total = Math.max(1, movements.length);
+  const missingRatio = missingCategory / total;
+  if (missingRatio > 0.25) healthScore -= 15;
+  else if (missingRatio > 0.1) healthScore -= 8;
+
+  if (invoiceMissing > 0) healthScore -= Math.min(15, invoiceMissing * 2);
+  if (possibleDuplicates > 0) healthScore -= Math.min(10, possibleDuplicates);
+
+  healthScore = Math.max(0, Math.min(100, Math.round(healthScore)));
+
+  // sugerencias (acciones)
+  const suggestions = [];
+
+  if (movements.length === 0) {
+    suggestions.push({
+      id: "local-boot-1",
+      title: "Activá tu sistema financiero",
+      message:
+        "Agregá al menos 5 movimientos (ingresos y gastos) para que el análisis sea más preciso. Sin datos, la IA solo puede adivinar… y aquí no vendemos adivinanzas.",
+      actionPayload: {
+        title: "Registrar movimientos financieros iniciales",
+        description:
+          "Ingresar al menos 5 movimientos (ingresos/gastos) con categoría y, si aplica, número de factura.",
+        priority: "Alta",
+        status: "Pendiente",
+        dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
+      },
+    });
+  } else {
+    if (missingCategory > 0) {
+      suggestions.push({
+        id: "local-audit-cat",
+        title: "Ordená tus categorías",
+        message: `Tenés ${missingCategory} movimiento(s) sin categoría. Clasificarlos mejora reportes y decisiones de compra.`,
+        actionPayload: {
+          title: "Auditar movimientos sin categoría",
+          description: `Revisar y asignar categoría a ${missingCategory} movimiento(s) sin categoría en Finanzas.`,
+          priority: "Media",
+          status: "Pendiente",
+          dueDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
+        },
+      });
+    }
+
+    if (invoiceMissing > 0) {
+      suggestions.push({
+        id: "local-audit-invoice",
+        title: "Gastos sin factura",
+        message: `Hay ${invoiceMissing} gasto(s) sin número de factura. Eso es una grieta para auditoría y control.`,
+        actionPayload: {
+          title: "Completar facturas faltantes en gastos",
+          description: `Registrar número de factura/recibo en ${invoiceMissing} gasto(s).`,
+          priority: "Media",
+          status: "Pendiente",
+          dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+        },
+      });
+    }
+
+    if (margen < 10 && ingresos > 0) {
+      suggestions.push({
+        id: "local-margin",
+        title: "Margen bajo",
+        message: `Tu margen está en ${margen.toFixed(1)}%. Recomendación: revisar gastos “silenciosos” (insumos, transporte, reparaciones) y renegociar costos.`,
+        actionPayload: {
+          title: "Revisión de costos para mejorar margen",
+          description:
+            "Analizar categorías de gasto más altas del mes y proponer ajustes para subir margen por encima de 15%.",
+          priority: "Alta",
+          status: "Pendiente",
+          dueDate: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString(),
+        },
+      });
+    }
+
+    if (topCategories.length > 0) {
+      const top = topCategories[0];
+      suggestions.push({
+        id: "local-topcat",
+        title: "Tu categoría dominante",
+        message: `La categoría con mayor movimiento es “${top.category}” (${formatMoneyCRC(top.total)}). Usala como KPI: ¿es inversión estratégica o fuga?`,
+        actionPayload: null, // informativa
+      });
+    }
+
+    if (assets.length === 0) {
+      suggestions.push({
+        id: "local-assets",
+        title: "Activos sin registrar",
+        message:
+          "Tenés movimientos financieros pero cero activos. Registrar equipos/infraestructura mejora patrimonio y decisiones de mantenimiento.",
+        actionPayload: {
+          title: "Registrar activos principales de la finca",
+          description:
+            "Agregar equipos, infraestructura y recursos con valor económico (cantidad y valor unitario).",
+          priority: "Media",
+          status: "Pendiente",
+          dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+        },
+      });
+    }
+  }
+
+  return {
+    source: "local",
+    summary: { month: monthKey, ingresos, gastos, balance, margen },
+    healthScore,
+    projection30,
+    projection90,
+    topCategories,
+    anomalies: [], // sin detección avanzada por ahora
+    audit: {
+      missingCategory,
+      tooGeneralCategory,
+      genericConcept,
+      possibleDuplicates,
+      invoiceMissing,
+    },
+    suggestions,
+  };
+}
+
+export default function FinanceSummaryIA({
+  // props “ricos” desde FinanzasPage
+  movements = [],
+  assets = [],
+  summary = null,
+  resumenZona = null,
+  loading: parentLoading = false,
+  errorMsg: parentError = "",
+
+  // props legacy opcionales
+  farmId: farmIdProp,
+  token: tokenProp,
+  apiBase: apiBaseProp,
+}) {
   const [tab, setTab] = useState("estado"); // estado | alertas | auditor
   const [loading, setLoading] = useState(false);
   const [savingId, setSavingId] = useState(null); // id de sugerencia que se está guardando
@@ -48,6 +290,7 @@ export default function FinanceSummaryIA({ farmId: farmIdProp, token: tokenProp 
   const [ignored, setIgnored] = useState(() => new Set());
 
   const API_BASE =
+    apiBaseProp ||
     import.meta.env.VITE_API_URL ||
     import.meta.env.VITE_API_BASE_URL ||
     "";
@@ -85,6 +328,7 @@ export default function FinanceSummaryIA({ farmId: farmIdProp, token: tokenProp 
     return data;
   }
 
+  // Intentar cargar insights del backend; si falla, seguimos con motor local.
   useEffect(() => {
     let cancelled = false;
 
@@ -108,7 +352,12 @@ export default function FinanceSummaryIA({ farmId: farmIdProp, token: tokenProp 
         setInsights(data || null);
       } catch (err) {
         if (cancelled) return;
-        setErrorMsg(err?.message || "No se pudieron cargar los insights.");
+        // No “matamos” el componente: solo avisamos y caemos al modo local
+        setErrorMsg(
+          err?.message ||
+            "No se pudieron cargar los insights del servidor. Mostrando análisis local."
+        );
+        setInsights(null);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -121,18 +370,26 @@ export default function FinanceSummaryIA({ farmId: farmIdProp, token: tokenProp 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [farmId, token, API_BASE]);
 
+  // Fuente efectiva: backend si hay, sino local
+  const effectiveInsights = useMemo(() => {
+    if (insights) return { ...insights, source: "server" };
+    return buildLocalInsights({ movements, assets, summary: summary || resumenZona });
+  }, [insights, movements, assets, summary, resumenZona]);
+
   const suggestions = useMemo(() => {
-    const list = Array.isArray(insights?.suggestions) ? insights.suggestions : [];
+    const list = Array.isArray(effectiveInsights?.suggestions)
+      ? effectiveInsights.suggestions
+      : [];
     return list
       .map((s) => ({
         ...s,
         id: String(s?.id || ""),
       }))
       .filter((s) => s.id && !ignored.has(s.id));
-  }, [insights, ignored]);
+  }, [effectiveInsights, ignored]);
 
   const summaryCards = useMemo(() => {
-    const s = insights?.summary;
+    const s = effectiveInsights?.summary;
     if (!s) return [];
     const month = s.month || "—";
 
@@ -157,12 +414,15 @@ export default function FinanceSummaryIA({ farmId: farmIdProp, token: tokenProp 
       },
       {
         label: "Score",
-        value: `${insights?.healthScore ?? 0}/100`,
-        meta: "Salud financiera",
+        value: `${effectiveInsights?.healthScore ?? 0}/100`,
+        meta:
+          effectiveInsights?.source === "server"
+            ? "Salud financiera (IA)"
+            : "Salud financiera (local)",
         cls: "",
       },
     ];
-  }, [insights]);
+  }, [effectiveInsights]);
 
   const handleIgnore = (s) => {
     const id = String(s?.id || "");
@@ -193,7 +453,6 @@ export default function FinanceSummaryIA({ farmId: farmIdProp, token: tokenProp 
         body: JSON.stringify(payload),
       });
 
-      // Si se creó, se oculta del carrusel
       handleIgnore(s);
     } catch (err) {
       setErrorMsg(err?.message || "No se pudo crear la tarea desde la sugerencia.");
@@ -202,17 +461,25 @@ export default function FinanceSummaryIA({ farmId: farmIdProp, token: tokenProp 
     }
   };
 
+  const headerLine = (() => {
+    if (parentLoading || loading) return "Cargando…";
+    if (parentError) return parentError;
+    if (errorMsg) return errorMsg;
+    if (effectiveInsights?.source === "server") return "Resumen, alertas y sugerencias (IA)";
+    return "Resumen, alertas y sugerencias (análisis local)";
+  })();
+
+  const projection30 = safeNum(effectiveInsights?.projection30);
+  const projection90 = safeNum(effectiveInsights?.projection90);
+  const topCategories = Array.isArray(effectiveInsights?.topCategories)
+    ? effectiveInsights.topCategories
+    : [];
+
   return (
     <section className="finance-ia-shell">
       <header className="finance-ia-header">
         <h3>Estado financiero del mes</h3>
-        <p className="finance-ia-sub">
-          {loading
-            ? "Cargando…"
-            : errorMsg
-            ? errorMsg
-            : "Resumen, alertas y sugerencias"}
-        </p>
+        <p className="finance-ia-sub">{headerLine}</p>
       </header>
 
       {/* Cards superiores */}
@@ -281,8 +548,8 @@ export default function FinanceSummaryIA({ farmId: farmIdProp, token: tokenProp 
         {tab === "estado" && (
           <>
             <p style={{ marginTop: 0, opacity: 0.9 }}>
-              Proyección: <b>{formatMoneyCRC(insights?.projection30 || 0)}</b> (30 días) ·{" "}
-              <b>{formatMoneyCRC(insights?.projection90 || 0)}</b> (90 días)
+              Proyección: <b>{formatMoneyCRC(projection30)}</b> (30 días) ·{" "}
+              <b>{formatMoneyCRC(projection90)}</b> (90 días)
             </p>
 
             <div
@@ -293,8 +560,8 @@ export default function FinanceSummaryIA({ farmId: farmIdProp, token: tokenProp 
                 opacity: 0.9,
               }}
             >
-              {(insights?.topCategories || []).map((c) => (
-                <span key={c.category || Math.random()} style={{ fontSize: "0.85rem" }}>
+              {topCategories.map((c, idx) => (
+                <span key={`${c.category || "cat"}-${idx}`} style={{ fontSize: "0.85rem" }}>
                   <b>{c.category}</b>: {formatMoneyCRC(c.total)}
                 </span>
               ))}
@@ -304,13 +571,13 @@ export default function FinanceSummaryIA({ farmId: farmIdProp, token: tokenProp 
 
         {tab === "alertas" && (
           <>
-            {(insights?.anomalies || []).length === 0 ? (
+            {(effectiveInsights?.anomalies || []).length === 0 ? (
               <p style={{ margin: 0, opacity: 0.85 }}>
                 Sin alertas detectadas este mes.
               </p>
             ) : (
               <ul style={{ margin: 0, paddingLeft: "1.1rem" }}>
-                {(insights?.anomalies || []).map((a, i) => (
+                {(effectiveInsights?.anomalies || []).map((a, i) => (
                   <li key={i} style={{ marginBottom: "0.35rem" }}>
                     <b>{a?.title || "Alerta"}</b> — {a?.message || ""}
                   </li>
@@ -324,26 +591,26 @@ export default function FinanceSummaryIA({ farmId: farmIdProp, token: tokenProp 
           <>
             <ul style={{ margin: 0, paddingLeft: "1.1rem" }}>
               <li>
-                Sin categoría: <b>{insights?.audit?.missingCategory ?? 0}</b>
+                Sin categoría: <b>{effectiveInsights?.audit?.missingCategory ?? 0}</b>
               </li>
               <li>
-                “General”: <b>{insights?.audit?.tooGeneralCategory ?? 0}</b>
+                “General”: <b>{effectiveInsights?.audit?.tooGeneralCategory ?? 0}</b>
               </li>
               <li>
-                Concepto genérico: <b>{insights?.audit?.genericConcept ?? 0}</b>
+                Concepto genérico: <b>{effectiveInsights?.audit?.genericConcept ?? 0}</b>
               </li>
               <li>
-                Posibles duplicados: <b>{insights?.audit?.possibleDuplicates ?? 0}</b>
+                Posibles duplicados: <b>{effectiveInsights?.audit?.possibleDuplicates ?? 0}</b>
               </li>
               <li>
-                Gastos sin factura: <b>{insights?.audit?.invoiceMissing ?? 0}</b>
+                Gastos sin factura: <b>{effectiveInsights?.audit?.invoiceMissing ?? 0}</b>
               </li>
             </ul>
           </>
         )}
       </div>
 
-      {/* ✅ Sugerencias horizontales */}
+      {/* Sugerencias horizontales */}
       <div style={{ marginTop: "0.9rem" }}>
         <h4 style={{ margin: "0 0 0.55rem" }}>Sugerencias</h4>
 
