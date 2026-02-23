@@ -1,5 +1,5 @@
 // src/pages/InvestigadorPage.jsx
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import "../styles/investigador.css";
 
 export default function InvestigadorPage() {
@@ -18,6 +18,7 @@ export default function InvestigadorPage() {
   });
 
   const [loading, setLoading] = useState(false);
+  const [loadingFarm, setLoadingFarm] = useState(false);
   const [error, setError] = useState("");
   const [result, setResult] = useState(null);
 
@@ -28,6 +29,74 @@ export default function InvestigadorPage() {
     );
   }, []);
 
+  // =========================
+  // Auto-detect finca activa
+  // =========================
+  useEffect(() => {
+    if (farmId) return; // ya tenemos una
+    autoDetectFarm();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function autoDetectFarm() {
+    setLoadingFarm(true);
+    setError("");
+
+    try {
+      const tryGet = async (path) => {
+        const resp = await fetch(`${apiBase}${path}`, {
+          method: "GET",
+          credentials: "include",
+        });
+        if (!resp.ok) return null;
+        return await resp.json().catch(() => null);
+      };
+
+      // 1) primary
+      let data = await tryGet("/api/farms/primary");
+      let id =
+        data?.id ||
+        data?.farm?.id ||
+        data?.primaryFarm?.id ||
+        data?.data?.id ||
+        null;
+
+      // 2) list
+      if (!id) {
+        data = await tryGet("/api/farms");
+        const list =
+          Array.isArray(data) ? data : data?.farms || data?.data || [];
+        if (Array.isArray(list) && list.length) {
+          const primary = list.find((f) => f?.isPrimary) || list[0];
+          id = primary?.id || null;
+        }
+      }
+
+      // 3) fallback singular
+      if (!id) {
+        data = await tryGet("/api/farm");
+        id = data?.id || data?.farm?.id || data?.data?.id || null;
+      }
+
+      if (!id) {
+        setError(
+          "No pude detectar tu finca automáticamente. (Tu sesión está bien, solo falta exponer una finca desde el API)."
+        );
+        return;
+      }
+
+      setFarmId(id);
+      localStorage.setItem("activeFarmId", id);
+    } catch (_) {
+      setError("No pude consultar la finca activa. Revisa el backend.");
+    } finally {
+      setLoadingFarm(false);
+    }
+  }
+
+  // =========================
+  // Foto (universal)
+  // =========================
   function openPicker() {
     setError("");
     setResult(null);
@@ -46,7 +115,7 @@ export default function InvestigadorPage() {
       return;
     }
 
-    // Para poder volver a escoger la misma foto si se equivocan
+    // permitir escoger la misma foto de nuevo
     e.target.value = "";
 
     const reader = new FileReader();
@@ -55,13 +124,21 @@ export default function InvestigadorPage() {
     reader.readAsDataURL(file);
   }
 
+  // =========================
+  // Analizar
+  // =========================
   async function analyze() {
     setError("");
     setResult(null);
 
+    // Si todavía no cargó farmId, lo intentamos una vez más
+    if (!farmId?.trim()) {
+      await autoDetectFarm();
+    }
+
     if (!farmId?.trim()) {
       setError(
-        "No se detectó tu finca activa. Entra al Mapa, selecciona tu finca y vuelve aquí."
+        "No se detectó tu finca activa. (Hoy lo resolvemos: el API debe devolver la finca primaria del usuario)."
       );
       return;
     }
@@ -100,6 +177,9 @@ export default function InvestigadorPage() {
     }
   }
 
+  // =========================
+  // ChatGPT (opcional)
+  // =========================
   async function openChatGPTAssist() {
     setError("");
     if (!imageDataUrl) {
@@ -163,7 +243,7 @@ export default function InvestigadorPage() {
                 padding: "0.65rem 0.8rem",
                 borderRadius: "0.8rem",
                 border: "1px solid rgba(255,255,255,0.12)",
-                background: "rgba(2,6,23,0.6)",
+                background: "rgba(2, 6, 23, 0.6)",
                 color: "white",
                 outline: "none",
               }}
@@ -184,7 +264,7 @@ export default function InvestigadorPage() {
                 padding: "0.65rem 0.8rem",
                 borderRadius: "0.8rem",
                 border: "1px solid rgba(255,255,255,0.12)",
-                background: "rgba(2,6,23,0.6)",
+                background: "rgba(2, 6, 23, 0.6)",
                 color: "white",
                 outline: "none",
                 resize: "vertical",
@@ -193,6 +273,15 @@ export default function InvestigadorPage() {
             <div style={{ opacity: 0.75, fontSize: "0.85rem" }}>
               Esto ayuda cuando la foto no es perfecta.
             </div>
+          </div>
+
+          {/* Estado finca (silencioso y profesional) */}
+          <div style={{ opacity: 0.8, fontSize: "0.85rem" }}>
+            {loadingFarm
+              ? "Detectando tu finca…"
+              : farmId
+              ? "Finca detectada ✅"
+              : "Finca no detectada todavía"}
           </div>
         </div>
       </section>
@@ -204,7 +293,6 @@ export default function InvestigadorPage() {
               type="button"
               className="investigador-camera-btn"
               onClick={openPicker}
-              title="En celular abre cámara o galería. En laptop abre archivos."
             >
               📷 Tomar o subir foto
             </button>
@@ -229,7 +317,6 @@ export default function InvestigadorPage() {
             </button>
           </div>
 
-          {/* Input escondido: la clave del flujo multi-dispositivo */}
           <input
             ref={fileInputRef}
             type="file"
@@ -328,7 +415,7 @@ export default function InvestigadorPage() {
                   padding: "0.75rem",
                   borderRadius: "0.9rem",
                   border: "1px solid rgba(255,255,255,0.12)",
-                  background: "rgba(2,6,23,0.6)",
+                  background: "rgba(2, 6, 23, 0.6)",
                 }}
               >
                 {chatgptPromptFallback}
