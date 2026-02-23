@@ -5,7 +5,7 @@ import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import listPlugin from "@fullcalendar/list";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import "../styles/tasks.css";
 
 function getPriorityClass(priority) {
@@ -157,6 +157,7 @@ export default function TareasPage({
         ...authHeaders(),
         ...(options.headers || {}),
       },
+      cache: "no-store",
     });
 
     let data = null;
@@ -172,89 +173,113 @@ export default function TareasPage({
   }
 
   // =========================
-  // LOAD TASKS
+  // Fetchers reutilizables
+  // =========================
+  const fetchTasks = useCallback(async () => {
+    setErrorMsg("");
+
+    if (!farmId) {
+      setTasks([]);
+      setErrorMsg(
+        "No se detectó una finca activa. Selecciona/crea una finca primero."
+      );
+      return;
+    }
+    if (!token) {
+      setTasks([]);
+      setErrorMsg("No hay token. Inicia sesión nuevamente.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const ts = Date.now();
+      const data = await apiFetch(`/api/farms/${farmId}/tasks?ts=${ts}`);
+      const list = Array.isArray(data?.tasks) ? data.tasks : [];
+      const normalized = list.map((t) => ({
+        ...t,
+        start: toYYYYMMDD(t.start),
+        due: toYYYYMMDD(t.due),
+      }));
+      setTasks(normalized);
+    } catch (err) {
+      setErrorMsg(err?.message || "No se pudieron cargar las tareas.");
+      setTasks([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [farmId, token, API_BASE]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const fetchSuggestions = useCallback(async () => {
+    if (!farmId || !token) {
+      setSuggestions([]);
+      return;
+    }
+
+    setLoadingSuggestions(true);
+    try {
+      const ts = Date.now();
+      const data = await apiFetch(
+        `/api/farms/${farmId}/tasks/suggestions?ts=${ts}`
+      );
+      const list = Array.isArray(data?.suggestions) ? data.suggestions : [];
+      setSuggestions(list);
+    } catch {
+      setSuggestions([]);
+    } finally {
+      setLoadingSuggestions(false);
+    }
+  }, [farmId, token, API_BASE]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // =========================
+  // LOAD inicial (tasks + suggestions)
   // =========================
   useEffect(() => {
     let cancelled = false;
 
-    async function load() {
-      setErrorMsg("");
-
-      if (!farmId) {
-        setTasks([]);
-        setErrorMsg(
-          "No se detectó una finca activa. Selecciona/crea una finca primero."
-        );
-        return;
-      }
-      if (!token) {
-        setTasks([]);
-        setErrorMsg("No hay token. Inicia sesión nuevamente.");
-        return;
-      }
-
-      try {
-        setLoading(true);
-        const data = await apiFetch(`/api/farms/${farmId}/tasks`);
-        if (cancelled) return;
-
-        const list = Array.isArray(data?.tasks) ? data.tasks : [];
-        const normalized = list.map((t) => ({
-          ...t,
-          start: toYYYYMMDD(t.start),
-          due: toYYYYMMDD(t.due),
-        }));
-
-        setTasks(normalized);
-      } catch (err) {
-        if (cancelled) return;
-        setErrorMsg(err?.message || "No se pudieron cargar las tareas.");
-        setTasks([]);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
+    async function loadAll() {
+      if (cancelled) return;
+      await fetchTasks();
+      if (cancelled) return;
+      await fetchSuggestions();
     }
 
-    load();
+    loadAll();
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [farmId, token, API_BASE]);
+  }, [fetchTasks, fetchSuggestions]);
 
   // =========================
-  // LOAD IA SUGGESTIONS
+  // ✅ REFRESH BUS (Finanzas -> Tareas)
+  // Escucha:
+  // - CustomEvent: agromind:tasks:refresh
+  // - localStorage ping: agromind_tasks_refresh
   // =========================
   useEffect(() => {
-    let cancelled = false;
-
-    async function loadSuggestions() {
-      if (!farmId || !token) {
-        setSuggestions([]);
-        return;
-      }
-
-      try {
-        setLoadingSuggestions(true);
-        const data = await apiFetch(`/api/farms/${farmId}/tasks/suggestions`);
-        if (cancelled) return;
-
-        const list = Array.isArray(data?.suggestions) ? data.suggestions : [];
-        setSuggestions(list);
-      } catch (err) {
-        if (cancelled) return;
-        setSuggestions([]);
-      } finally {
-        if (!cancelled) setLoadingSuggestions(false);
-      }
+    function onRefreshEvent(e) {
+      const targetFarmId = e?.detail?.farmId ? String(e.detail.farmId) : "";
+      // Si viene farmId, solo refrescar si coincide; si no viene, refrescar igual.
+      if (targetFarmId && farmId && String(farmId) !== targetFarmId) return;
+      fetchTasks();
+      fetchSuggestions();
     }
 
-    loadSuggestions();
+    function onStorage(e) {
+      if (e?.key !== "agromind_tasks_refresh") return;
+      // Cuando cambie ese key, refrescar.
+      fetchTasks();
+      fetchSuggestions();
+    }
+
+    window.addEventListener("agromind:tasks:refresh", onRefreshEvent);
+    window.addEventListener("storage", onStorage);
+
     return () => {
-      cancelled = true;
+      window.removeEventListener("agromind:tasks:refresh", onRefreshEvent);
+      window.removeEventListener("storage", onStorage);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [farmId, token, API_BASE]);
+  }, [farmId, fetchTasks, fetchSuggestions]);
 
   const summary = useMemo(() => {
     const total = tasks.length;
@@ -321,6 +346,17 @@ export default function TareasPage({
       next.add(String(id));
       return next;
     });
+  };
+
+  const fireTasksRefresh = () => {
+    try {
+      window.dispatchEvent(
+        new CustomEvent("agromind:tasks:refresh", { detail: { farmId } })
+      );
+      localStorage.setItem("agromind_tasks_refresh", String(Date.now()));
+    } catch {
+      // no-op
+    }
   };
 
   const applySuggestionToForm = (sug) => {
@@ -428,6 +464,9 @@ export default function TareasPage({
       }
 
       handleResetForm();
+
+      // ✅ refrescar sugerencias IA (porque al crear tareas cambian)
+      fireTasksRefresh();
     } catch (err) {
       setErrorMsg(err?.message || "No se pudo guardar la tarea.");
     } finally {
@@ -471,6 +510,8 @@ export default function TareasPage({
 
       setTasks((prev) => prev.filter((t) => t.id !== id));
       if (editingId === id) handleResetForm();
+
+      fireTasksRefresh();
     } catch (err) {
       setErrorMsg(err?.message || "No se pudo eliminar la tarea.");
     } finally {
@@ -535,7 +576,9 @@ export default function TareasPage({
               return (
                 <div
                   key={id}
-                  className={`ai-suggestion-card ai-suggestion-card-h ${getSuggestionClass(level)}`}
+                  className={`ai-suggestion-card ai-suggestion-card-h ${getSuggestionClass(
+                    level
+                  )}`}
                 >
                   <div className="ai-suggestion-head">
                     <div className="ai-suggestion-title">{title}</div>
