@@ -1,5 +1,5 @@
 // src/components/finance/FinanceSummaryIA.jsx
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import "./finance-summary-ia.css";
 
 function pickLocalStorage(keys) {
@@ -27,12 +27,6 @@ function getActiveFarmId() {
     "farmId",
     "agromind_farm_id",
   ]);
-}
-
-function normalizeApiBase(base) {
-  const s = String(base || "").trim();
-  if (!s) return "";
-  return s.endsWith("/") ? s.slice(0, -1) : s;
 }
 
 function formatMoneyCRC(value) {
@@ -74,7 +68,6 @@ function safeNum(x) {
 function buildLocalInsights({ movements = [], assets = [], summary = null }) {
   const now = new Date();
   const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-  const todayStr = new Date().toISOString().slice(0, 10);
 
   const ingresos = summary
     ? safeNum(summary.ingresos)
@@ -97,7 +90,6 @@ function buildLocalInsights({ movements = [], assets = [], summary = null }) {
     const amt = safeNum(m.amount);
     catMap.set(cat, (catMap.get(cat) || 0) + amt);
   }
-
   const topCategories = Array.from(catMap.entries())
     .map(([category, total]) => ({ category, total }))
     .sort((a, b) => b.total - a.total)
@@ -135,14 +127,12 @@ function buildLocalInsights({ movements = [], assets = [], summary = null }) {
 
   const dailyNet = (() => {
     if (basis.length === 0) return 0;
-
     const dates = basis
       .map((m) => new Date(toYYYYMMDD(m.date)))
       .filter((d) => !Number.isNaN(d.getTime()))
       .sort((a, b) => a - b);
 
     if (dates.length === 0) return 0;
-
     const first = dates[0];
     const last = dates[dates.length - 1];
     const days = Math.max(1, Math.round((last - first) / (1000 * 60 * 60 * 24)) + 1);
@@ -172,7 +162,6 @@ function buildLocalInsights({ movements = [], assets = [], summary = null }) {
 
   const suggestions = [];
 
-  // ✅ IMPORTANTE: actionPayload debe calzar con POST /api/farms/:id/tasks (start/due YYYY-MM-DD)
   if (movements.length === 0) {
     suggestions.push({
       id: "local-boot-1",
@@ -181,13 +170,11 @@ function buildLocalInsights({ movements = [], assets = [], summary = null }) {
         "Agregá al menos 5 movimientos (ingresos y gastos) para que el análisis sea más preciso. Sin datos, la IA solo puede adivinar… y aquí no vendemos adivinanzas.",
       actionPayload: {
         title: "Registrar movimientos financieros iniciales",
-        zone: "",
-        type: "Mantenimiento",
+        description:
+          "Ingresar al menos 5 movimientos (ingresos/gastos) con categoría y, si aplica, número de factura.",
         priority: "Alta",
-        start: todayStr,
-        due: todayStr,
         status: "Pendiente",
-        owner: "",
+        dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
       },
     });
   } else {
@@ -197,14 +184,11 @@ function buildLocalInsights({ movements = [], assets = [], summary = null }) {
         title: "Ordená tus categorías",
         message: `Tenés ${missingCategory} movimiento(s) sin categoría. Clasificarlos mejora reportes y decisiones de compra.`,
         actionPayload: {
-          title: `Auditar ${missingCategory} movimiento(s) sin categoría`,
-          zone: "",
-          type: "Mantenimiento",
+          title: "Auditar movimientos sin categoría",
+          description: `Revisar y asignar categoría a ${missingCategory} movimiento(s) sin categoría en Finanzas.`,
           priority: "Media",
-          start: todayStr,
-          due: todayStr,
           status: "Pendiente",
-          owner: "",
+          dueDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
         },
       });
     }
@@ -215,14 +199,11 @@ function buildLocalInsights({ movements = [], assets = [], summary = null }) {
         title: "Gastos sin factura",
         message: `Hay ${invoiceMissing} gasto(s) sin número de factura. Eso es una grieta para auditoría y control.`,
         actionPayload: {
-          title: `Completar facturas en ${invoiceMissing} gasto(s)`,
-          zone: "",
-          type: "Mantenimiento",
+          title: "Completar facturas faltantes en gastos",
+          description: `Registrar número de factura/recibo en ${invoiceMissing} gasto(s).`,
           priority: "Media",
-          start: todayStr,
-          due: todayStr,
           status: "Pendiente",
-          owner: "",
+          dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
         },
       });
     }
@@ -234,13 +215,11 @@ function buildLocalInsights({ movements = [], assets = [], summary = null }) {
         message: `Tu margen está en ${margen.toFixed(1)}%. Recomendación: revisar gastos “silenciosos” (insumos, transporte, reparaciones) y renegociar costos.`,
         actionPayload: {
           title: "Revisión de costos para mejorar margen",
-          zone: "",
-          type: "Mantenimiento",
+          description:
+            "Analizar categorías de gasto más altas del mes y proponer ajustes para subir margen por encima de 15%.",
           priority: "Alta",
-          start: todayStr,
-          due: todayStr,
           status: "Pendiente",
-          owner: "",
+          dueDate: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString(),
         },
       });
     }
@@ -263,13 +242,11 @@ function buildLocalInsights({ movements = [], assets = [], summary = null }) {
           "Tenés movimientos financieros pero cero activos. Registrar equipos/infraestructura mejora patrimonio y decisiones de mantenimiento.",
         actionPayload: {
           title: "Registrar activos principales de la finca",
-          zone: "",
-          type: "Mantenimiento",
+          description:
+            "Agregar equipos, infraestructura y recursos con valor económico (cantidad y valor unitario).",
           priority: "Media",
-          start: todayStr,
-          due: todayStr,
           status: "Pendiente",
-          owner: "",
+          dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
         },
       });
     }
@@ -301,7 +278,6 @@ export default function FinanceSummaryIA({
   resumenZona = null,
   loading: parentLoading = false,
   errorMsg: parentError = "",
-
   farmId: farmIdProp,
   token: tokenProp,
   apiBase: apiBaseProp,
@@ -310,28 +286,24 @@ export default function FinanceSummaryIA({
   const [loading, setLoading] = useState(false);
   const [savingId, setSavingId] = useState(null);
   const [errorMsg, setErrorMsg] = useState("");
-
   const [insights, setInsights] = useState(null);
   const [ignored, setIgnored] = useState(() => new Set());
 
-  const API_BASE = normalizeApiBase(
+  const lastFetchKeyRef = useRef(""); // evita doble fetch “idéntico”
+
+  const API_BASE =
     apiBaseProp ||
-      import.meta.env.VITE_API_URL ||
-      import.meta.env.VITE_API_BASE_URL ||
-      ""
-  );
+    import.meta.env.VITE_API_URL ||
+    import.meta.env.VITE_API_BASE_URL ||
+    "";
 
   const token = tokenProp || getAuthToken();
   const farmId = farmIdProp || getActiveFarmId();
 
-  // ✅ reset ignored cuando cambia finca (si no, se “desaparecen” sugerencias)
-  useEffect(() => {
-    setIgnored(new Set());
-  }, [farmId]);
-
   function authHeaders() {
     return {
       "Content-Type": "application/json",
+      Accept: "application/json",
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     };
   }
@@ -339,6 +311,7 @@ export default function FinanceSummaryIA({
   async function apiFetch(path, options = {}) {
     const url = `${API_BASE}${path}`;
     const res = await fetch(url, {
+      cache: "no-store",
       ...options,
       headers: {
         ...authHeaders(),
@@ -346,52 +319,76 @@ export default function FinanceSummaryIA({
       },
     });
 
+    const ct = String(res.headers.get("content-type") || "").toLowerCase();
     let data = null;
+
     try {
-      data = await res.json();
+      if (ct.includes("application/json")) {
+        data = await res.json();
+      } else {
+        // si viene vacío o no-json, lo leemos como texto para detectar “200 sin body”
+        const text = await res.text();
+        data = text ? { _raw: text } : null;
+      }
     } catch {
-      // no-op
+      data = null;
     }
 
     if (!res.ok) {
       const msg = data?.error || `Error HTTP ${res.status}`;
       throw new Error(msg);
     }
+
+    // 200 OK pero sin JSON útil
+    if (!data || typeof data !== "object" || Array.isArray(data)) {
+      throw new Error("Respuesta vacía o inválida del servidor.");
+    }
+
+    // si vino texto raw, también lo tratamos como inválido
+    if (data && data._raw) {
+      throw new Error("Servidor respondió sin JSON (respuesta inválida).");
+    }
+
     return data;
   }
 
-  // Intentar cargar insights del backend; si falla, seguimos con motor local.
   useEffect(() => {
+    if (!farmId) {
+      setErrorMsg("No se detectó una finca activa.");
+      setInsights(null);
+      return;
+    }
+    if (!token) {
+      setErrorMsg("No hay token. Inicia sesión nuevamente.");
+      setInsights(null);
+      return;
+    }
+
+    const fetchKey = `${API_BASE}|${farmId}|${token.slice(0, 12)}`;
+    if (lastFetchKeyRef.current === fetchKey) {
+      // misma combinación: evitamos el “doble disparo”
+      return;
+    }
+    lastFetchKeyRef.current = fetchKey;
+
+    const controller = new AbortController();
     let cancelled = false;
 
     async function load() {
       setErrorMsg("");
       setInsights(null);
 
-      if (!farmId) {
-        setErrorMsg("No se detectó una finca activa.");
-        return;
-      }
-      if (!token) {
-        setErrorMsg("No hay token. Inicia sesión nuevamente.");
-        return;
-      }
-
-      // ✅ Si no hay API_BASE, NO intentes pegarle al dominio del FRONT
-      if (!API_BASE) {
-        setErrorMsg(
-          "Falta VITE_API_URL en el frontend (Vercel). Sin eso, no puedo consultar /finance/insights del backend."
-        );
-        return;
-      }
-
       try {
         setLoading(true);
-        const data = await apiFetch(`/api/farms/${farmId}/finance/insights`);
+        const data = await apiFetch(`/api/farms/${farmId}/finance/insights?ts=${Date.now()}`, {
+          signal: controller.signal,
+        });
         if (cancelled) return;
         setInsights(data || null);
       } catch (err) {
         if (cancelled) return;
+        if (String(err?.name || "") === "AbortError") return;
+
         setErrorMsg(
           err?.message ||
             "No se pudieron cargar los insights del servidor. Mostrando análisis local."
@@ -403,15 +400,21 @@ export default function FinanceSummaryIA({
     }
 
     load();
+
     return () => {
       cancelled = true;
+      controller.abort();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [farmId, token, API_BASE]);
 
   const effectiveInsights = useMemo(() => {
     if (insights) return { ...insights, source: "server" };
-    return buildLocalInsights({ movements, assets, summary: summary || resumenZona });
+    return buildLocalInsights({
+      movements,
+      assets,
+      summary: summary || resumenZona,
+    });
   }, [insights, movements, assets, summary, resumenZona]);
 
   const suggestions = useMemo(() => {
@@ -431,7 +434,12 @@ export default function FinanceSummaryIA({
     return [
       { label: "Ingresos", value: formatMoneyCRC(s.ingresos), meta: month, cls: "success" },
       { label: "Gastos", value: formatMoneyCRC(s.gastos), meta: month, cls: "warning" },
-      { label: "Balance", value: formatMoneyCRC(s.balance), meta: `Margen ${Number(s.margen || 0).toFixed(1)}%`, cls: "" },
+      {
+        label: "Balance",
+        value: formatMoneyCRC(s.balance),
+        meta: `Margen ${Number(s.margen || 0).toFixed(1)}%`,
+        cls: "",
+      },
       {
         label: "Score",
         value: `${effectiveInsights?.healthScore ?? 0}/100`,
@@ -455,9 +463,9 @@ export default function FinanceSummaryIA({
     const id = String(s?.id || "");
     try {
       setErrorMsg("");
+
       if (!farmId) return setErrorMsg("No hay finca activa.");
       if (!token) return setErrorMsg("No hay token.");
-      if (!API_BASE) return setErrorMsg("Falta VITE_API_URL en el frontend.");
 
       const payload = s?.actionPayload || null;
       if (!payload) return;
@@ -487,9 +495,7 @@ export default function FinanceSummaryIA({
 
   const projection30 = safeNum(effectiveInsights?.projection30);
   const projection90 = safeNum(effectiveInsights?.projection90);
-  const topCategories = Array.isArray(effectiveInsights?.topCategories)
-    ? effectiveInsights.topCategories
-    : [];
+  const topCategories = Array.isArray(effectiveInsights?.topCategories) ? effectiveInsights.topCategories : [];
 
   return (
     <section className="finance-ia-shell">
@@ -527,7 +533,8 @@ export default function FinanceSummaryIA({
         {tab === "estado" && (
           <>
             <p style={{ marginTop: 0, opacity: 0.9 }}>
-              Proyección: <b>{formatMoneyCRC(projection30)}</b> (30 días) · <b>{formatMoneyCRC(projection90)}</b> (90 días)
+              Proyección: <b>{formatMoneyCRC(projection30)}</b> (30 días) ·{" "}
+              <b>{formatMoneyCRC(projection90)}</b> (90 días)
             </p>
 
             <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", opacity: 0.9 }}>
@@ -576,6 +583,7 @@ export default function FinanceSummaryIA({
           <div className="finance-ia-suggestions">
             {suggestions.map((s) => {
               const busy = savingId && savingId === s.id;
+
               return (
                 <div key={s.id} className="finance-ia-suggestion-card">
                   <div className="finance-ia-suggestion-title">{s.title || "Sugerencia"}</div>
