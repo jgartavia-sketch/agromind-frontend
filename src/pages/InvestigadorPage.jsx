@@ -10,11 +10,10 @@ export default function InvestigadorPage() {
   const [stream, setStream] = useState(null);
 
   const [imageDataUrl, setImageDataUrl] = useState("");
-  const [extraContext, setExtraContext] = useState("");
+  const [notes, setNotes] = useState("");
   const [zoneName, setZoneName] = useState("Zona 1");
 
   const [farmId, setFarmId] = useState(() => {
-    // Intento de autocompletar desde localStorage si tu app ya lo guarda
     return (
       localStorage.getItem("activeFarmId") ||
       localStorage.getItem("farmId") ||
@@ -27,7 +26,6 @@ export default function InvestigadorPage() {
   const [result, setResult] = useState(null);
 
   const apiBase = useMemo(() => {
-    // Si ya usás VITE_API_URL en tu front, lo respeta. Si no, cae al backend local.
     return (import.meta?.env?.VITE_API_URL || "http://localhost:3001").replace(
       /\/$/,
       ""
@@ -35,10 +33,7 @@ export default function InvestigadorPage() {
   }, []);
 
   useEffect(() => {
-    // Limpieza al salir
-    return () => {
-      stopCamera();
-    };
+    return () => stopCamera();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -46,12 +41,12 @@ export default function InvestigadorPage() {
     setError("");
     setResult(null);
 
-    try {
-      if (!navigator.mediaDevices?.getUserMedia) {
-        setError("Este navegador no soporta cámara (getUserMedia).");
-        return;
-      }
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setError("Este navegador no soporta cámara.");
+      return;
+    }
 
+    try {
       const s = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: "environment" },
         audio: false,
@@ -60,23 +55,50 @@ export default function InvestigadorPage() {
       setStream(s);
       setCameraOn(true);
 
-      // enganchar stream al video
-      if (videoRef.current) {
-        videoRef.current.srcObject = s;
-        await videoRef.current.play();
-      }
+      const video = videoRef.current;
+      if (!video) return;
+
+      // iOS/Safari: forzar atributos antes de play
+      video.autoplay = true;
+      video.muted = true;
+      video.playsInline = true;
+      video.setAttribute("playsinline", "true");
+      video.setAttribute("muted", "true");
+      video.setAttribute("autoplay", "true");
+
+      video.srcObject = s;
+
+      // iOS: esperar metadata y luego play
+      video.onloadedmetadata = async () => {
+        try {
+          await video.play();
+        } catch (_) {
+          // Si falla autoplay, igual dejamos la cámara abierta y el usuario puede reintentar
+        }
+      };
     } catch (e) {
-      setError(
-        "No se pudo acceder a la cámara. Revisa permisos del navegador."
-      );
+      const msg = String(e?.name || e?.message || e || "");
+      if (msg.includes("NotAllowed")) {
+        setError(
+          "Permiso de cámara denegado. Actívalo en el candadito del navegador y recarga."
+        );
+      } else if (msg.includes("NotFound")) {
+        setError(
+          "No se encontró cámara disponible. Usa “Subir foto” como alternativa."
+        );
+      } else if (msg.includes("NotReadable")) {
+        setError(
+          "La cámara está ocupada por otra app. Cierra Zoom/Meet/WhatsApp e intenta de nuevo."
+        );
+      } else {
+        setError(`No se pudo acceder a la cámara. (${msg || "Error"})`);
+      }
     }
   }
 
   function stopCamera() {
     try {
-      if (stream) {
-        stream.getTracks().forEach((t) => t.stop());
-      }
+      if (stream) stream.getTracks().forEach((t) => t.stop());
     } catch (_) {
       // ignore
     } finally {
@@ -100,28 +122,54 @@ export default function InvestigadorPage() {
     const w = video.videoWidth || 1280;
     const h = video.videoHeight || 720;
 
+    if (!w || !h) {
+      setError(
+        "La cámara está encendida pero no está entregando imagen. Prueba “Subir foto”."
+      );
+      return;
+    }
+
     canvas.width = w;
     canvas.height = h;
 
     const ctx = canvas.getContext("2d");
     ctx.drawImage(video, 0, 0, w, h);
 
-    // JPEG para reducir peso
     const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
     setImageDataUrl(dataUrl);
   }
 
-  async function analyzeWithRules() {
+  async function handleFilePick(e) {
+    setError("");
+    setResult(null);
+
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      setError("Ese archivo no parece una imagen.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => setImageDataUrl(String(reader.result || ""));
+    reader.onerror = () => setError("No se pudo leer la imagen.");
+    reader.readAsDataURL(file);
+  }
+
+  async function analyze() {
     setError("");
     setResult(null);
 
     if (!farmId?.trim()) {
-      setError("Falta farmId. Ponlo una vez y luego lo automatizamos.");
+      setError(
+        "No se detectó tu finca activa. Entra al Mapa, selecciona tu finca, y vuelve aquí."
+      );
       return;
     }
 
     if (!imageDataUrl) {
-      setError("Primero toma una foto.");
+      setError("Primero toma o sube una foto.");
       return;
     }
 
@@ -135,22 +183,20 @@ export default function InvestigadorPage() {
           farmId: farmId.trim(),
           zoneName: zoneName?.trim() || null,
           imageDataUrl,
-          extraContext: extraContext || "",
+          extraContext: notes || "",
         }),
       });
 
       const data = await resp.json().catch(() => null);
-
       if (!resp.ok) {
-        setError(data?.error || "Error analizando (backend).");
+        setError(data?.error || "Error analizando.");
         return;
       }
 
       setResult(data);
-      // guardar farmId para no pedirlo de nuevo (si el usuario quiere)
       localStorage.setItem("activeFarmId", farmId.trim());
-    } catch (e) {
-      setError("No se pudo conectar al backend. ¿Está corriendo?");
+    } catch (_) {
+      setError("No se pudo conectar al backend.");
     } finally {
       setLoading(false);
     }
@@ -158,87 +204,54 @@ export default function InvestigadorPage() {
 
   async function openChatGPTAssist() {
     setError("");
-
     if (!imageDataUrl) {
-      setError("Primero toma una foto para que esto tenga sentido.");
+      setError("Primero toma o sube una foto para usar esta opción.");
       return;
     }
 
     const prompt =
       `Actúa como asistente técnico de finca (plantas y animales).\n` +
-      `Contexto:\n` +
-      `- Zona: ${zoneName || "N/A"}\n` +
-      (extraContext ? `- Notas: ${extraContext}\n` : "") +
-      `\nInstrucciones:\n` +
-      `1) Analiza la imagen adjunta.\n` +
-      `2) Dime si es planta, animal o desconocido.\n` +
-      `3) Indica el problema más probable, severidad (baja/media/alta) y por qué.\n` +
-      `4) Recomiéndame acciones seguras y prácticas (sin dosis médicas).\n` +
-      `5) Haz 3 preguntas para confirmar.\n`;
+      `Zona: ${zoneName || "N/A"}\n` +
+      (notes ? `Notas: ${notes}\n` : "") +
+      `\n1) Analiza la imagen adjunta.\n` +
+      `2) Di si es planta/animal/desconocido.\n` +
+      `3) Problema probable y severidad (baja/media/alta) con razones.\n` +
+      `4) Acciones prácticas y seguras (sin dosis médicas).\n` +
+      `5) 3 preguntas para confirmar.\n`;
 
     try {
       await navigator.clipboard.writeText(prompt);
       window.open("https://chat.openai.com/", "_blank", "noopener,noreferrer");
-      // Nota: no se puede “enviar” la imagen automáticamente a ChatGPT.
-      // El usuario sube la foto manualmente y pega el prompt.
-      alert(
-        "Listo: copié un prompt al portapapeles. Se abrió ChatGPT: sube la foto ahí y pega el prompt."
-      );
-    } catch (e) {
-      setError(
-        "No pude copiar al portapapeles. Copia el prompt manualmente (te lo muestro abajo)."
-      );
+      alert("Copié instrucciones. En ChatGPT sube la foto y pega el texto.");
+    } catch (_) {
+      setError("No pude copiar. Abajo te dejo el texto para copiar manual.");
     }
   }
 
   const chatgptPromptFallback = useMemo(() => {
     return (
       `Actúa como asistente técnico de finca (plantas y animales).\n` +
-      `Contexto:\n` +
-      `- Zona: ${zoneName || "N/A"}\n` +
-      (extraContext ? `- Notas: ${extraContext}\n` : "") +
-      `\nInstrucciones:\n` +
-      `1) Analiza la imagen adjunta.\n` +
-      `2) Dime si es planta, animal o desconocido.\n` +
-      `3) Indica el problema más probable, severidad (baja/media/alta) y por qué.\n` +
-      `4) Recomiéndame acciones seguras y prácticas (sin dosis médicas).\n` +
-      `5) Haz 3 preguntas para confirmar.\n`
+      `Zona: ${zoneName || "N/A"}\n` +
+      (notes ? `Notas: ${notes}\n` : "") +
+      `\n1) Analiza la imagen adjunta.\n` +
+      `2) Di si es planta/animal/desconocido.\n` +
+      `3) Problema probable y severidad (baja/media/alta) con razones.\n` +
+      `4) Acciones prácticas y seguras (sin dosis médicas).\n` +
+      `5) 3 preguntas para confirmar.\n`
     );
-  }, [extraContext, zoneName]);
+  }, [notes, zoneName]);
 
   return (
     <div className="investigador-page">
       <header className="investigador-header">
         <h1>Investigador</h1>
         <p className="investigador-subtitle">
-          Cámara + análisis por reglas (IA real se enchufa después).
+          Toma una foto y recibe recomendaciones prácticas.
         </p>
-        <p className="investigador-env">Modo: rules-v1 · sin costos de IA</p>
       </header>
 
-      {/* Configuración mínima */}
       <section className="investigador-action card">
         <div style={{ display: "grid", gap: "0.75rem" }}>
-          <div style={{ display: "grid", gap: "0.35rem" }}>
-            <label style={{ opacity: 0.9, fontSize: "0.9rem" }}>
-              Farm ID (temporal)
-            </label>
-            <input
-              value={farmId}
-              onChange={(e) => setFarmId(e.target.value)}
-              placeholder="Pega tu farmId (luego lo automatizamos)"
-              style={{
-                width: "100%",
-                padding: "0.65rem 0.8rem",
-                borderRadius: "0.8rem",
-                border: "1px solid rgba(255,255,255,0.12)",
-                background: "rgba(2,6,23,0.6)",
-                color: "white",
-                outline: "none",
-              }}
-            />
-          </div>
-
           <div style={{ display: "grid", gap: "0.35rem" }}>
             <label style={{ opacity: 0.9, fontSize: "0.9rem" }}>
               Zona (opcional)
@@ -261,12 +274,12 @@ export default function InvestigadorPage() {
 
           <div style={{ display: "grid", gap: "0.35rem" }}>
             <label style={{ opacity: 0.9, fontSize: "0.9rem" }}>
-              Contexto (ayuda a las reglas)
+              ¿Qué estás viendo? (opcional)
             </label>
             <textarea
-              value={extraContext}
-              onChange={(e) => setExtraContext(e.target.value)}
-              placeholder="Ej: hoja con manchas, gallina decaída, vaca con tos, etc."
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Ej: hojas con manchas, gallina decaída, vaca tosiendo..."
               rows={3}
               style={{
                 width: "100%",
@@ -279,24 +292,35 @@ export default function InvestigadorPage() {
                 resize: "vertical",
               }}
             />
+            <div style={{ opacity: 0.75, fontSize: "0.85rem" }}>
+              Esto ayuda cuando la foto no es perfecta.
+            </div>
           </div>
         </div>
       </section>
 
-      {/* Cámara */}
       <section className="investigador-action card">
         <div style={{ display: "grid", gap: "0.75rem" }}>
           <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
             {!cameraOn ? (
-              <button className="investigador-camera-btn" onClick={startCamera}>
+              <button
+                type="button"
+                className="investigador-camera-btn"
+                onClick={startCamera}
+              >
                 📷 Abrir cámara
               </button>
             ) : (
               <>
-                <button className="investigador-camera-btn" onClick={takePhoto}>
+                <button
+                  type="button"
+                  className="investigador-camera-btn"
+                  onClick={takePhoto}
+                >
                   📸 Tomar foto
                 </button>
                 <button
+                  type="button"
                   className="investigador-camera-btn"
                   onClick={stopCamera}
                   style={{ opacity: 0.9 }}
@@ -306,20 +330,33 @@ export default function InvestigadorPage() {
               </>
             )}
 
-            <button
+            <label
               className="investigador-camera-btn"
-              onClick={analyzeWithRules}
+              style={{ cursor: "pointer", display: "inline-flex" }}
+            >
+              ⬆ Subir foto
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleFilePick}
+                style={{ display: "none" }}
+              />
+            </label>
+
+            <button
+              type="button"
+              className="investigador-camera-btn"
+              onClick={analyze}
               disabled={loading}
               style={{ opacity: loading ? 0.6 : 1 }}
-              title="Envía la imagen al backend (rules-v1)"
             >
-              {loading ? "⏳ Analizando..." : "🧠 Analizar (rules)"}
+              {loading ? "⏳ Analizando..." : "🧠 Analizar"}
             </button>
 
             <button
+              type="button"
               className="investigador-camera-btn"
               onClick={openChatGPTAssist}
-              title="Opción manual: abre ChatGPT y copia prompt (sin costo API tuyo)"
               style={{ opacity: 0.95 }}
             >
               ↗ Abrir ChatGPT
@@ -330,28 +367,30 @@ export default function InvestigadorPage() {
             <div style={{ display: "grid", gap: "0.5rem" }}>
               <video
                 ref={videoRef}
-                playsInline
+                autoPlay
                 muted
+                playsInline
                 style={{
                   width: "100%",
                   borderRadius: "1rem",
                   border: "1px solid rgba(255,255,255,0.12)",
                   background: "rgba(2,6,23,0.6)",
+                  minHeight: "220px",
                 }}
               />
               <p className="investigador-hint">
-                Tip: si estás en celular, acepta permisos y apunta con buena luz.
+                Si no se ve nada, usa “Subir foto”. En laptop es normal que
+                algunos navegadores bloqueen cámara según permisos.
               </p>
             </div>
           )}
 
-          {/* Canvas oculto para snapshot */}
           <canvas ref={canvasRef} style={{ display: "none" }} />
 
           {imageDataUrl && (
             <div style={{ display: "grid", gap: "0.5rem" }}>
               <div style={{ opacity: 0.9, fontSize: "0.9rem" }}>
-                Foto capturada:
+                Imagen lista:
               </div>
               <img
                 src={imageDataUrl}
@@ -380,13 +419,10 @@ export default function InvestigadorPage() {
         </div>
       </section>
 
-      {/* Resultado */}
       <section className="investigador-results">
         {result?.ok ? (
           <div className="investigador-card card">
-            <span className="investigador-type">
-              Motor: {result.engine || "rules"}
-            </span>
+            <span className="investigador-type">Resultado</span>
             <h3>
               {result?.result?.category === "plant"
                 ? "🌿 Planta"
@@ -419,40 +455,18 @@ export default function InvestigadorPage() {
                 ))}
               </ul>
             </div>
-
-            <div style={{ marginTop: "0.75rem" }}>
-              <p style={{ marginBottom: "0.35rem", opacity: 0.9 }}>
-                Preguntas para confirmar:
-              </p>
-              <ul style={{ marginTop: 0 }}>
-                {(result?.result?.questions_to_confirm || []).map((q, idx) => (
-                  <li key={idx}>{q}</li>
-                ))}
-              </ul>
-            </div>
-
-            <div style={{ marginTop: "0.75rem" }}>
-              <p style={{ marginBottom: "0.35rem", opacity: 0.9 }}>
-                Pista económica:
-              </p>
-              <p style={{ marginTop: 0 }}>
-                {result?.result?.economic_hint || "N/A"}
-              </p>
-            </div>
           </div>
         ) : (
           <div className="investigador-card card" style={{ opacity: 0.9 }}>
             <span className="investigador-type">Estado</span>
             <h3>Listo para capturar</h3>
             <p className="investigador-note">
-              Abre cámara → toma foto → analiza con reglas. Si te molesta “Abrir
-              ChatGPT”, lo quitamos después.
+              Abre cámara o sube una foto y presiona “Analizar”.
             </p>
 
-            {/* Fallback del prompt si el clipboard falla */}
             <details style={{ marginTop: "0.75rem" }}>
               <summary style={{ cursor: "pointer" }}>
-                Ver prompt para ChatGPT (manual)
+                Ver instrucciones para ChatGPT (manual)
               </summary>
               <pre
                 style={{
