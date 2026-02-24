@@ -30,10 +30,29 @@ export default function InvestigadorPage() {
   }, []);
 
   // =========================
+  // JWT helper (robusto)
+  // =========================
+  function getAuthToken() {
+    // Probamos varios nombres típicos (porque no tengo tu AuthPage aquí)
+    return (
+      localStorage.getItem("token") ||
+      localStorage.getItem("authToken") ||
+      localStorage.getItem("jwt") ||
+      localStorage.getItem("accessToken") ||
+      ""
+    );
+  }
+
+  function authHeaders() {
+    const t = getAuthToken();
+    return t ? { Authorization: `Bearer ${t}` } : {};
+  }
+
+  // =========================
   // Auto-detect finca activa
   // =========================
   useEffect(() => {
-    if (farmId) return; // ya tenemos una
+    if (farmId) return;
     autoDetectFarm();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -43,52 +62,47 @@ export default function InvestigadorPage() {
     setError("");
 
     try {
-      const tryGet = async (path) => {
-        const resp = await fetch(`${apiBase}${path}`, {
-          method: "GET",
-          credentials: "include",
-        });
-        if (!resp.ok) return null;
-        return await resp.json().catch(() => null);
-      };
+      const resp = await fetch(`${apiBase}/api/farms`, {
+        method: "GET",
+        headers: {
+          ...authHeaders(),
+        },
+      });
 
-      // 1) primary
-      let data = await tryGet("/api/farms/primary");
-      let id =
-        data?.id ||
-        data?.farm?.id ||
-        data?.primaryFarm?.id ||
-        data?.data?.id ||
-        null;
-
-      // 2) list
-      if (!id) {
-        data = await tryGet("/api/farms");
-        const list =
-          Array.isArray(data) ? data : data?.farms || data?.data || [];
-        if (Array.isArray(list) && list.length) {
-          const primary = list.find((f) => f?.isPrimary) || list[0];
-          id = primary?.id || null;
-        }
-      }
-
-      // 3) fallback singular
-      if (!id) {
-        data = await tryGet("/api/farm");
-        id = data?.id || data?.farm?.id || data?.data?.id || null;
-      }
-
-      if (!id) {
+      if (resp.status === 401) {
         setError(
-          "No pude detectar tu finca automáticamente. (Tu sesión está bien, solo falta exponer una finca desde el API)."
+          "Tu sesión no está llegando al backend (401). Cierra sesión y vuelve a iniciar sesión, y asegúrate de que el login guarde el token."
         );
+        return;
+      }
+
+      if (!resp.ok) {
+        setError("No pude obtener tus fincas desde el backend.");
+        return;
+      }
+
+      const data = await resp.json().catch(() => null);
+
+      // Esperamos que venga como { farms: [...] } o directamente [...]
+      const list = Array.isArray(data) ? data : data?.farms || data?.data || [];
+
+      if (!Array.isArray(list) || !list.length) {
+        setError("No se encontró ninguna finca asociada a tu usuario.");
+        return;
+      }
+
+      const primary = list.find((f) => f?.isPrimary) || list[0];
+      const id = primary?.id;
+
+      if (!id) {
+        setError("Recibí fincas, pero no traen id. (Raro, pero posible).");
         return;
       }
 
       setFarmId(id);
       localStorage.setItem("activeFarmId", id);
     } catch (_) {
-      setError("No pude consultar la finca activa. Revisa el backend.");
+      setError("No pude consultar la finca activa. Revisa conexión al backend.");
     } finally {
       setLoadingFarm(false);
     }
@@ -115,7 +129,6 @@ export default function InvestigadorPage() {
       return;
     }
 
-    // permitir escoger la misma foto de nuevo
     e.target.value = "";
 
     const reader = new FileReader();
@@ -131,15 +144,12 @@ export default function InvestigadorPage() {
     setError("");
     setResult(null);
 
-    // Si todavía no cargó farmId, lo intentamos una vez más
     if (!farmId?.trim()) {
       await autoDetectFarm();
     }
 
     if (!farmId?.trim()) {
-      setError(
-        "No se detectó tu finca activa. (Hoy lo resolvemos: el API debe devolver la finca primaria del usuario)."
-      );
+      setError("No se detectó tu finca activa.");
       return;
     }
 
@@ -152,8 +162,10 @@ export default function InvestigadorPage() {
     try {
       const resp = await fetch(`${apiBase}/api/investigator/analyze`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          ...authHeaders(),
+        },
         body: JSON.stringify({
           farmId: farmId.trim(),
           zoneName: zoneName?.trim() || null,
@@ -163,6 +175,14 @@ export default function InvestigadorPage() {
       });
 
       const data = await resp.json().catch(() => null);
+
+      if (resp.status === 401) {
+        setError(
+          "No autorizado (401). Tu token no está llegando o expiró. Cierra sesión y vuelve a iniciar."
+        );
+        return;
+      }
+
       if (!resp.ok) {
         setError(data?.error || "Error analizando.");
         return;
@@ -275,7 +295,6 @@ export default function InvestigadorPage() {
             </div>
           </div>
 
-          {/* Estado finca (silencioso y profesional) */}
           <div style={{ opacity: 0.8, fontSize: "0.85rem" }}>
             {loadingFarm
               ? "Detectando tu finca…"
