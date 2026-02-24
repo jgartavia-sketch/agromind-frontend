@@ -81,3 +81,20 @@
 .stock.warn {
   color: #f59e0b;
 }
+.productos-footer {
+  margin-top: 3rem;
+  text-align: center;
+}
+
+.productos-cta {
+  font-size: 0.85rem;
+  opacity: 0.6;
+  line-height: 1.5;
+}
+
+.productos-cta span {
+  display: block;
+  margin-top: 0.3rem;
+  font-size: 0.8rem;
+  letter-spacing: 0.5px;
+}

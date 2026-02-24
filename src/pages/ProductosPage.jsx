@@ -5,33 +5,37 @@ export default function ProductosPage() {
     <div className="productos-page">
       <header className="productos-header">
         <h2>Productos de interés</h2>
-        <p>
-          Recomendaciones inteligentes basadas en los cultivos de tu finca.
+        <p className="productos-subtitle">
+          Recomendaciones basadas en tu finca y tus cultivos.
         </p>
       </header>
 
       <section className="productos-intro">
         <p>
-          AgroMind analiza la información productiva de tu finca y te sugiere
-          insumos agrícolas adecuados para mejorar rendimiento, sanidad y
-          eficiencia.
-        </p>
-        <p className="productos-note">
-          Demo conceptual · La conexión a inventarios reales se habilitará en
-          fases futuras.
+          Este espacio está reservado para patrocinadores y aliados
+          estratégicos (productos agrícolas, insumos, herramientas)
+          con el objetivo de ofrecer recomendaciones personalizadas
+          según lo que cada usuario tenga en su finca.
         </p>
       </section>
 
-      <section className="productos-grid">
-        <div className="producto-card">
-          <h3>Trichoderma harzianum</h3>
-          <p><strong>Tipo:</strong> Bioinsumo orgánico</p>
-          <p><strong>Uso:</strong> Control de hongos del suelo</p>
-          <p><strong>Precio estimado:</strong> ₡8.500</p>
-          <p><strong>Proveedor:</strong> AgroServicios del Norte</p>
-          <p><strong>Ubicación:</strong> Ciudad Quesada</p>
+      <section className="productos-placeholder">
+        <div className="productos-card">
+          <h3>Espacio para aliados comerciales</h3>
+          <p>
+            Próximamente aquí se mostrarán productos recomendados
+            en función del tipo de cultivo, manejo productivo
+            y necesidades detectadas en cada finca.
+          </p>
         </div>
       </section>
+
+      <footer className="productos-footer">
+        <p className="productos-cta">
+          ¿Interesado en formar parte? <br />
+          <span>Contacto: jgartavia@gmail.com</span>
+        </p>
+      </footer>
     </div>
   );
 }
