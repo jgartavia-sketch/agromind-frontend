@@ -486,4 +486,122 @@
 }
 .ai-suggestions-list.ai-suggestions-row .ai-suggestion-actions {
   justify-content: flex-end;
+}/* ===== HOTFIX: tabla de tareas más pro y legible ===== */
+.data-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0 10px; /* separa filas como “cards” */
+}
+
+.data-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: 12px 12px;
+  text-align: left;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.data-table tbody tr {
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 14px;
+}
+
+.data-table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.data-table td {
+  padding: 12px 12px;
+  vertical-align: middle;
+  line-height: 1.25;
+}
+
+.data-table tbody tr td:first-child {
+  border-top-left-radius: 14px;
+  border-bottom-left-radius: 14px;
+}
+
+.data-table tbody tr td:last-child {
+  border-top-right-radius: 14px;
+  border-bottom-right-radius: 14px;
+}
+
+/* Celdas con texto largo: que no rompa todo */
+.data-table td:nth-child(2) {
+  max-width: 360px;
+}
+.data-table td:nth-child(2),
+.data-table td:nth-child(3) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Zona: organiza mejor el “Ver en mapa” */
+.task-zone-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.link-button {
+  align-self: flex-start;
+  padding: 0;
+  font-size: 0.85rem;
+  opacity: 0.85;
+}
+
+/* Acciones: botones más compactos y alineados */
+.task-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.small-btn {
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+}
+
+/* Responsive: en pantallas medianas, evita que todo se aplaste */
+@media (max-width: 1100px) {
+  .data-table thead {
+    display: none;
+  }
+
+  .data-table,
+  .data-table tbody,
+  .data-table tr,
+  .data-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .data-table tbody tr {
+    padding: 12px;
+  }
+
+  .data-table td {
+    display: flex;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 10px 6px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .data-table td:last-child {
+    border-bottom: none;
+  }
+
+  .data-table td:nth-child(2),
+  .data-table td:nth-child(3) {
+    max-width: none;
+    white-space: normal;
+  }
 }
