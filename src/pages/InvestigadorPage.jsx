@@ -2,6 +2,29 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import "../styles/investigador.css";
 
+function looksLikeJwt(v) {
+  if (!v || typeof v !== "string") return false;
+  const s = v.trim();
+  if (!s) return false;
+  // JWT típico: xxx.yyy.zzz y muchas veces empieza con eyJ
+  if (s.startsWith("eyJ") && s.split(".").length === 3) return true;
+  const jwtLike = /^[A-Za-z0-9\-_]+\.[A-Za-z0-9\-_]+\.[A-Za-z0-9\-_]+$/;
+  return jwtLike.test(s);
+}
+
+function findJwtInStorage(storage) {
+  try {
+    const keys = Object.keys(storage);
+    for (const k of keys) {
+      const v = storage.getItem(k);
+      if (looksLikeJwt(v)) return v;
+    }
+  } catch (_) {
+    // ignore
+  }
+  return "";
+}
+
 export default function InvestigadorPage() {
   const fileInputRef = useRef(null);
 
@@ -30,23 +53,39 @@ export default function InvestigadorPage() {
   }, []);
 
   // =========================
-  // JWT helper (robusto)
+  // JWT helper (auto-detect)
   // =========================
   function getAuthToken() {
-    // Probamos varios nombres típicos (porque no tengo tu AuthPage aquí)
-    return (
+    // 1) nombres comunes
+    const direct =
       localStorage.getItem("token") ||
       localStorage.getItem("authToken") ||
       localStorage.getItem("jwt") ||
       localStorage.getItem("accessToken") ||
-      ""
-    );
+      sessionStorage.getItem("token") ||
+      sessionStorage.getItem("authToken") ||
+      sessionStorage.getItem("jwt") ||
+      sessionStorage.getItem("accessToken") ||
+      "";
+
+    if (looksLikeJwt(direct)) return direct;
+
+    // 2) “caza” en cualquier key de localStorage/sessionStorage
+    const foundLocal = findJwtInStorage(localStorage);
+    if (foundLocal) return foundLocal;
+
+    const foundSession = findJwtInStorage(sessionStorage);
+    if (foundSession) return foundSession;
+
+    return "";
   }
 
   function authHeaders() {
     const t = getAuthToken();
     return t ? { Authorization: `Bearer ${t}` } : {};
   }
+
+  const hasToken = useMemo(() => !!getAuthToken(), []); // snapshot para UI
 
   // =========================
   // Auto-detect finca activa
@@ -61,17 +100,24 @@ export default function InvestigadorPage() {
     setLoadingFarm(true);
     setError("");
 
+    const token = getAuthToken();
+    if (!token) {
+      setError(
+        "No encontré tu token de sesión. Cierra sesión y vuelve a iniciar (el login debe guardar el token)."
+      );
+      setLoadingFarm(false);
+      return;
+    }
+
     try {
       const resp = await fetch(`${apiBase}/api/farms`, {
         method: "GET",
-        headers: {
-          ...authHeaders(),
-        },
+        headers: { ...authHeaders() },
       });
 
       if (resp.status === 401) {
         setError(
-          "Tu sesión no está llegando al backend (401). Cierra sesión y vuelve a iniciar sesión, y asegúrate de que el login guarde el token."
+          "Sesión no autorizada (401). Tu token no es válido o expiró. Cierra sesión y vuelve a iniciar."
         );
         return;
       }
@@ -82,8 +128,6 @@ export default function InvestigadorPage() {
       }
 
       const data = await resp.json().catch(() => null);
-
-      // Esperamos que venga como { farms: [...] } o directamente [...]
       const list = Array.isArray(data) ? data : data?.farms || data?.data || [];
 
       if (!Array.isArray(list) || !list.length) {
@@ -95,7 +139,7 @@ export default function InvestigadorPage() {
       const id = primary?.id;
 
       if (!id) {
-        setError("Recibí fincas, pero no traen id. (Raro, pero posible).");
+        setError("Recibí fincas, pero no traen id.");
         return;
       }
 
@@ -144,6 +188,14 @@ export default function InvestigadorPage() {
     setError("");
     setResult(null);
 
+    const token = getAuthToken();
+    if (!token) {
+      setError(
+        "No encontré tu token de sesión. Cierra sesión y vuelve a iniciar."
+      );
+      return;
+    }
+
     if (!farmId?.trim()) {
       await autoDetectFarm();
     }
@@ -178,7 +230,7 @@ export default function InvestigadorPage() {
 
       if (resp.status === 401) {
         setError(
-          "No autorizado (401). Tu token no está llegando o expiró. Cierra sesión y vuelve a iniciar."
+          "No autorizado (401). Token inválido/expirado. Cierra sesión y vuelve a iniciar."
         );
         return;
       }
@@ -301,6 +353,8 @@ export default function InvestigadorPage() {
               : farmId
               ? "Finca detectada ✅"
               : "Finca no detectada todavía"}
+            {" · "}
+            {hasToken ? "Sesión detectada ✅" : "Sesión no detectada"}
           </div>
         </div>
       </section>
@@ -392,16 +446,6 @@ export default function InvestigadorPage() {
 
             <p className="investigador-status">
               Diagnóstico: <strong>{result?.result?.issue || "N/A"}</strong>
-            </p>
-
-            <p className="investigador-note">
-              Severidad:{" "}
-              <strong>{result?.result?.severity || "low"}</strong> · Confianza:{" "}
-              <strong>
-                {typeof result?.result?.confidence === "number"
-                  ? `${Math.round(result.result.confidence * 100)}%`
-                  : "N/A"}
-              </strong>
             </p>
 
             <div style={{ marginTop: "0.75rem" }}>
