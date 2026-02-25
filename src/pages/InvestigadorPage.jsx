@@ -399,6 +399,25 @@ export default function InvestigadorPage() {
             style={{ display: "none" }}
           />
 
+          {/* Manual ChatGPT (discreto, sin tarjeta extra) */}
+          <details style={{ opacity: 0.9 }}>
+            <summary style={{ cursor: "pointer" }}>
+              Ver instrucciones para ChatGPT (manual)
+            </summary>
+            <pre
+              style={{
+                whiteSpace: "pre-wrap",
+                marginTop: "0.5rem",
+                padding: "0.75rem",
+                borderRadius: "0.9rem",
+                border: "1px solid rgba(255,255,255,0.12)",
+                background: "rgba(2, 6, 23, 0.6)",
+              }}
+            >
+              {chatgptPromptFallback}
+            </pre>
+          </details>
+
           {imageDataUrl && (
             <div style={{ display: "grid", gap: "0.5rem" }}>
               <div style={{ opacity: 0.9, fontSize: "0.9rem" }}>
@@ -431,8 +450,9 @@ export default function InvestigadorPage() {
         </div>
       </section>
 
-      <section className="investigador-results">
-        {result?.ok ? (
+      {/* RESULTADOS: solo aparece si hay result ok */}
+      {result?.ok && (
+        <section className="investigador-results">
           <div className="investigador-card card">
             <span className="investigador-type">Resultado</span>
 
@@ -459,34 +479,8 @@ export default function InvestigadorPage() {
               </ul>
             </div>
           </div>
-        ) : (
-          <div className="investigador-card card" style={{ opacity: 0.9 }}>
-            <span className="investigador-type">Estado</span>
-            <h3>Listo para analizar</h3>
-            <p className="investigador-note">
-              Presiona “Tomar o subir foto”, luego “Analizar”.
-            </p>
-
-            <details style={{ marginTop: "0.75rem" }}>
-              <summary style={{ cursor: "pointer" }}>
-                Ver instrucciones para ChatGPT (manual)
-              </summary>
-              <pre
-                style={{
-                  whiteSpace: "pre-wrap",
-                  marginTop: "0.5rem",
-                  padding: "0.75rem",
-                  borderRadius: "0.9rem",
-                  border: "1px solid rgba(255,255,255,0.12)",
-                  background: "rgba(2, 6, 23, 0.6)",
-                }}
-              >
-                {chatgptPromptFallback}
-              </pre>
-            </details>
-          </div>
-        )}
-      </section>
+        </section>
+      )}
     </div>
   );
 }
