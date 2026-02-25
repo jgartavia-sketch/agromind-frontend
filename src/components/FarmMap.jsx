@@ -150,7 +150,6 @@ export default function FarmMap({ focusZoneRequest }) {
 
   const [drawMode, setDrawMode] = useState("move");
   const [selectedId, setSelectedId] = useState(null);
-  const [expandedZoneId, setExpandedZoneId] = useState(null);
 
   // Para hover bidireccional
   const [hoveredId, setHoveredId] = useState(null);
@@ -193,6 +192,127 @@ export default function FarmMap({ focusZoneRequest }) {
     map.updateSize();
     requestAnimationFrame(() => map.updateSize());
   };
+
+  // =========================
+  // ✅ MODAL COMPONENTES (POP-UP)
+  // =========================
+  const [componentsModalOpen, setComponentsModalOpen] = useState(false);
+  const [componentsModalZoneId, setComponentsModalZoneId] = useState(null);
+  const [componentsDraft, setComponentsDraft] = useState([]);
+  const [editingNotesMap, setEditingNotesMap] = useState({}); // compId -> boolean
+
+  const zonesOnly = featuresList.filter((f) => f.kind === "polygon");
+  const modalZone =
+    componentsModalZoneId && zonesOnly.find((z) => z.id === componentsModalZoneId);
+
+  const openComponentsModal = (zoneId) => {
+    const zone = zonesOnly.find((z) => z.id === zoneId);
+    if (!zone) return;
+
+    const safe = Array.isArray(zone.components) ? zone.components : [];
+    const cloned = safe.map((c, idx) => ({
+      id:
+        c.id ||
+        `comp-${idx}-${Date.now().toString(36)}${Math.random()
+          .toString(36)
+          .slice(2, 6)}`,
+      name: c.name || "",
+      note: c.note || "",
+      type: c.type || "Otro",
+    }));
+
+    setComponentsModalZoneId(zoneId);
+    setComponentsDraft(cloned);
+    setEditingNotesMap({});
+    setComponentsModalOpen(true);
+
+    setTimeout(() => forceMapResize(), 0);
+  };
+
+  const closeComponentsModal = () => {
+    setComponentsModalOpen(false);
+    setTimeout(() => {
+      setComponentsModalZoneId(null);
+      setComponentsDraft([]);
+      setEditingNotesMap({});
+    }, 0);
+  };
+
+  const saveComponentsModal = () => {
+    if (!componentsModalZoneId) return;
+
+    // ✅ cambio real (persistimos ya)
+    markDirty();
+
+    setFeaturesList((prev) => {
+      const updated = prev.map((item) => {
+        if (item.id !== componentsModalZoneId) return item;
+
+        const components = (componentsDraft || []).map((c, idx) => ({
+          id:
+            c.id ||
+            `comp-${idx}-${Date.now().toString(36)}${Math.random()
+              .toString(36)
+              .slice(2, 6)}`,
+          name: c.name || "",
+          note: c.note || "",
+          type: c.type || "Otro",
+        }));
+
+        const feature = featuresMapRef.current[componentsModalZoneId];
+        if (feature) feature.set("components", components);
+
+        return { ...item, components };
+      });
+
+      scheduleAutosave(updated);
+      return updated;
+    });
+
+    closeComponentsModal();
+  };
+
+  const draftAddComponent = () => {
+    const newComp = {
+      id: `comp-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      name: "",
+      note: "",
+      type: "Otro",
+    };
+    setComponentsDraft((prev) => [...(prev || []), newComp]);
+
+    // abrimos edición de nota del nuevo por defecto (opcional)
+    setEditingNotesMap((prev) => ({ ...prev, [newComp.id]: true }));
+  };
+
+  const draftDeleteComponent = (compId) => {
+    setComponentsDraft((prev) => (prev || []).filter((c) => c.id !== compId));
+    setEditingNotesMap((prev) => {
+      const next = { ...(prev || {}) };
+      delete next[compId];
+      return next;
+    });
+  };
+
+  const draftUpdate = (compId, patch) => {
+    setComponentsDraft((prev) =>
+      (prev || []).map((c) => (c.id === compId ? { ...c, ...patch } : c))
+    );
+  };
+
+  const toggleEditNote = (compId) => {
+    setEditingNotesMap((prev) => ({ ...(prev || {}), [compId]: !prev?.[compId] }));
+  };
+
+  useEffect(() => {
+    const onKey = (e) => {
+      if (!componentsModalOpen) return;
+      if (e.key === "Escape") closeComponentsModal();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [componentsModalOpen]);
 
   // =========================
   // SERIALIZE / DESERIALIZE
@@ -286,7 +406,6 @@ export default function FarmMap({ focusZoneRequest }) {
     vectorSource.clear();
     featuresMapRef.current = {};
     setSelectedId(null);
-    setExpandedZoneId(null);
     setHoveredId(null);
 
     const newList = [];
@@ -1134,8 +1253,10 @@ export default function FarmMap({ focusZoneRequest }) {
     });
 
     if (selectedId === id) setSelectedId(null);
-    if (expandedZoneId === id) setExpandedZoneId(null);
     if (hoveredId === id) setHoveredId(null);
+
+    // si borran la zona que está en el modal, cerramos
+    if (componentsModalZoneId === id) closeComponentsModal();
 
     forceMapResize();
   };
@@ -1156,126 +1277,6 @@ export default function FarmMap({ focusZoneRequest }) {
     const [lon, lat] = toLonLat(center);
     scheduleAutosave(latestFeaturesListRef.current || [], { view: { center: [lon, lat], zoom } });
   };
-
-  const handleToggleComponents = (zoneId) => {
-    setExpandedZoneId((prev) => (prev === zoneId ? null : zoneId));
-    setTimeout(() => forceMapResize(), 0);
-  };
-
-  const handleAddComponent = (zoneId) => {
-    // ✅ cambio real
-    markDirty();
-
-    const newComp = {
-      id: `comp-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-      name: "",
-      note: "",
-      type: "Otro",
-    };
-
-    setFeaturesList((prev) => {
-      const updated = prev.map((item) => {
-        if (item.id !== zoneId) return item;
-        const current = Array.isArray(item.components) ? item.components : [];
-        const components = [...current, newComp];
-
-        const feature = featuresMapRef.current[zoneId];
-        if (feature) feature.set("components", components);
-
-        return { ...item, components };
-      });
-      scheduleAutosave(updated);
-      return updated;
-    });
-
-    setTimeout(() => forceMapResize(), 0);
-  };
-
-  const handleComponentNameChange = (zoneId, compId, value) => {
-    // ✅ cambio real
-    markDirty();
-
-    setFeaturesList((prev) => {
-      const updated = prev.map((item) => {
-        if (item.id !== zoneId) return item;
-        const current = Array.isArray(item.components) ? item.components : [];
-        const components = current.map((c) => (c.id === compId ? { ...c, name: value } : c));
-
-        const feature = featuresMapRef.current[zoneId];
-        if (feature) feature.set("components", components);
-
-        return { ...item, components };
-      });
-      scheduleAutosave(updated);
-      return updated;
-    });
-  };
-
-  const handleComponentNoteChange = (zoneId, compId, value) => {
-    // ✅ cambio real
-    markDirty();
-
-    setFeaturesList((prev) => {
-      const updated = prev.map((item) => {
-        if (item.id !== zoneId) return item;
-        const current = Array.isArray(item.components) ? item.components : [];
-        const components = current.map((c) => (c.id === compId ? { ...c, note: value } : c));
-
-        const feature = featuresMapRef.current[zoneId];
-        if (feature) feature.set("components", components);
-
-        return { ...item, components };
-      });
-      scheduleAutosave(updated);
-      return updated;
-    });
-  };
-
-  const handleComponentTypeChange = (zoneId, compId, value) => {
-    // ✅ cambio real
-    markDirty();
-
-    setFeaturesList((prev) => {
-      const updated = prev.map((item) => {
-        if (item.id !== zoneId) return item;
-        const current = Array.isArray(item.components) ? item.components : [];
-        const components = current.map((c) => (c.id === compId ? { ...c, type: value } : c));
-
-        const feature = featuresMapRef.current[zoneId];
-        if (feature) feature.set("components", components);
-
-        return { ...item, components };
-      });
-      scheduleAutosave(updated);
-      return updated;
-    });
-  };
-
-  const handleDeleteComponent = (zoneId, compId) => {
-    // ✅ cambio real
-    markDirty();
-
-    setFeaturesList((prev) => {
-      const updated = prev.map((item) => {
-        if (item.id !== zoneId) return item;
-        const current = Array.isArray(item.components) ? item.components : [];
-        const components = current.filter((c) => c.id !== compId);
-
-        const feature = featuresMapRef.current[zoneId];
-        if (feature) feature.set("components", components);
-
-        return { ...item, components };
-      });
-      scheduleAutosave(updated);
-      return updated;
-    });
-
-    setTimeout(() => forceMapResize(), 0);
-  };
-
-  const zonesOnly = featuresList.filter((f) => f.kind === "polygon");
-  const currentZone = expandedZoneId && zonesOnly.find((z) => z.id === expandedZoneId);
-  const zoneComponents = currentZone && Array.isArray(currentZone.components) ? currentZone.components : [];
 
   const pointCount = featuresList.filter((f) => f.kind === "point").length;
   const lineCount = featuresList.filter((f) => f.kind === "line").length;
@@ -1303,7 +1304,6 @@ export default function FarmMap({ focusZoneRequest }) {
 
     if (target) {
       handleSelectFeature(target.id);
-      setExpandedZoneId(target.id);
       setTimeout(() => forceMapResize(), 0);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1565,11 +1565,11 @@ export default function FarmMap({ focusZoneRequest }) {
                         className="secondary-btn"
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleToggleComponents(item.id);
+                          openComponentsModal(item.id);
                         }}
                         style={{ marginLeft: "0.5rem" }}
                       >
-                        {expandedZoneId === item.id ? "Ocultar componentes" : "Ver componentes"}
+                        Ver componentes
                       </button>
                     </>
                   )}
@@ -1592,80 +1592,209 @@ export default function FarmMap({ focusZoneRequest }) {
         </div>
       )}
 
-      {expandedZoneId && currentZone && (
-        <div className="farm-zone-components-panel">
-          <div className="farm-zone-components-header">
-            <h4>Componentes de la zona</h4>
-            <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
-              <span className="zone-tag">{currentZone.name}</span>
-              <button type="button" className="danger-link" onClick={() => handleDeleteFeature(currentZone.id)}>
-                Borrar zona
+      {/* =========================
+          ✅ MODAL POP-UP COMPONENTES
+         ========================= */}
+      {componentsModalOpen && modalZone && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 9999,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "16px",
+          }}
+        >
+          {/* Overlay */}
+          <div
+            onClick={closeComponentsModal}
+            style={{
+              position: "absolute",
+              inset: 0,
+              background: "rgba(0,0,0,0.55)",
+              backdropFilter: "blur(2px)",
+            }}
+          />
+
+          {/* Modal box */}
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              position: "relative",
+              width: "min(880px, 100%)",
+              maxHeight: "min(78vh, 760px)",
+              background: "rgba(2,6,23,0.96)",
+              border: "1px solid rgba(148,163,184,0.22)",
+              borderRadius: "18px",
+              boxShadow: "0 18px 60px rgba(0,0,0,0.55)",
+              overflow: "hidden",
+              display: "flex",
+              flexDirection: "column",
+            }}
+          >
+            {/* Header */}
+            <div
+              style={{
+                padding: "14px 14px",
+                borderBottom: "1px solid rgba(148,163,184,0.18)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: "10px",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+                <h4 style={{ margin: 0, color: "#e5e7eb" }}>Componentes de la zona</h4>
+                <span className="zone-tag">{modalZone.name}</span>
+              </div>
+
+              <button
+                type="button"
+                className="secondary-btn"
+                onClick={closeComponentsModal}
+                style={{ padding: "0.35rem 0.65rem" }}
+                title="Cerrar"
+              >
+                ✕
               </button>
             </div>
-          </div>
 
-          {zoneComponents.length === 0 && (
-            <p className="farm-zone-components-empty">
-              Aún no has agregado componentes a esta zona. Usa el botón <strong>“Agregar componente”</strong>.
-            </p>
-          )}
+            {/* Body (scroll interno) */}
+            <div
+              style={{
+                padding: "14px",
+                overflow: "auto",
+              }}
+            >
+              {componentsDraft.length === 0 && (
+                <p className="farm-zone-components-empty" style={{ marginTop: 0 }}>
+                  Aún no has agregado componentes a esta zona. Usa el botón <strong>“Agregar componente”</strong>.
+                </p>
+              )}
 
-          {zoneComponents.map((comp) => (
-            <div key={comp.id} className="farm-zone-component-row">
-              <div className="farm-zone-component-icon">
-                <span className="geom-dot" />
+              {componentsDraft.map((comp) => {
+                const isEditingNote = editingNotesMap?.[comp.id] === true;
+                const noteText = (comp.note || "").trim();
+
+                return (
+                  <div key={comp.id} className="farm-zone-component-row">
+                    <div className="farm-zone-component-icon">
+                      <span className="geom-dot" />
+                    </div>
+
+                    <div className="farm-zone-component-body">
+                      <div className="farm-zone-component-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                        <span className="component-kind-badge">{comp.type || "Componente"}</span>
+
+                        <button type="button" className="danger-link" onClick={() => draftDeleteComponent(comp.id)}>
+                          Borrar
+                        </button>
+                      </div>
+
+                      <div className="farm-zone-component-type-row">
+                        <label className="component-type-label">Tipo de componente</label>
+                        <select
+                          className="component-type-select"
+                          value={comp.type || "Otro"}
+                          onChange={(e) => draftUpdate(comp.id, { type: e.target.value })}
+                        >
+                          {COMPONENT_TYPES.map((t) => (
+                            <option key={t} value={t}>
+                              {t}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <input
+                        className="farm-feature-input"
+                        value={comp.name}
+                        onChange={(e) => draftUpdate(comp.id, { name: e.target.value })}
+                        placeholder="Nombre del componente (ej: Gallinero, Bebedero, Bodega)"
+                      />
+
+                      {/* NOTA con ícono editable */}
+                      <div style={{ marginTop: "10px" }}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px" }}>
+                          <span style={{ fontSize: "0.85rem", color: "rgba(226,232,240,0.85)" }}>Nota / comentario</span>
+
+                          <button
+                            type="button"
+                            className="secondary-btn"
+                            onClick={() => toggleEditNote(comp.id)}
+                            style={{ padding: "0.25rem 0.55rem" }}
+                            title={isEditingNote ? "Cerrar edición" : "Editar nota"}
+                          >
+                            ✏️ {isEditingNote ? "Listo" : "Editar"}
+                          </button>
+                        </div>
+
+                        {isEditingNote ? (
+                          <textarea
+                            className="farm-feature-textarea"
+                            value={comp.note}
+                            onChange={(e) => draftUpdate(comp.id, { note: e.target.value })}
+                            placeholder="Notas / detalles (ej: revisar techo, cambiar malla, etc.)"
+                            rows={3}
+                          />
+                        ) : (
+                          <div
+                            style={{
+                              marginTop: "8px",
+                              padding: "10px 12px",
+                              borderRadius: "12px",
+                              border: "1px solid rgba(148,163,184,0.18)",
+                              background: "rgba(2,6,23,0.35)",
+                              color: noteText ? "#e5e7eb" : "rgba(226,232,240,0.55)",
+                              whiteSpace: "pre-wrap",
+                            }}
+                          >
+                            {noteText ? noteText : "Sin nota. Tocá ✏️ para agregar una."}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Footer */}
+            <div
+              style={{
+                padding: "12px 14px",
+                borderTop: "1px solid rgba(148,163,184,0.18)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: "10px",
+                flexWrap: "wrap",
+              }}
+            >
+              <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
+                <button type="button" className="primary-btn" onClick={draftAddComponent}>
+                  Agregar componente
+                </button>
+
+                <button type="button" className="danger-link" onClick={() => handleDeleteFeature(modalZone.id)}>
+                  Borrar zona
+                </button>
               </div>
 
-              <div className="farm-zone-component-body">
-                <div className="farm-zone-component-header">
-                  <span className="component-kind-badge">{comp.type || "Componente"}</span>
-
-                  <button type="button" className="danger-link" onClick={() => handleDeleteComponent(currentZone.id, comp.id)}>
-                    Borrar
-                  </button>
-                </div>
-
-                <div className="farm-zone-component-type-row">
-                  <label className="component-type-label">Tipo de componente</label>
-                  <select
-                    className="component-type-select"
-                    value={comp.type || "Otro"}
-                    onChange={(e) => handleComponentTypeChange(currentZone.id, comp.id, e.target.value)}
-                  >
-                    {COMPONENT_TYPES.map((t) => (
-                      <option key={t} value={t}>
-                        {t}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <input
-                  className="farm-feature-input"
-                  value={comp.name}
-                  onChange={(e) => handleComponentNameChange(currentZone.id, comp.id, e.target.value)}
-                  placeholder="Nombre del componente (ej: Gallinero, Bebedero, Bodega)"
-                />
-
-                <textarea
-                  className="farm-feature-textarea"
-                  value={comp.note}
-                  onChange={(e) => handleComponentNoteChange(currentZone.id, comp.id, e.target.value)}
-                  placeholder="Notas / detalles (ej: revisar techo, cambiar malla, etc.)"
-                  rows={2}
-                />
+              <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
+                <button type="button" className="secondary-btn" onClick={closeComponentsModal}>
+                  Cancelar
+                </button>
+                <button type="button" className="primary-btn" onClick={saveComponentsModal}>
+                  Guardar
+                </button>
               </div>
             </div>
-          ))}
-
-          <button
-            type="button"
-            className="primary-btn"
-            onClick={() => handleAddComponent(currentZone.id)}
-            style={{ marginTop: "0.5rem" }}
-          >
-            Agregar componente
-          </button>
+          </div>
         </div>
       )}
     </div>
