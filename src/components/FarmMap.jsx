@@ -132,6 +132,13 @@ function safeReadLocalDrawings() {
   }
 }
 
+function safeShortText(text, max = 140) {
+  const t = String(text || "").trim();
+  if (!t) return "";
+  if (t.length <= max) return t;
+  return `${t.slice(0, max).trim()}…`;
+}
+
 export default function FarmMap({ focusZoneRequest }) {
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
@@ -193,6 +200,8 @@ export default function FarmMap({ focusZoneRequest }) {
     requestAnimationFrame(() => map.updateSize());
   };
 
+  const zonesOnly = featuresList.filter((f) => f.kind === "polygon");
+
   // =========================
   // ✅ MODAL COMPONENTES (POP-UP)
   // =========================
@@ -201,7 +210,6 @@ export default function FarmMap({ focusZoneRequest }) {
   const [componentsDraft, setComponentsDraft] = useState([]);
   const [editingNotesMap, setEditingNotesMap] = useState({}); // compId -> boolean
 
-  const zonesOnly = featuresList.filter((f) => f.kind === "polygon");
   const modalZone =
     componentsModalZoneId && zonesOnly.find((z) => z.id === componentsModalZoneId);
 
@@ -241,7 +249,6 @@ export default function FarmMap({ focusZoneRequest }) {
   const saveComponentsModal = () => {
     if (!componentsModalZoneId) return;
 
-    // ✅ cambio real (persistimos ya)
     markDirty();
 
     setFeaturesList((prev) => {
@@ -280,9 +287,7 @@ export default function FarmMap({ focusZoneRequest }) {
       type: "Otro",
     };
     setComponentsDraft((prev) => [...(prev || []), newComp]);
-
-    // abrimos edición de nota del nuevo por defecto (opcional)
-    setEditingNotesMap((prev) => ({ ...prev, [newComp.id]: true }));
+    setEditingNotesMap((prev) => ({ ...(prev || {}), [newComp.id]: true }));
   };
 
   const draftDeleteComponent = (compId) => {
@@ -304,15 +309,78 @@ export default function FarmMap({ focusZoneRequest }) {
     setEditingNotesMap((prev) => ({ ...(prev || {}), [compId]: !prev?.[compId] }));
   };
 
+  // =========================
+  // ✅ MODAL REPORTE DE ZONA
+  // =========================
+  const [reportModalOpen, setReportModalOpen] = useState(false);
+  const [reportZoneId, setReportZoneId] = useState(null);
+
+  const reportZone = reportZoneId && zonesOnly.find((z) => z.id === reportZoneId);
+
+  const openReportModal = (zoneId) => {
+    const zone = zonesOnly.find((z) => z.id === zoneId);
+    if (!zone) return;
+
+    setReportZoneId(zoneId);
+    setReportModalOpen(true);
+    setTimeout(() => forceMapResize(), 0);
+  };
+
+  const closeReportModal = () => {
+    setReportModalOpen(false);
+    setTimeout(() => setReportZoneId(null), 0);
+  };
+
+  const reportComponents = useMemo(() => {
+    if (!reportZone) return [];
+    const comps = Array.isArray(reportZone.components) ? reportZone.components : [];
+    return comps.map((c, idx) => ({
+      id: c.id || `comp-${idx}`,
+      name: c.name || "(Sin nombre)",
+      type: c.type || "Otro",
+      note: c.note || "",
+    }));
+  }, [reportZone]);
+
+  const reportStats = useMemo(() => {
+    if (!reportZone) return null;
+    const comps = Array.isArray(reportZone.components) ? reportZone.components : [];
+    const countByType = {};
+    comps.forEach((c) => {
+      const t = (c?.type || "Otro").trim() || "Otro";
+      countByType[t] = (countByType[t] || 0) + 1;
+    });
+
+    const topTypes = Object.entries(countByType)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 4);
+
+    return {
+      total: comps.length,
+      topTypes,
+    };
+  }, [reportZone]);
+
+  const createTaskFromComponent = (zone, comp) => {
+    // 🔥 listo para conectar real al módulo de Tareas.
+    // Por ahora, feedback claro y cero “demo raro”.
+    const title = `Revisión: ${comp?.name || "Componente"} (${zone?.name || "Zona"})`;
+    window.alert(
+      `Listo: aquí vamos a crear una tarea.\n\nTítulo sugerido:\n${title}\n\n(Siguiente paso: lo conectamos a Tareas con zona + descripción automática.)`
+    );
+  };
+
+  // Esc cierra modales
   useEffect(() => {
     const onKey = (e) => {
-      if (!componentsModalOpen) return;
-      if (e.key === "Escape") closeComponentsModal();
+      if (e.key !== "Escape") return;
+      if (componentsModalOpen) closeComponentsModal();
+      if (reportModalOpen) closeReportModal();
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [componentsModalOpen]);
+  }, [componentsModalOpen, reportModalOpen]);
 
   // =========================
   // SERIALIZE / DESERIALIZE
@@ -524,7 +592,6 @@ export default function FarmMap({ focusZoneRequest }) {
     setFeaturesList(newList);
     forceMapResize();
 
-    // ✅ backend load ya ocurrió: de aquí en adelante sí se permite PUT (pero solo si dirty)
     loadedOnceRef.current = true;
     dirtyRef.current = false;
   };
@@ -553,7 +620,9 @@ export default function FarmMap({ focusZoneRequest }) {
           } else if (geomType === "LineString") {
             coordinates = geometry.getCoordinates().map((coord) => toLonLat(coord));
           } else if (geomType === "Polygon") {
-            coordinates = geometry.getCoordinates().map((ring) => ring.map((coord) => toLonLat(coord)));
+            coordinates = geometry
+              .getCoordinates()
+              .map((ring) => ring.map((coord) => toLonLat(coord)));
           } else return null;
 
           return {
@@ -587,10 +656,7 @@ export default function FarmMap({ focusZoneRequest }) {
       // no-op
     }
 
-    // ✅ anti-wipe: no PUT antes de carga real del backend (a menos que sea force)
     if (!force && !loadedOnceRef.current) return;
-
-    // ✅ anti-wipe: si no hay cambios del usuario, no hagas PUT (a menos que sea force)
     if (!force && dirtyRef.current !== true) return;
 
     if (!activeFarmId) return;
@@ -610,8 +676,6 @@ export default function FarmMap({ focusZoneRequest }) {
         });
 
         setBackendOnline(true);
-
-        // ✅ ya quedó guardado, limpiamos dirty
         dirtyRef.current = false;
       } catch (err) {
         console.warn("Autosave backend falló:", err?.message || err);
@@ -631,9 +695,9 @@ export default function FarmMap({ focusZoneRequest }) {
       const farmsRes = await apiFetch("/api/farms", { method: "GET" });
       const farms = farmsRes?.farms || [];
 
-      // ✅ elegir finca activa (guardada)
       const savedActive = localStorage.getItem(ACTIVE_FARM_KEY);
-      const picked = (savedActive && farms.find((f) => f.id === savedActive)) || farms[0];
+      const picked =
+        (savedActive && farms.find((f) => f.id === savedActive)) || farms[0];
 
       let farmId = picked?.id || null;
 
@@ -662,15 +726,10 @@ export default function FarmMap({ focusZoneRequest }) {
 
       const localHasData = safeReadLocalDrawings().length > 0;
 
-      // ✅ PROTECCIÓN ANTI-BORRADO:
-      // Si server viene vacío pero local tiene datos, NO pisamos la UI.
       if (!serverHasData && localHasData) {
         setBackendOnline(true);
-
-        // ✅ marcamos como "cargado" para permitir PUT (pero lo hacemos forzado para curar)
         loadedOnceRef.current = true;
 
-        // Empujamos la versión más reciente (ref) al backend para “curar” el vacío del servidor.
         setTimeout(() => {
           try {
             const latest = latestFeaturesListRef.current || [];
@@ -685,11 +744,9 @@ export default function FarmMap({ focusZoneRequest }) {
         return;
       }
 
-      // Caso normal: el server manda
       applyBackendMapToUI(mapRes);
       setBackendOnline(true);
 
-      // Si el backend no trae view, intentamos geolocalización (opcional)
       const hasView =
         mapRes?.farm?.view &&
         Array.isArray(mapRes.farm.view.center) &&
@@ -708,7 +765,6 @@ export default function FarmMap({ focusZoneRequest }) {
                 map.getView().setCenter(fromLonLat([lon, lat]));
                 map.getView().setZoom(16);
 
-                // esto sí es "cambio real", lo tratamos como dirty
                 markDirty();
                 scheduleAutosave(latestFeaturesListRef.current || [], {
                   view: { center: [lon, lat], zoom: 16 },
@@ -750,7 +806,9 @@ export default function FarmMap({ focusZoneRequest }) {
         const center = f?.center;
         if (!Array.isArray(center) || center.length !== 2) return null;
         return {
-          id: f?.id || `${center[0]}-${center[1]}-${Math.random().toString(36).slice(2, 6)}`,
+          id:
+            f?.id ||
+            `${center[0]}-${center[1]}-${Math.random().toString(36).slice(2, 6)}`,
           place_name: f?.place_name || f?.text || "Ubicación",
           center, // [lon, lat]
         };
@@ -800,11 +858,10 @@ export default function FarmMap({ focusZoneRequest }) {
     map.getView().setCenter(fromLonLat([lon, lat]));
     map.getView().setZoom(zoom);
 
-    // ✅ cambio real del usuario
     markDirty();
-
-    // Guardamos vista (no debería borrar nada: respeta dirty + loadedOnce)
-    scheduleAutosave(latestFeaturesListRef.current || [], { view: { center: [lon, lat], zoom } });
+    scheduleAutosave(latestFeaturesListRef.current || [], {
+      view: { center: [lon, lat], zoom },
+    });
   };
 
   const handlePickSearchResult = (item) => {
@@ -957,8 +1014,7 @@ export default function FarmMap({ focusZoneRequest }) {
 
               if (geomType === "Point") geometry = new Point(fromLonLat(coordinates));
               else if (geomType === "LineString") geometry = new LineString(coordinates.map((c) => fromLonLat(c)));
-              else if (geomType === "Polygon")
-                geometry = new Polygon(coordinates.map((ring) => ring.map((c) => fromLonLat(c))));
+              else if (geomType === "Polygon") geometry = new Polygon(coordinates.map((ring) => ring.map((c) => fromLonLat(c))));
 
               if (!geometry) return;
 
@@ -983,9 +1039,7 @@ export default function FarmMap({ focusZoneRequest }) {
               const finalComponents =
                 safeKind === "polygon" && Array.isArray(components)
                   ? components.map((c, idx) => ({
-                      id:
-                        c.id ||
-                        `comp-${idx}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
+                      id: c.id || `comp-${idx}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
                       name: c.name || "",
                       note: c.note || "",
                       type: c.type || "Otro",
@@ -1107,7 +1161,6 @@ export default function FarmMap({ focusZoneRequest }) {
   }, [hoveredId]);
 
   const handleDrawEnd = (feature, mode) => {
-    // ✅ cambio real
     markDirty();
 
     const kind = mode === "point" ? "point" : mode === "line" ? "line" : "polygon";
@@ -1159,7 +1212,6 @@ export default function FarmMap({ focusZoneRequest }) {
     if (drawMode === "move") return;
 
     const type = drawMode === "point" ? "Point" : drawMode === "line" ? "LineString" : "Polygon";
-
     const draw = new Draw({ source: vectorSource, type });
 
     draw.on("drawend", (evt) => {
@@ -1195,7 +1247,6 @@ export default function FarmMap({ focusZoneRequest }) {
   };
 
   const handleNameChange = (id, value) => {
-    // ✅ cambio real
     markDirty();
 
     const feature = featuresMapRef.current[id];
@@ -1209,7 +1260,6 @@ export default function FarmMap({ focusZoneRequest }) {
   };
 
   const handleZoneTypeChange = (id, value) => {
-    // ✅ cambio real
     markDirty();
 
     const feature = featuresMapRef.current[id];
@@ -1223,7 +1273,6 @@ export default function FarmMap({ focusZoneRequest }) {
   };
 
   const handleZoneStatusChange = (id, value) => {
-    // ✅ cambio real
     markDirty();
 
     const feature = featuresMapRef.current[id];
@@ -1237,7 +1286,6 @@ export default function FarmMap({ focusZoneRequest }) {
   };
 
   const handleDeleteFeature = (id) => {
-    // ✅ cambio real
     markDirty();
 
     const vectorSource = vectorSourceRef.current;
@@ -1255,8 +1303,8 @@ export default function FarmMap({ focusZoneRequest }) {
     if (selectedId === id) setSelectedId(null);
     if (hoveredId === id) setHoveredId(null);
 
-    // si borran la zona que está en el modal, cerramos
     if (componentsModalZoneId === id) closeComponentsModal();
+    if (reportZoneId === id) closeReportModal();
 
     forceMapResize();
   };
@@ -1271,7 +1319,6 @@ export default function FarmMap({ focusZoneRequest }) {
 
     if (!center || typeof zoom !== "number") return;
 
-    // ✅ cambio real
     markDirty();
 
     const [lon, lat] = toLonLat(center);
@@ -1474,7 +1521,7 @@ export default function FarmMap({ focusZoneRequest }) {
         <div ref={mapRef} className="farm-map" />
       </div>
 
-      {/* 👇 Tu UI restante queda EXACTAMENTE igual */}
+      {/* TABLA */}
       {featuresList.length > 0 && (
         <div className="farm-zones-table-wrapper">
           <div className="farm-zones-header-row">
@@ -1489,7 +1536,9 @@ export default function FarmMap({ focusZoneRequest }) {
             const typeLabel = item.kind === "point" ? "Punto" : item.kind === "line" ? "Línea" : "Zona";
 
             const rowClass =
-              "farm-zones-row" + (selectedId === item.id ? " selected" : "") + (hoveredId === item.id ? " hovered" : "");
+              "farm-zones-row" +
+              (selectedId === item.id ? " selected" : "") +
+              (hoveredId === item.id ? " hovered" : "");
 
             const totalComponents = Array.isArray(item.components) ? item.components.length : 0;
 
@@ -1554,12 +1603,20 @@ export default function FarmMap({ focusZoneRequest }) {
                   )}
                 </div>
 
-                <div className="zone-col zone-components">
+                <div
+                  className="zone-col zone-components"
+                  style={{ justifyContent: "flex-end", gap: "0.5rem", flexWrap: "wrap" }}
+                >
                   {isZone && (
                     <>
-                      <span className="components-summary">
-                        {totalComponents === 0 ? "Sin componentes" : totalComponents === 1 ? "1 componente" : `${totalComponents} componentes`}
+                      <span className="components-summary" style={{ whiteSpace: "nowrap" }}>
+                        {totalComponents === 0
+                          ? "Sin componentes"
+                          : totalComponents === 1
+                          ? "1 componente"
+                          : `${totalComponents} componentes`}
                       </span>
+
                       <button
                         type="button"
                         className="secondary-btn"
@@ -1567,9 +1624,19 @@ export default function FarmMap({ focusZoneRequest }) {
                           e.stopPropagation();
                           openComponentsModal(item.id);
                         }}
-                        style={{ marginLeft: "0.5rem" }}
                       >
                         Ver componentes
+                      </button>
+
+                      <button
+                        type="button"
+                        className="secondary-btn"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openReportModal(item.id);
+                        }}
+                      >
+                        Reporte
                       </button>
                     </>
                   )}
@@ -1581,7 +1648,6 @@ export default function FarmMap({ focusZoneRequest }) {
                       e.stopPropagation();
                       handleDeleteFeature(item.id);
                     }}
-                    style={{ marginLeft: isZone ? "0.5rem" : 0 }}
                   >
                     Borrar
                   </button>
@@ -1663,13 +1729,8 @@ export default function FarmMap({ focusZoneRequest }) {
               </button>
             </div>
 
-            {/* Body (scroll interno) */}
-            <div
-              style={{
-                padding: "14px",
-                overflow: "auto",
-              }}
-            >
+            {/* Body */}
+            <div style={{ padding: "14px", overflow: "auto" }}>
               {componentsDraft.length === 0 && (
                 <p className="farm-zone-components-empty" style={{ marginTop: 0 }}>
                   Aún no has agregado componentes a esta zona. Usa el botón <strong>“Agregar componente”</strong>.
@@ -1687,7 +1748,10 @@ export default function FarmMap({ focusZoneRequest }) {
                     </div>
 
                     <div className="farm-zone-component-body">
-                      <div className="farm-zone-component-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      <div
+                        className="farm-zone-component-header"
+                        style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}
+                      >
                         <span className="component-kind-badge">{comp.type || "Componente"}</span>
 
                         <button type="button" className="danger-link" onClick={() => draftDeleteComponent(comp.id)}>
@@ -1719,8 +1783,17 @@ export default function FarmMap({ focusZoneRequest }) {
 
                       {/* NOTA con ícono editable */}
                       <div style={{ marginTop: "10px" }}>
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px" }}>
-                          <span style={{ fontSize: "0.85rem", color: "rgba(226,232,240,0.85)" }}>Nota / comentario</span>
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            gap: "10px",
+                          }}
+                        >
+                          <span style={{ fontSize: "0.85rem", color: "rgba(226,232,240,0.85)" }}>
+                            Nota / comentario
+                          </span>
 
                           <button
                             type="button"
@@ -1791,6 +1864,219 @@ export default function FarmMap({ focusZoneRequest }) {
                 </button>
                 <button type="button" className="primary-btn" onClick={saveComponentsModal}>
                   Guardar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* =========================
+          ✅ MODAL REPORTE DE ZONA
+         ========================= */}
+      {reportModalOpen && reportZone && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 9999,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "16px",
+          }}
+        >
+          {/* Overlay */}
+          <div
+            onClick={closeReportModal}
+            style={{
+              position: "absolute",
+              inset: 0,
+              background: "rgba(0,0,0,0.55)",
+              backdropFilter: "blur(2px)",
+            }}
+          />
+
+          {/* Modal box */}
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              position: "relative",
+              width: "min(920px, 100%)",
+              maxHeight: "min(78vh, 780px)",
+              background: "rgba(2,6,23,0.96)",
+              border: "1px solid rgba(148,163,184,0.22)",
+              borderRadius: "18px",
+              boxShadow: "0 18px 60px rgba(0,0,0,0.55)",
+              overflow: "hidden",
+              display: "flex",
+              flexDirection: "column",
+            }}
+          >
+            {/* Header */}
+            <div
+              style={{
+                padding: "14px 14px",
+                borderBottom: "1px solid rgba(148,163,184,0.18)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: "10px",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+                <h4 style={{ margin: 0, color: "#e5e7eb" }}>Reporte de zona</h4>
+                <span className="zone-tag">{reportZone.name}</span>
+              </div>
+
+              <button
+                type="button"
+                className="secondary-btn"
+                onClick={closeReportModal}
+                style={{ padding: "0.35rem 0.65rem" }}
+                title="Cerrar"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Body */}
+            <div style={{ padding: "14px", overflow: "auto" }}>
+              {/* Resumen ejecutivo */}
+              <div
+                style={{
+                  border: "1px solid rgba(148,163,184,0.18)",
+                  borderRadius: "14px",
+                  padding: "12px",
+                  background: "rgba(2,6,23,0.35)",
+                }}
+              >
+                <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "center" }}>
+                  <span className="component-kind-badge" style={{ borderColor: "rgba(56,189,248,0.35)", background: "rgba(56,189,248,0.08)", color: "#bae6fd" }}>
+                    {reportZone.zoneType || "Zona"}
+                  </span>
+
+                  <span className="component-kind-badge" style={{ borderColor: "rgba(34,197,94,0.28)", background: "rgba(34,197,94,0.08)", color: "#bbf7d0" }}>
+                    {reportZone.status || "Disponible"}
+                  </span>
+
+                  <span style={{ color: "rgba(226,232,240,0.85)", fontSize: "0.9rem" }}>
+                    Componentes: <strong style={{ color: "#e5e7eb" }}>{reportStats?.total ?? 0}</strong>
+                  </span>
+
+                  <button
+                    type="button"
+                    className="secondary-btn"
+                    onClick={() => openComponentsModal(reportZone.id)}
+                    style={{ marginLeft: "auto" }}
+                  >
+                    Abrir componentes
+                  </button>
+                </div>
+
+                {reportStats?.topTypes?.length > 0 && (
+                  <div style={{ marginTop: "10px", display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                    {reportStats.topTypes.map(([t, n]) => (
+                      <span
+                        key={t}
+                        style={{
+                          padding: "6px 10px",
+                          borderRadius: "999px",
+                          border: "1px solid rgba(148,163,184,0.18)",
+                          background: "rgba(15,23,42,0.7)",
+                          color: "#e5e7eb",
+                          fontSize: "0.82rem",
+                        }}
+                      >
+                        {t}: <strong>{n}</strong>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Lista de componentes */}
+              <div style={{ marginTop: "12px" }}>
+                {reportComponents.length === 0 ? (
+                  <p style={{ color: "rgba(226,232,240,0.7)" }}>
+                    Esta zona no tiene componentes todavía.
+                  </p>
+                ) : (
+                  reportComponents.map((comp) => {
+                    const shortNote = safeShortText(comp.note, 180);
+                    return (
+                      <div
+                        key={comp.id}
+                        style={{
+                          marginTop: "10px",
+                          padding: "12px",
+                          borderRadius: "14px",
+                          border: "1px solid rgba(148,163,184,0.18)",
+                          background: "rgba(15,23,42,0.55)",
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: "10px",
+                        }}
+                      >
+                        <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
+                          <span className="component-kind-badge">{comp.type}</span>
+                          <span style={{ color: "#e5e7eb", fontWeight: 700 }}>{comp.name}</span>
+
+                          <div style={{ marginLeft: "auto", display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                            <button
+                              type="button"
+                              className="secondary-btn"
+                              onClick={() => createTaskFromComponent(reportZone, comp)}
+                              title="Crear tarea rápida desde este componente"
+                            >
+                              Crear tarea
+                            </button>
+                          </div>
+                        </div>
+
+                        <div
+                          style={{
+                            padding: "10px 12px",
+                            borderRadius: "12px",
+                            border: "1px solid rgba(148,163,184,0.18)",
+                            background: "rgba(2,6,23,0.35)",
+                            color: shortNote ? "#e5e7eb" : "rgba(226,232,240,0.55)",
+                            whiteSpace: "pre-wrap",
+                          }}
+                        >
+                          {shortNote ? shortNote : "Sin nota registrada."}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div
+              style={{
+                padding: "12px 14px",
+                borderTop: "1px solid rgba(148,163,184,0.18)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: "10px",
+                flexWrap: "wrap",
+              }}
+            >
+              <button type="button" className="secondary-btn" onClick={closeReportModal}>
+                Cerrar
+              </button>
+
+              <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+                <button type="button" className="secondary-btn" onClick={() => openComponentsModal(reportZone.id)}>
+                  Editar componentes
+                </button>
+                <button type="button" className="danger-link" onClick={() => handleDeleteFeature(reportZone.id)}>
+                  Borrar zona
                 </button>
               </div>
             </div>
