@@ -605,3 +605,106 @@
     white-space: normal;
   }
 }
+/* ===== UPGRADE PRO: tabla tipo SaaS (más limpia, más jerarquía) ===== */
+
+/* Contenedor: evita que se rompa en pantallas pequeñas */
+.card .data-table {
+  display: block;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Mejor tipografía y alineación */
+.data-table td,
+.data-table th {
+  font-size: 0.95rem;
+}
+
+.data-table td:nth-child(5),
+.data-table td:nth-child(6) {
+  font-variant-numeric: tabular-nums; /* fechas alineadas pro */
+  opacity: 0.9;
+  white-space: nowrap;
+}
+
+.data-table td:nth-child(4),
+.data-table td:nth-child(5),
+.data-table td:nth-child(6),
+.data-table td:nth-child(7) {
+  white-space: nowrap; /* tipo/fechas/estado más compactos */
+}
+
+/* La columna “Tarea” manda: que respire y se lea mejor */
+.data-table td:nth-child(2) {
+  font-weight: 600;
+  letter-spacing: 0.1px;
+}
+
+/* “Zona / elemento”: que no parezca pegado */
+.data-table td:nth-child(3) span {
+  opacity: 0.95;
+}
+
+/* Badges (prioridad/estado) más finos y consistentes */
+.priority-badge,
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  line-height: 1;
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+}
+
+/* Botón “Ver en mapa” más elegante */
+.link-button {
+  text-decoration: none;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  opacity: 0.75;
+}
+.link-button:hover {
+  opacity: 1;
+  text-decoration: underline;
+}
+
+/* Acciones: que no griten */
+.task-actions .small-btn {
+  opacity: 0.92;
+}
+.task-actions .small-btn:hover {
+  opacity: 1;
+  transform: translateY(-1px);
+}
+
+/* “Borrar” más serio (menos rojo chillón si tu CSS lo permite) */
+.small-btn-danger {
+  opacity: 0.85;
+}
+.small-btn-danger:hover {
+  opacity: 1;
+}
+
+/* Micro-separadores dentro de la fila (hace que el ojo “escanee” mejor) */
+.data-table tbody tr td {
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.15);
+}
+
+/* Pero sin romper el look redondeado de card-row */
+.data-table tbody tr td:first-child,
+.data-table tbody tr td:last-child {
+  border-top: none;
+  border-bottom: none;
+}
+
+/* Responsive extra: acciones abajo y alineadas */
+@media (max-width: 1100px) {
+  .task-actions {
+    justify-content: flex-start;
+  }
+}
