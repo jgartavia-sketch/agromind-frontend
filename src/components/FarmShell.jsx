@@ -1,6 +1,6 @@
 // src/components/FarmShell.jsx
 import { useEffect, useMemo, useState } from "react";
-import FarmMap from "./FarmMap";
+import FarmMap from "./map/FarmMap";
 import TareasPage from "../pages/TareasPage";
 import FinanzasPage from "../pages/FinanzasPage";
 import DispositivosPage from "../pages/DispositivosPage";
