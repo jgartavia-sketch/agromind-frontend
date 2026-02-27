@@ -30,6 +30,24 @@ import {
 } from "./constants";
 import { pickColor, generateName, safeReadLocalDrawings } from "./helpers";
 
+function nowISO() {
+  return new Date().toISOString();
+}
+
+function withComponentTimestamps(c = {}, fallbackId) {
+  const createdAt = c.createdAt || nowISO();
+  const updatedAt = c.updatedAt || createdAt;
+
+  return {
+    id: c.id || fallbackId,
+    name: c.name || "",
+    note: c.note || "",
+    type: c.type || "Otro",
+    createdAt,
+    updatedAt,
+  };
+}
+
 export default function useFarmMapController({ focusZoneRequest }) {
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
@@ -105,16 +123,15 @@ export default function useFarmMapController({ focusZoneRequest }) {
     if (!zone) return;
 
     const safe = Array.isArray(zone.components) ? zone.components : [];
-    const cloned = safe.map((c, idx) => ({
-      id:
+    const cloned = safe.map((c, idx) =>
+      withComponentTimestamps(
+        c,
         c.id ||
-        `comp-${idx}-${Date.now().toString(36)}${Math.random()
-          .toString(36)
-          .slice(2, 6)}`,
-      name: c.name || "",
-      note: c.note || "",
-      type: c.type || "Otro",
-    }));
+          `comp-${idx}-${Date.now().toString(36)}${Math.random()
+            .toString(36)
+            .slice(2, 6)}`
+      )
+    );
 
     setComponentsModalZoneId(zoneId);
     setComponentsDraft(cloned);
@@ -142,16 +159,15 @@ export default function useFarmMapController({ focusZoneRequest }) {
       const updated = prev.map((item) => {
         if (item.id !== componentsModalZoneId) return item;
 
-        const components = (componentsDraft || []).map((c, idx) => ({
-          id:
+        const components = (componentsDraft || []).map((c, idx) =>
+          withComponentTimestamps(
+            c,
             c.id ||
-            `comp-${idx}-${Date.now().toString(36)}${Math.random()
-              .toString(36)
-              .slice(2, 6)}`,
-          name: c.name || "",
-          note: c.note || "",
-          type: c.type || "Otro",
-        }));
+              `comp-${idx}-${Date.now().toString(36)}${Math.random()
+                .toString(36)
+                .slice(2, 6)}`
+          )
+        );
 
         const feature = featuresMapRef.current[componentsModalZoneId];
         if (feature) feature.set("components", components);
@@ -167,12 +183,18 @@ export default function useFarmMapController({ focusZoneRequest }) {
   };
 
   const draftAddComponent = () => {
+    const id = `comp-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    const stamp = nowISO();
+
     const newComp = {
-      id: `comp-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      id,
       name: "",
       note: "",
       type: "Otro",
+      createdAt: stamp,
+      updatedAt: stamp,
     };
+
     setComponentsDraft((prev) => [...(prev || []), newComp]);
     setEditingNotesMap((prev) => ({ ...(prev || {}), [newComp.id]: true }));
   };
@@ -187,8 +209,24 @@ export default function useFarmMapController({ focusZoneRequest }) {
   };
 
   const draftUpdate = (compId, patch) => {
+    const touch =
+      patch &&
+      (Object.prototype.hasOwnProperty.call(patch, "name") ||
+        Object.prototype.hasOwnProperty.call(patch, "note") ||
+        Object.prototype.hasOwnProperty.call(patch, "type"));
+
     setComponentsDraft((prev) =>
-      (prev || []).map((c) => (c.id === compId ? { ...c, ...patch } : c))
+      (prev || []).map((c) =>
+        c.id === compId
+          ? {
+              ...c,
+              ...patch,
+              ...(touch ? { updatedAt: nowISO() } : {}),
+              createdAt: c.createdAt || nowISO(),
+              updatedAt: (touch ? nowISO() : c.updatedAt) || c.createdAt || nowISO(),
+            }
+          : c
+      )
     );
   };
 
@@ -221,12 +259,21 @@ export default function useFarmMapController({ focusZoneRequest }) {
   const reportComponents = useMemo(() => {
     if (!reportZone) return [];
     const comps = Array.isArray(reportZone.components) ? reportZone.components : [];
-    return comps.map((c, idx) => ({
-      id: c.id || `comp-${idx}`,
-      name: c.name || "(Sin nombre)",
-      type: c.type || "Otro",
-      note: c.note || "",
-    }));
+    return comps.map((c, idx) => {
+      const id = c.id || `comp-${idx}`;
+      const createdAt = c.createdAt || null;
+      const updatedAt = c.updatedAt || createdAt || null;
+
+      return {
+        id,
+        name: c.name || "(Sin nombre)",
+        type: c.type || "Otro",
+        note: c.note || "",
+        createdAt,
+        updatedAt,
+        lastTouchedAt: updatedAt || createdAt || null, // ✅ para “última actualización”
+      };
+    });
   }, [reportZone]);
 
   const reportStats = useMemo(() => {
@@ -249,7 +296,12 @@ export default function useFarmMapController({ focusZoneRequest }) {
   // ✅ MODAL CREAR TAREA (premium)
   // =========================
   const [createTaskModalOpen, setCreateTaskModalOpen] = useState(false);
-  const [createTaskDraft, setCreateTaskDraft] = useState({ title: "", zoneName: "", zoneId: "", componentId: "" });
+  const [createTaskDraft, setCreateTaskDraft] = useState({
+    title: "",
+    zoneName: "",
+    zoneId: "",
+    componentId: "",
+  });
 
   const openCreateTaskModal = (zone, comp) => {
     const title = `Revisión: ${comp?.name || "Componente"} (${zone?.name || "Zona"})`;
@@ -264,16 +316,17 @@ export default function useFarmMapController({ focusZoneRequest }) {
 
   const closeCreateTaskModal = () => {
     setCreateTaskModalOpen(false);
-    setTimeout(() => setCreateTaskDraft({ title: "", zoneName: "", zoneId: "", componentId: "" }), 0);
+    setTimeout(
+      () => setCreateTaskDraft({ title: "", zoneName: "", zoneId: "", componentId: "" }),
+      0
+    );
   };
 
   const updateCreateTaskDraft = (patch) => {
     setCreateTaskDraft((prev) => ({ ...(prev || {}), ...(patch || {}) }));
   };
 
-  // Placeholder: aquí mañana lo conectamos a Tareas real
   const confirmCreateTask = () => {
-    // Por ahora solo cerramos limpio (sin alert).
     closeCreateTaskModal();
   };
 
@@ -354,7 +407,18 @@ export default function useFarmMapController({ focusZoneRequest }) {
             zoneType: item.zoneType || "Zona libre",
             status: item.status || "Disponible",
           },
-          components: Array.isArray(item.components) ? item.components : [],
+          // ✅ garantizamos timestamps en componentes al guardar
+          components: Array.isArray(item.components)
+            ? item.components.map((c, idx) =>
+                withComponentTimestamps(
+                  c,
+                  c.id ||
+                    `comp-${idx}-${Date.now().toString(36)}${Math.random()
+                      .toString(36)
+                      .slice(2, 6)}`
+                )
+              )
+            : [],
         });
       }
     });
@@ -419,16 +483,15 @@ export default function useFarmMapController({ focusZoneRequest }) {
 
       const finalComponents =
         kind === "polygon" && Array.isArray(components)
-          ? components.map((c, idx) => ({
-              id:
+          ? components.map((c, idx) =>
+              withComponentTimestamps(
+                c,
                 c.id ||
-                `comp-${idx}-${Date.now().toString(36)}${Math.random()
-                  .toString(36)
-                  .slice(2, 6)}`,
-              name: c.name || "",
-              note: c.note || "",
-              type: c.type || "Otro",
-            }))
+                  `comp-${idx}-${Date.now().toString(36)}${Math.random()
+                    .toString(36)
+                    .slice(2, 6)}`
+              )
+            )
           : [];
 
       const feature = new Feature(geometry);
@@ -526,7 +589,9 @@ export default function useFarmMapController({ focusZoneRequest }) {
           } else if (geomType === "LineString") {
             coordinates = geometry.getCoordinates().map((coord) => toLonLat(coord));
           } else if (geomType === "Polygon") {
-            coordinates = geometry.getCoordinates().map((ring) => ring.map((coord) => toLonLat(coord)));
+            coordinates = geometry
+              .getCoordinates()
+              .map((ring) => ring.map((coord) => toLonLat(coord)));
           } else return null;
 
           return {
@@ -689,7 +754,8 @@ export default function useFarmMapController({ focusZoneRequest }) {
   // 🔎 Geocoding (MapTiler)
   // =========================
   const geocodeSearch = async (q, signal) => {
-    if (!apiKey || apiKey === "TU_API_KEY_AQUI") throw new Error("Falta VITE_MAPTILER_KEY para buscar lugares.");
+    if (!apiKey || apiKey === "TU_API_KEY_AQUI")
+      throw new Error("Falta VITE_MAPTILER_KEY para buscar lugares.");
 
     const query = encodeURIComponent(q.trim());
     const url = `https://api.maptiler.com/geocoding/${query}.json?key=${apiKey}&limit=6&language=es`;
@@ -820,7 +886,8 @@ export default function useFarmMapController({ focusZoneRequest }) {
         const savedView = localStorage.getItem(VIEW_KEY);
         if (savedView) {
           const parsed = JSON.parse(savedView);
-          if (parsed && typeof parsed.lon === "number" && typeof parsed.lat === "number") centerLonLat = [parsed.lon, parsed.lat];
+          if (parsed && typeof parsed.lon === "number" && typeof parsed.lat === "number")
+            centerLonLat = [parsed.lon, parsed.lat];
           if (parsed && typeof parsed.zoom === "number") zoom = parsed.zoom;
         }
       } catch {
@@ -852,7 +919,10 @@ export default function useFarmMapController({ focusZoneRequest }) {
               image: new CircleStyle({
                 radius: active ? 8 : 6,
                 fill: new Fill({ color }),
-                stroke: new Stroke({ color: active ? "#f9fafb" : "#020617", width: active ? 2 : 1.5 }),
+                stroke: new Stroke({
+                  color: active ? "#f9fafb" : "#020617",
+                  width: active ? 2 : 1.5,
+                }),
               }),
             });
           }
@@ -866,7 +936,10 @@ export default function useFarmMapController({ focusZoneRequest }) {
           if (kind === "polygon") {
             return new Style({
               fill: new Fill({ color }),
-              stroke: new Stroke({ color: active ? "#f9fafb" : "#e5e7eb", width: active ? 3 : 1.5 }),
+              stroke: new Stroke({
+                color: active ? "#f9fafb" : "#e5e7eb",
+                width: active ? 3 : 1.5,
+              }),
             });
           }
 
@@ -923,12 +996,15 @@ export default function useFarmMapController({ focusZoneRequest }) {
 
               const finalComponents =
                 safeKind === "polygon" && Array.isArray(components)
-                  ? components.map((c, idx) => ({
-                      id: c.id || `comp-${idx}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
-                      name: c.name || "",
-                      note: c.note || "",
-                      type: c.type || "Otro",
-                    }))
+                  ? components.map((c, idx) =>
+                      withComponentTimestamps(
+                        c,
+                        c.id ||
+                          `comp-${idx}-${Date.now().toString(36)}${Math.random()
+                            .toString(36)
+                            .slice(2, 6)}`
+                      )
+                    )
                   : [];
 
               feature.setProperties({
@@ -1231,17 +1307,14 @@ export default function useFarmMapController({ focusZoneRequest }) {
     else statusCounts.Otro++;
   });
 
-  // expose
   return {
     apiKey,
     mapRef,
 
-    // constants
     ZONE_TYPES,
     ZONE_STATUSES,
     COMPONENT_TYPES,
 
-    // state
     featuresList,
     setFeaturesList,
 
@@ -1263,14 +1336,12 @@ export default function useFarmMapController({ focusZoneRequest }) {
 
     backendOnline,
 
-    // computed
     pointCount,
     lineCount,
     zoneCount,
     zonesOnly,
     statusCounts,
 
-    // modals
     componentsModalOpen,
     componentsDraft,
     editingNotesMap,
@@ -1297,7 +1368,6 @@ export default function useFarmMapController({ focusZoneRequest }) {
     updateCreateTaskDraft,
     confirmCreateTask,
 
-    // handlers
     handleSelectFeature,
     handleNameChange,
     handleZoneTypeChange,
