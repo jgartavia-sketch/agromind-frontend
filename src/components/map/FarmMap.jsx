@@ -1,6 +1,6 @@
 // src/components/FarmMap.jsx
 
-import FarmSummary from "./farm/FarmSummary";
+import FarmSummary from "../farm/FarmSummary";
 
 import { useEffect, useRef, useState, useMemo } from "react";
 import "ol/ol.css";
