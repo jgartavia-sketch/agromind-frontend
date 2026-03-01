@@ -25,7 +25,10 @@ export default function ZoneReportModal({
   const [notesOpen, setNotesOpen] = useState(false);
   const [activeComp, setActiveComp] = useState(null);
 
-  const zoneLastUpdated = useMemo(() => formatDateTimeCR(zone?.updatedAt), [zone?.updatedAt]);
+  const zoneLastUpdated = useMemo(
+    () => formatDateTimeCR(zone?.updatedAt),
+    [zone?.updatedAt]
+  );
 
   const openNotes = (comp) => {
     setActiveComp(comp || null);
@@ -107,7 +110,7 @@ export default function ZoneReportModal({
 
         {/* Body */}
         <div style={{ padding: "14px", overflow: "auto" }}>
-          {/* Resumen ejecutivo (lo que marcaste en azul) */}
+          {/* Resumen ejecutivo */}
           <div
             style={{
               border: "1px solid rgba(148,163,184,0.18)",
@@ -171,7 +174,7 @@ export default function ZoneReportModal({
             )}
           </div>
 
-          {/* Componentes en fila (compacto) */}
+          {/* Componentes en fila */}
           <div style={{ marginTop: "12px" }}>
             {reportComponents.length === 0 ? (
               <p style={{ color: "rgba(226,232,240,0.7)" }}>Esta zona no tiene componentes todavía.</p>
@@ -184,7 +187,6 @@ export default function ZoneReportModal({
                   background: "rgba(15,23,42,0.35)",
                 }}
               >
-                {/* Header row */}
                 <div
                   style={{
                     display: "grid",
@@ -205,10 +207,7 @@ export default function ZoneReportModal({
 
                 {reportComponents.map((comp) => {
                   const noteText = String(comp.note || "").trim();
-
-                  // Por ahora usamos updatedAt de la zona (los componentes son Json).
-                  // Cuando los pasemos a tabla, aquí va comp.updatedAt real.
-                  const compLastUpdated = zoneLastUpdated;
+                  const compLastUpdated = formatDateTimeCR(comp.updatedAt || zone?.updatedAt);
 
                   return (
                     <div
@@ -290,7 +289,7 @@ export default function ZoneReportModal({
           </div>
         </div>
 
-        {/* Mini modal de notas (compacto) */}
+        {/* Mini modal de notas */}
         {notesOpen && (
           <div
             role="dialog"
