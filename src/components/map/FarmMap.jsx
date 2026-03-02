@@ -206,7 +206,40 @@ export default function FarmMap({ focusZoneRequest }) {
     requestAnimationFrame(() => map.updateSize());
   };
 
-  const zonesOnly = featuresList.filter((f) => f.kind === "polygon");
+  const zonesOnly = useMemo(
+    () => featuresList.filter((f) => f.kind === "polygon"),
+    [featuresList]
+  );
+
+  // =========================
+  // ✅ FILTROS DE LISTA (BOTONES ARRIBA)
+  // =========================
+  // kind: "all" | "point" | "line" | "polygon"
+  // status: null | "Operativa" | "Prioridad alta"
+  const [listFilter, setListFilter] = useState({ kind: "all", status: null });
+
+  const filteredList = useMemo(() => {
+    const { kind, status } = listFilter;
+
+    let list = featuresList;
+
+    if (kind !== "all") list = list.filter((f) => f.kind === kind);
+
+    // status solo aplica a zonas
+    if (status) list = list.filter((f) => f.kind === "polygon" && (f.status || "Disponible") === status);
+
+    return list;
+  }, [featuresList, listFilter]);
+
+  const setFilterGeneral = () => setListFilter({ kind: "all", status: null });
+  const setFilterPoints = () => setListFilter({ kind: "point", status: null });
+  const setFilterLines = () => setListFilter({ kind: "line", status: null });
+  const setFilterZones = () => setListFilter({ kind: "polygon", status: null });
+  const setFilterOperativas = () => setListFilter({ kind: "polygon", status: "Operativa" });
+  const setFilterPrioridad = () => setListFilter({ kind: "polygon", status: "Prioridad alta" });
+
+  const isActiveFilter = (kind, status = null) =>
+    listFilter.kind === kind && (listFilter.status || null) === (status || null);
 
   // =========================
   // ✅ MODAL COMPONENTES (POP-UP)
@@ -1528,44 +1561,73 @@ export default function FarmMap({ focusZoneRequest }) {
 
   return (
     <div className="farm-map-shell">
-      {/* MINI-DASHBOARD DE RESUMEN */}
+      {/* MINI-DASHBOARD DE RESUMEN (AHORA: BOTONES) */}
       <div className="farm-map-summary">
+        {/* FarmSummary ya muestra puntos; lo dejamos, pero añadimos el botón General al lado */}
         <FarmSummary pointCount={pointCount} />
 
-        <div className="summary-chip">
+        <button
+          type="button"
+          className={"summary-chip summary-btn" + (isActiveFilter("all") ? " active" : "")}
+          onClick={setFilterGeneral}
+          aria-pressed={isActiveFilter("all")}
+          title="Ver todo (puntos + líneas + zonas)"
+        >
+          <span className="summary-label">General</span>
+        </button>
+
+        <button
+          type="button"
+          className={"summary-chip summary-btn" + (isActiveFilter("line") ? " active" : "")}
+          onClick={setFilterLines}
+          aria-pressed={isActiveFilter("line")}
+          title="Ver solo líneas"
+        >
           <span className="summary-dot dot-line" />
           <span className="summary-label">
             {lineCount} {lineCount === 1 ? "línea" : "líneas"}
           </span>
-        </div>
+        </button>
 
-        <div className="summary-chip">
+        <button
+          type="button"
+          className={"summary-chip summary-btn" + (isActiveFilter("polygon") ? " active" : "")}
+          onClick={setFilterZones}
+          aria-pressed={isActiveFilter("polygon")}
+          title="Ver solo zonas"
+        >
           <span className="summary-dot dot-zone" />
           <span className="summary-label">
             {zoneCount} {zoneCount === 1 ? "zona" : "zonas"}
           </span>
-        </div>
+        </button>
 
-        <div className="summary-chip summary-chip-status">
+        <button
+          type="button"
+          className={"summary-chip summary-chip-status summary-btn" + (isActiveFilter("polygon", "Operativa") ? " active" : "")}
+          onClick={setFilterOperativas}
+          aria-pressed={isActiveFilter("polygon", "Operativa")}
+          title="Ver zonas operativas"
+        >
           <span className="status-pill status-ok" />
           <span className="summary-label">
             {statusCounts["Operativa"]} operativa{statusCounts["Operativa"] === 1 ? "" : "s"}
           </span>
-        </div>
+        </button>
 
-        <div className="summary-chip summary-chip-status">
+        <button
+          type="button"
+          className={"summary-chip summary-chip-status summary-btn" + (isActiveFilter("polygon", "Prioridad alta") ? " active" : "")}
+          onClick={setFilterPrioridad}
+          aria-pressed={isActiveFilter("polygon", "Prioridad alta")}
+          title="Ver zonas con prioridad alta"
+        >
           <span className="status-pill status-warning" />
           <span className="summary-label">{statusCounts["Prioridad alta"]} con prioridad</span>
-        </div>
+        </button>
 
-        <div className="summary-chip summary-chip-status">
-          <span className="status-pill status-info" />
-          <span className="summary-label">{statusCounts["Cosecha próxima"]} cosecha próxima</span>
-        </div>
-
-        <div className="summary-chip" title="Estado del backend">
-          <span className="summary-label">{backendOnline ? "Backend: OK" : "Backend: sin conexión"}</span>
-        </div>
+        {/* ❌ Eliminado: Cosecha próxima en el resumen */}
+        {/* ❌ Eliminado: Backend OK / sin conexión en el resumen */}
       </div>
 
       {/* Toolbar */}
@@ -1667,8 +1729,8 @@ export default function FarmMap({ focusZoneRequest }) {
         <div ref={mapRef} className="farm-map" />
       </div>
 
-      {/* TABLA */}
-      {featuresList.length > 0 && (
+      {/* TABLA (AHORA: filtrada por los botones arriba) */}
+      {filteredList.length > 0 && (
         <div className="farm-zones-table-wrapper">
           <div className="farm-zones-header-row">
             <span>ZONA / ELEMENTO</span>
@@ -1677,7 +1739,7 @@ export default function FarmMap({ focusZoneRequest }) {
             <span>COMPONENTES / ACCIONES</span>
           </div>
 
-          {featuresList.map((item) => {
+          {filteredList.map((item) => {
             const isZone = item.kind === "polygon";
             const typeLabel = item.kind === "point" ? "Punto" : item.kind === "line" ? "Línea" : "Zona";
 
