@@ -22,7 +22,7 @@ import LineString from "ol/geom/LineString";
 import Polygon from "ol/geom/Polygon";
 
 // ✅ NUEVO: modal externo (el que sí estás editando)
-import ZoneReportModal from "./map/ZoneReportModal";
+import ZoneReportModal from "./ZoneReportModal";
 
 // Claves de localStorage (fallback / cache)
 const VIEW_KEY = "agromind_farm_view";
