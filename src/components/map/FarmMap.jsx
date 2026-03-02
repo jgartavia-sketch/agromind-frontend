@@ -1,4 +1,4 @@
-// src/components/FarmMap.jsx
+// src/components/map/FarmMap.jsx
 
 import FarmSummary from "../farm/FarmSummary";
 
@@ -21,7 +21,7 @@ import Point from "ol/geom/Point";
 import LineString from "ol/geom/LineString";
 import Polygon from "ol/geom/Polygon";
 
-// ✅ NUEVO: modal externo (el que sí estás editando)
+// ✅ Modal externo
 import ZoneReportModal from "./ZoneReportModal";
 
 // Claves de localStorage (fallback / cache)
@@ -137,13 +137,6 @@ function safeReadLocalDrawings() {
   } catch {
     return [];
   }
-}
-
-function safeShortText(text, max = 140) {
-  const t = String(text || "").trim();
-  if (!t) return "";
-  if (t.length <= max) return t;
-  return `${t.slice(0, max).trim()}…`;
 }
 
 export default function FarmMap({ focusZoneRequest }) {
@@ -396,11 +389,68 @@ export default function FarmMap({ focusZoneRequest }) {
     };
   }, [reportZone]);
 
-  const createTaskFromComponent = (zone, comp) => {
-    const title = `Revisión: ${comp?.name || "Componente"} (${zone?.name || "Zona"})`;
-    window.alert(
-      `Listo: aquí vamos a crear una tarea.\n\nTítulo sugerido:\n${title}\n\n(Siguiente paso: lo conectamos a Tareas con zona + descripción automática.)`
-    );
+  // ✅ FECHAS YYYY-MM-DD (local)
+  const todayYYYYMMDD = () => {
+    const d = new Date();
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
+  // =========================
+  // ✅ CREAR TAREA REAL (SIN POP-UP)
+  // =========================
+  const createTaskFromComponent = async (zone, comp) => {
+    try {
+      const farmId =
+        activeFarmId ||
+        localStorage.getItem(ACTIVE_FARM_KEY) ||
+        localStorage.getItem("activeFarmId") ||
+        "";
+
+      const token = getAuthToken();
+
+      if (!farmId) {
+        window.alert("No se detectó finca activa. Recargá y vuelve a intentar.");
+        return;
+      }
+      if (!token) {
+        window.alert("No hay sesión válida. Inicia sesión nuevamente.");
+        return;
+      }
+
+      const todayStr = todayYYYYMMDD();
+
+      const payload = {
+        title: `Revisión: ${comp?.name || "Componente"} (${zone?.name || "Zona"})`,
+        zone: zone?.name || "",
+        type: "Mantenimiento",
+        priority: "Media",
+        start: todayStr,
+        due: todayStr,
+        status: "Pendiente",
+        owner: "",
+      };
+
+      await apiFetch(`/api/farms/${farmId}/tasks`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+
+      // 🔔 REFRESH BUS (para que TareasPage se actualice sola)
+      try {
+        window.dispatchEvent(
+          new CustomEvent("agromind:tasks:refresh", { detail: { farmId } })
+        );
+        localStorage.setItem("agromind_tasks_refresh", String(Date.now()));
+      } catch {
+        // no-op
+      }
+    } catch (err) {
+      console.error("CREATE_TASK_FROM_MAP_ERROR:", err);
+      window.alert(err?.message || "No se pudo crear la tarea.");
+    }
   };
 
   // Esc cierra modales
@@ -1951,7 +2001,7 @@ export default function FarmMap({ focusZoneRequest }) {
       )}
 
       {/* =========================
-          ✅ REPORTE: ahora usa ZoneReportModal (YA NO inline)
+          ✅ REPORTE: usa ZoneReportModal
          ========================= */}
       <ZoneReportModal
         open={reportModalOpen && !!reportZone}
