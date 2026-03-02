@@ -51,6 +51,12 @@ function nowIso() {
   return new Date().toISOString();
 }
 
+function toYYYYMMDD(d = new Date()) {
+  const date = d instanceof Date ? d : new Date(d);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toISOString().slice(0, 10);
+}
+
 function pickColor(kind, colorIndexRef) {
   let palette = POINT_COLORS;
   if (kind === "line") palette = LINE_COLORS;
@@ -389,67 +395,78 @@ export default function FarmMap({ focusZoneRequest }) {
     };
   }, [reportZone]);
 
-  // ✅ FECHAS YYYY-MM-DD (local)
-  const todayYYYYMMDD = () => {
-    const d = new Date();
-    const yyyy = d.getFullYear();
-    const mm = String(d.getMonth() + 1).padStart(2, "0");
-    const dd = String(d.getDate()).padStart(2, "0");
-    return `${yyyy}-${mm}-${dd}`;
+  // ✅ Refresh bus (para que TareasPage se actualice)
+  const fireTasksRefresh = () => {
+    try {
+      window.dispatchEvent(
+        new CustomEvent("agromind:tasks:refresh", { detail: { farmId: activeFarmId } })
+      );
+      localStorage.setItem("agromind_tasks_refresh", String(Date.now()));
+    } catch {
+      // no-op
+    }
   };
 
-  // =========================
-  // ✅ CREAR TAREA REAL (SIN POP-UP)
-  // =========================
+  // ✅ MAPA -> crea tarea REAL en backend
   const createTaskFromComponent = async (zone, comp) => {
     try {
-      const farmId =
-        activeFarmId ||
-        localStorage.getItem(ACTIVE_FARM_KEY) ||
-        localStorage.getItem("activeFarmId") ||
-        "";
-
+      const farmId = activeFarmId || localStorage.getItem(ACTIVE_FARM_KEY);
       const token = getAuthToken();
 
       if (!farmId) {
-        window.alert("No se detectó finca activa. Recargá y vuelve a intentar.");
+        window.alert("No hay finca activa. Recargá la app e iniciá sesión otra vez.");
         return;
       }
       if (!token) {
-        window.alert("No hay sesión válida. Inicia sesión nuevamente.");
+        window.alert("No hay token. Iniciá sesión nuevamente.");
         return;
       }
 
-      const todayStr = todayYYYYMMDD();
+      const zoneName = (zone?.name || "").trim();
+      const compName = (comp?.name || "Componente").trim();
+      const compType = (comp?.type || "Otro").trim();
+
+      const today = toYYYYMMDD(new Date());
+
+      // Título: corto y accionable
+      const title = zoneName
+        ? `Revisión: ${compName} (${zoneName})`
+        : `Revisión: ${compName}`;
+
+      // Tipo sugerido (si no calza, cae en Mantenimiento)
+      const typeGuess =
+        compType.toLowerCase().includes("bebedero") || compType.toLowerCase().includes("comedero")
+          ? "Alimentación"
+          : "Mantenimiento";
 
       const payload = {
-        title: `Revisión: ${comp?.name || "Componente"} (${zone?.name || "Zona"})`,
-        zone: zone?.name || "",
-        type: "Mantenimiento",
+        title,
+        zone: zoneName || "",
+        type: typeGuess,
         priority: "Media",
-        start: todayStr,
-        due: todayStr,
+        start: today,
+        due: today,
         status: "Pendiente",
         owner: "",
       };
 
-      await apiFetch(`/api/farms/${farmId}/tasks`, {
+      const data = await apiFetch(`/api/farms/${farmId}/tasks`, {
         method: "POST",
         body: JSON.stringify(payload),
       });
 
-      // 🔔 REFRESH BUS (para que TareasPage se actualice sola)
-      try {
-        window.dispatchEvent(
-          new CustomEvent("agromind:tasks:refresh", { detail: { farmId } })
-        );
-        localStorage.setItem("agromind_tasks_refresh", String(Date.now()));
-      } catch {
-        // no-op
+      if (!data?.task?.id) {
+        window.alert("La tarea no se pudo crear (respuesta inesperada).");
+        return;
       }
+
+      // ✅ cerrar modal + refrescar tareas/sugerencias
+      closeReportModal();
+      fireTasksRefresh();
+
+      window.alert(`Tarea creada ✅\n\n"${data.task.title}"`);
     } catch (err) {
-      console.error("CREATE_TASK_FROM_MAP_ERROR:", err);
-      window.alert(err?.message || "No se pudo crear la tarea.");
+      window.alert(err?.message || "Error creando la tarea.");
     }
   };
 
@@ -2001,7 +2018,7 @@ export default function FarmMap({ focusZoneRequest }) {
       )}
 
       {/* =========================
-          ✅ REPORTE: usa ZoneReportModal
+          ✅ REPORTE: ZoneReportModal
          ========================= */}
       <ZoneReportModal
         open={reportModalOpen && !!reportZone}
