@@ -1586,7 +1586,11 @@ export default function FarmMap({ focusZoneRequest }) {
     <div className="farm-map-shell">
       {/* MINI-DASHBOARD DE RESUMEN */}
       <div className="farm-map-summary">
-        <FarmSummary pointCount={pointCount} />
+        <FarmSummary
+  pointCount={pointCount}
+  isActiveFilter={isActiveFilter}
+  onSetFilter={setListFilter}
+/>
 
         <div className="summary-chip">
           <span className="summary-dot dot-line" />
