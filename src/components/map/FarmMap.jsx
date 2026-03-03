@@ -213,20 +213,35 @@ export default function FarmMap({ focusZoneRequest }) {
   // =========================
   const [listFilter, setListFilter] = useState({ kind: "all", status: null });
 
-  // 👇 Esto era lo que te estaba tumbando el render cuando existía en JSX
-  // Lo dejamos definido SIEMPRE para que jamás vuelva a explotar.
-  const isActiveFilter = (kind, status = null) => {
-    if (kind !== "all" && listFilter.kind !== kind) return false;
-    if (status !== null && listFilter.status !== status) return false;
-    return true;
+  // ✅ FarmSummary ahora pregunta por keys simples:
+  // "point" | "line" | "zone" | "operative" | "priority"
+  const isActiveFilter = (key) => {
+    if (key === "point") return listFilter.kind === "point" && listFilter.status === null;
+    if (key === "line") return listFilter.kind === "line" && listFilter.status === null;
+    if (key === "zone") return listFilter.kind === "zone" && listFilter.status === null;
+
+    if (key === "operative") return listFilter.kind === "all" && listFilter.status === "Operativa";
+    if (key === "priority") return listFilter.kind === "all" && listFilter.status === "Prioridad alta";
+
+    if (key === "all") return listFilter.kind === "all" && listFilter.status === null;
+    return false;
   };
 
   const filteredList = useMemo(() => {
     const { kind, status } = listFilter;
     let list = featuresList;
 
-    if (kind && kind !== "all") list = list.filter((f) => f.kind === kind);
-    if (status) list = list.filter((f) => f.kind === "polygon" && (f.status || "Disponible") === status);
+    if (kind && kind !== "all") {
+      if (kind === "zone") list = list.filter((f) => f.kind === "polygon");
+      else list = list.filter((f) => f.kind === kind);
+    }
+
+    if (status) {
+      // status solo aplica a zonas
+      list = list.filter(
+        (f) => f.kind === "polygon" && (f.status || "Disponible") === status
+      );
+    }
 
     return list;
   }, [featuresList, listFilter]);
@@ -1545,6 +1560,10 @@ export default function FarmMap({ focusZoneRequest }) {
     else statusCounts.Otro++;
   });
 
+  // ✅ Para el resumen: solo mostramos Operativas + Prioridad
+  const operativeCount = statusCounts["Operativa"] || 0;
+  const priorityCount = statusCounts["Prioridad alta"] || 0;
+
   useEffect(() => {
     if (!focusZoneRequest || !focusZoneRequest.name) return;
     const normalized = focusZoneRequest.name.trim().toLowerCase();
@@ -1584,48 +1603,17 @@ export default function FarmMap({ focusZoneRequest }) {
 
   return (
     <div className="farm-map-shell">
-      {/* MINI-DASHBOARD DE RESUMEN */}
+      {/* MINI-DASHBOARD DE RESUMEN (solo KPIs útiles, sin "Cosecha próxima" ni "Backend OK") */}
       <div className="farm-map-summary">
         <FarmSummary
-  pointCount={pointCount}
-  isActiveFilter={isActiveFilter}
-  onSetFilter={setListFilter}
-/>
-
-        <div className="summary-chip">
-          <span className="summary-dot dot-line" />
-          <span className="summary-label">
-            {lineCount} {lineCount === 1 ? "línea" : "líneas"}
-          </span>
-        </div>
-
-        <div className="summary-chip">
-          <span className="summary-dot dot-zone" />
-          <span className="summary-label">
-            {zoneCount} {zoneCount === 1 ? "zona" : "zonas"}
-          </span>
-        </div>
-
-        <div className="summary-chip summary-chip-status">
-          <span className="status-pill status-ok" />
-          <span className="summary-label">
-            {statusCounts["Operativa"]} operativa{statusCounts["Operativa"] === 1 ? "" : "s"}
-          </span>
-        </div>
-
-        <div className="summary-chip summary-chip-status">
-          <span className="status-pill status-warning" />
-          <span className="summary-label">{statusCounts["Prioridad alta"]} con prioridad</span>
-        </div>
-
-        <div className="summary-chip summary-chip-status">
-          <span className="status-pill status-info" />
-          <span className="summary-label">{statusCounts["Cosecha próxima"]} cosecha próxima</span>
-        </div>
-
-        <div className="summary-chip" title="Estado del backend">
-          <span className="summary-label">{backendOnline ? "Backend: OK" : "Backend: sin conexión"}</span>
-        </div>
+          pointCount={pointCount}
+          lineCount={lineCount}
+          zoneCount={zoneCount}
+          operativeCount={operativeCount}
+          priorityCount={priorityCount}
+          isActiveFilter={isActiveFilter}
+          onSetFilter={setListFilter}
+        />
       </div>
 
       {/* Toolbar */}
