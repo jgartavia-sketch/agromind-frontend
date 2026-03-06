@@ -35,7 +35,7 @@ const LINE_COLORS = ["#22c55e", "#38bdf8", "#f97316", "#a855f7", "#facc15"];
 const POLYGON_COLORS = ["#22c55e88", "#38bdf888", "#f9731688", "#a855f788"];
 
 const ZONE_TYPES = ["Zona de animales", "Pasillo", "Cultivo", "Zona libre"];
-const ZONE_STATUSES = ["Operativa", "Prioridad alta", "Cosecha próxima", "Disponible"];
+const ZONE_STATUSES = ["Operativa", "Prioridad alta", "Disponible"];
 
 const COMPONENT_TYPES = [
   "Bebedero",
@@ -213,38 +213,48 @@ export default function FarmMap({ focusZoneRequest }) {
   // =========================
   const [listFilter, setListFilter] = useState({ kind: "all", status: null });
 
-  // ✅ FarmSummary ahora pregunta por keys simples:
-  // "point" | "line" | "zone" | "operative" | "priority"
-  const isActiveFilter = (key) => {
-    if (key === "point") return listFilter.kind === "point" && listFilter.status === null;
-    if (key === "line") return listFilter.kind === "line" && listFilter.status === null;
-    if (key === "zone") return listFilter.kind === "zone" && listFilter.status === null;
-
-    if (key === "operative") return listFilter.kind === "all" && listFilter.status === "Operativa";
-    if (key === "priority") return listFilter.kind === "all" && listFilter.status === "Prioridad alta";
-
-    if (key === "all") return listFilter.kind === "all" && listFilter.status === null;
-    return false;
+  // Lo dejamos definido SIEMPRE para que jamás vuelva a explotar.
+  const isActiveFilter = (kind, status = null) => {
+    if (kind !== "all" && listFilter.kind !== kind) return false;
+    if (status !== null && listFilter.status !== status) return false;
+    return true;
   };
 
   const filteredList = useMemo(() => {
     const { kind, status } = listFilter;
     let list = featuresList;
 
-    if (kind && kind !== "all") {
-      if (kind === "zone") list = list.filter((f) => f.kind === "polygon");
-      else list = list.filter((f) => f.kind === kind);
-    }
+    if (kind && kind !== "all") list = list.filter((f) => f.kind === kind);
 
-    if (status) {
-      // status solo aplica a zonas
+    if (status)
       list = list.filter(
-        (f) => f.kind === "polygon" && (f.status || "Disponible") === status
+        (f) =>
+          f.kind === "polygon" &&
+          (f.status || "Disponible") === status
       );
-    }
 
     return list;
   }, [featuresList, listFilter]);
+
+  // ✅ Helpers para los chips-botón
+  const btnBase = "summary-chip summary-btn";
+  const canFilter = true;
+
+  const toggleKind = (kind) => {
+    if (!canFilter) return;
+    setListFilter((prev) => ({
+      kind: prev?.kind === kind ? "all" : kind,
+      status: null,
+    }));
+  };
+
+  const toggleZoneStatus = (status) => {
+    if (!canFilter) return;
+    setListFilter((prev) => {
+      const already = prev?.kind === "polygon" && prev?.status === status;
+      return already ? { kind: "all", status: null } : { kind: "polygon", status };
+    });
+  };
 
   // =========================
   // ✅ MODAL COMPONENTES (POP-UP)
@@ -466,14 +476,13 @@ export default function FarmMap({ focusZoneRequest }) {
 
       const today = toYYYYMMDD(new Date());
 
-      // Título: corto y accionable
       const title = zoneName
         ? `Revisión: ${compName} (${zoneName})`
         : `Revisión: ${compName}`;
 
-      // Tipo sugerido (si no calza, cae en Mantenimiento)
       const typeGuess =
-        compType.toLowerCase().includes("bebedero") || compType.toLowerCase().includes("comedero")
+        compType.toLowerCase().includes("bebedero") ||
+        compType.toLowerCase().includes("comedero")
           ? "Alimentación"
           : "Mantenimiento";
 
@@ -498,7 +507,6 @@ export default function FarmMap({ focusZoneRequest }) {
         return;
       }
 
-      // ✅ cerrar modal + refrescar tareas/sugerencias
       closeReportModal();
       fireTasksRefresh();
 
@@ -903,38 +911,6 @@ export default function FarmMap({ focusZoneRequest }) {
 
       applyBackendMapToUI(mapRes);
       setBackendOnline(true);
-
-      const hasView =
-        mapRes?.farm?.view &&
-        Array.isArray(mapRes.farm.view.center) &&
-        typeof mapRes.farm.view.zoom === "number";
-
-      if (!hasView) {
-        try {
-          if ("geolocation" in navigator) {
-            navigator.geolocation.getCurrentPosition(
-              (pos) => {
-                const lon = pos.coords.longitude;
-                const lat = pos.coords.latitude;
-                const map = mapInstanceRef.current;
-                if (!map) return;
-
-                map.getView().setCenter(fromLonLat([lon, lat]));
-                map.getView().setZoom(16);
-
-                markDirty();
-                scheduleAutosave(latestFeaturesListRef.current || [], {
-                  view: { center: [lon, lat], zoom: 16 },
-                });
-              },
-              () => {},
-              { enableHighAccuracy: true, timeout: 6000, maximumAge: 10000 }
-            );
-          }
-        } catch {
-          // no-op
-        }
-      }
     } catch (err) {
       console.warn("Backend load falló:", err?.message || err);
       setBackendOnline(false);
@@ -1549,7 +1525,6 @@ export default function FarmMap({ focusZoneRequest }) {
   const statusCounts = {
     Operativa: 0,
     "Prioridad alta": 0,
-    "Cosecha próxima": 0,
     Disponible: 0,
     Otro: 0,
   };
@@ -1559,10 +1534,6 @@ export default function FarmMap({ focusZoneRequest }) {
     if (statusCounts[s] !== undefined) statusCounts[s]++;
     else statusCounts.Otro++;
   });
-
-  // ✅ Para el resumen: solo mostramos Operativas + Prioridad
-  const operativeCount = statusCounts["Operativa"] || 0;
-  const priorityCount = statusCounts["Prioridad alta"] || 0;
 
   useEffect(() => {
     if (!focusZoneRequest || !focusZoneRequest.name) return;
@@ -1603,17 +1574,67 @@ export default function FarmMap({ focusZoneRequest }) {
 
   return (
     <div className="farm-map-shell">
-      {/* MINI-DASHBOARD DE RESUMEN (solo KPIs útiles, sin "Cosecha próxima" ni "Backend OK") */}
+      {/* MINI-DASHBOARD DE RESUMEN */}
       <div className="farm-map-summary">
-        <FarmSummary
-          pointCount={pointCount}
-          lineCount={lineCount}
-          zoneCount={zoneCount}
-          operativeCount={operativeCount}
-          priorityCount={priorityCount}
-          isActiveFilter={isActiveFilter}
-          onSetFilter={setListFilter}
-        />
+        <FarmSummary pointCount={pointCount} isActiveFilter={isActiveFilter} onSetFilter={setListFilter} />
+
+        {/* ✅ LÍNEAS (BOTÓN) */}
+        <button
+          type="button"
+          className={btnBase + (isActiveFilter("line") ? " active" : "")}
+          aria-pressed={!!isActiveFilter("line")}
+          title="Filtrar: Líneas"
+          onClick={() => toggleKind("line")}
+          style={{ cursor: "pointer" }}
+        >
+          <span className="summary-dot dot-line" />
+          <span className="summary-label">
+            {lineCount} {lineCount === 1 ? "línea" : "líneas"}
+          </span>
+        </button>
+
+        {/* ✅ ZONAS (BOTÓN) */}
+        <button
+          type="button"
+          className={btnBase + (isActiveFilter("polygon") && listFilter.status === null ? " active" : "")}
+          aria-pressed={isActiveFilter("polygon") && listFilter.status === null}
+          title="Filtrar: Zonas"
+          onClick={() => toggleKind("polygon")}
+          style={{ cursor: "pointer" }}
+        >
+          <span className="summary-dot dot-zone" />
+          <span className="summary-label">
+            {zoneCount} {zoneCount === 1 ? "zona" : "zonas"}
+          </span>
+        </button>
+
+        {/* ✅ OPERATIVAS (BOTÓN - STATUS) */}
+        <button
+          type="button"
+          className={btnBase + " summary-chip-status" + (isActiveFilter("polygon", "Operativa") ? " active" : "")}
+          aria-pressed={!!isActiveFilter("polygon", "Operativa")}
+          title="Filtrar: Zonas Operativas"
+          onClick={() => toggleZoneStatus("Operativa")}
+          style={{ cursor: "pointer" }}
+        >
+          <span className="status-pill status-ok" />
+          <span className="summary-label">
+            {statusCounts["Operativa"]} operativa{statusCounts["Operativa"] === 1 ? "" : "s"}
+          </span>
+        </button>
+
+        {/* ✅ PRIORIDAD (BOTÓN - STATUS) */}
+        <button
+          type="button"
+          className={btnBase + " summary-chip-status" + (isActiveFilter("polygon", "Prioridad alta") ? " active" : "")}
+          aria-pressed={!!isActiveFilter("polygon", "Prioridad alta")}
+          title="Filtrar: Zonas con Prioridad"
+          onClick={() => toggleZoneStatus("Prioridad alta")}
+          style={{ cursor: "pointer" }}
+        >
+          <span className="status-pill status-warning" />
+          <span className="summary-label">{statusCounts["Prioridad alta"]} con prioridad</span>
+        </button>
       </div>
 
       {/* Toolbar */}
@@ -1797,10 +1818,7 @@ export default function FarmMap({ focusZoneRequest }) {
                   )}
                 </div>
 
-                <div
-                  className="zone-col zone-components"
-                  style={{ justifyContent: "flex-end", gap: "0.5rem", flexWrap: "wrap" }}
-                >
+                <div className="zone-col zone-components" style={{ justifyContent: "flex-end", gap: "0.5rem", flexWrap: "wrap" }}>
                   {isZone && (
                     <>
                       <span className="components-summary" style={{ whiteSpace: "nowrap" }}>
