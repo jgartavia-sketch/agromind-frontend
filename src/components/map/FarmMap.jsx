@@ -1,7 +1,5 @@
 // src/components/map/FarmMap.jsx
 
-import FarmSummary from "../farm/FarmSummary";
-
 import { useEffect, useRef, useState, useMemo } from "react";
 import "ol/ol.css";
 import "../../styles/farm-map.css";
@@ -14,10 +12,15 @@ import VectorLayer from "ol/layer/Vector";
 import VectorSource from "ol/source/Vector";
 import Draw from "ol/interaction/Draw";
 import Feature from "ol/Feature";
-import Overlay from "ol/Overlay";
 
 import { fromLonLat, toLonLat } from "ol/proj";
-import { Style, Stroke, Fill, Circle as CircleStyle } from "ol/style";
+import {
+  Style,
+  Stroke,
+  Fill,
+  Circle as CircleStyle,
+  Text,
+} from "ol/style";
 import Point from "ol/geom/Point";
 import LineString from "ol/geom/LineString";
 import Polygon from "ol/geom/Polygon";
@@ -151,16 +154,13 @@ export default function FarmMap({ focusZoneRequest }) {
   const mapInstanceRef = useRef(null);
   const vectorSourceRef = useRef(null);
   const drawInteractionRef = useRef(null);
+  const vectorLayerRef = useRef(null);
 
   // id -> Feature del mapa
   const featuresMapRef = useRef({});
 
-  // ✅ refs para scroll a la fila seleccionada
+  // refs para autoscroll a fila seleccionada
   const rowRefs = useRef({});
-
-  // ✅ overlay label (nombre encima en el mapa)
-  const nameOverlayRef = useRef(null);
-  const nameOverlayElRef = useRef(null);
 
   // Lista de negocio: puntos, líneas y zonas
   const [featuresList, setFeaturesList] = useState([]);
@@ -222,113 +222,77 @@ export default function FarmMap({ focusZoneRequest }) {
   const [listFilter, setListFilter] = useState({ kind: "all", status: null });
 
   const isActiveFilter = (kind, status = null) => {
-    if (kind !== "all" && listFilter.kind !== kind) return false;
-    if (status !== null && listFilter.status !== status) return false;
-    return true;
+    if (status !== null) {
+      return listFilter.kind === "polygon" && listFilter.status === status;
+    }
+    return listFilter.kind === kind && listFilter.status === null;
   };
 
   const filteredList = useMemo(() => {
     const { kind, status } = listFilter;
     let list = featuresList;
 
-    if (kind && kind !== "all") list = list.filter((f) => f.kind === kind);
+    if (kind && kind !== "all") {
+      list = list.filter((f) => f.kind === kind);
+    }
 
-    if (status)
+    if (status) {
       list = list.filter(
         (f) => f.kind === "polygon" && (f.status || "Disponible") === status
       );
+    }
 
     return list;
   }, [featuresList, listFilter]);
 
-  const btnBase = "summary-chip summary-btn";
-  const toggleKind = (kind) => {
-    setListFilter((prev) => ({
-      kind: prev?.kind === kind ? "all" : kind,
-      status: null,
-    }));
-  };
+  const handleSummaryFilter = (mode) => {
+    if (mode === "point") {
+      setListFilter((prev) =>
+        prev.kind === "point" && prev.status === null
+          ? { kind: "all", status: null }
+          : { kind: "point", status: null }
+      );
+      return;
+    }
 
-  const toggleZoneStatus = (status) => {
-    setListFilter((prev) => {
-      const already = prev?.kind === "polygon" && prev?.status === status;
-      return already ? { kind: "all", status: null } : { kind: "polygon", status };
-    });
+    if (mode === "line") {
+      setListFilter((prev) =>
+        prev.kind === "line" && prev.status === null
+          ? { kind: "all", status: null }
+          : { kind: "line", status: null }
+      );
+      return;
+    }
+
+    if (mode === "polygon") {
+      setListFilter((prev) =>
+        prev.kind === "polygon" && prev.status === null
+          ? { kind: "all", status: null }
+          : { kind: "polygon", status: null }
+      );
+      return;
+    }
+
+    if (mode === "operative") {
+      setListFilter((prev) =>
+        prev.kind === "polygon" && prev.status === "Operativa"
+          ? { kind: "all", status: null }
+          : { kind: "polygon", status: "Operativa" }
+      );
+      return;
+    }
+
+    if (mode === "priority") {
+      setListFilter((prev) =>
+        prev.kind === "polygon" && prev.status === "Prioridad alta"
+          ? { kind: "all", status: null }
+          : { kind: "polygon", status: "Prioridad alta" }
+      );
+    }
   };
 
   // =========================
-  // ✅ helpers overlay label
-  // =========================
-  const hideNameOverlay = () => {
-    const ov = nameOverlayRef.current;
-    const el = nameOverlayElRef.current;
-    if (!ov || !el) return;
-    el.textContent = "";
-    ov.setPosition(undefined);
-  };
-
-  const showNameOverlayForFeature = (feature) => {
-    const map = mapInstanceRef.current;
-    const ov = nameOverlayRef.current;
-    const el = nameOverlayElRef.current;
-    if (!map || !ov || !el || !feature) return;
-
-    const geom = feature.getGeometry();
-    if (!geom) return;
-
-    const kind = feature.get("kind");
-    const name = feature.get("name") || "(Sin nombre)";
-
-    let coord = null;
-
-    // Punto
-    if (kind === "point" && geom.getType() === "Point") {
-      coord = geom.getCoordinates();
-    }
-
-    // Línea: punto medio
-    if (!coord && kind === "line" && geom.getType() === "LineString") {
-      coord = geom.getCoordinateAt(0.5);
-    }
-
-    // Zona: punto interior
-    if (!coord && kind === "polygon" && geom.getType() === "Polygon") {
-      coord = geom.getInteriorPoint().getCoordinates();
-    }
-
-    // Fallback
-    if (!coord) {
-      try {
-        const extent = geom.getExtent();
-        coord = [(extent[0] + extent[2]) / 2, (extent[1] + extent[3]) / 2];
-      } catch {
-        coord = null;
-      }
-    }
-
-    if (!coord) return;
-
-    el.textContent = name;
-    ov.setPosition(coord);
-  };
-
-  // ✅ scroll + highlight a la fila seleccionada
-  useEffect(() => {
-    if (!selectedId) return;
-    const el = rowRefs.current[selectedId];
-    if (el && el.scrollIntoView) {
-      setTimeout(() => {
-        try {
-          el.scrollIntoView({ behavior: "smooth", block: "nearest" });
-        } catch {
-          // no-op
-        }
-      }, 50);
-    }
-  }, [selectedId]);
-
-  // =========================
-  // ✅ MODAL COMPONENTES (POP-UP)
+  // ✅ MODAL COMPONENTES
   // =========================
   const [componentsModalOpen, setComponentsModalOpen] = useState(false);
   const [componentsModalZoneId, setComponentsModalZoneId] = useState(null);
@@ -585,7 +549,6 @@ export default function FarmMap({ focusZoneRequest }) {
     }
   };
 
-  // Esc cierra modales
   useEffect(() => {
     const onKey = (e) => {
       if (e.key !== "Escape") return;
@@ -594,7 +557,6 @@ export default function FarmMap({ focusZoneRequest }) {
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [componentsModalOpen, reportModalOpen]);
 
   // =========================
@@ -689,7 +651,6 @@ export default function FarmMap({ focusZoneRequest }) {
     featuresMapRef.current = {};
     setSelectedId(null);
     setHoveredId(null);
-    hideNameOverlay();
 
     const newList = [];
     const counters = { point: 0, line: 0, polygon: 0 };
@@ -705,7 +666,15 @@ export default function FarmMap({ focusZoneRequest }) {
       map.getView().setZoom(viewFromServer.zoom);
     }
 
-    const addFeature = ({ kind, name, geometry, meta, components, createdAt, updatedAt }) => {
+    const addFeature = ({
+      kind,
+      name,
+      geometry,
+      meta,
+      components,
+      createdAt,
+      updatedAt,
+    }) => {
       const id = `${kind}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
       counters[kind] = (counters[kind] || 0) + 1;
@@ -814,7 +783,9 @@ export default function FarmMap({ focusZoneRequest }) {
       addFeature({
         kind: "polygon",
         name: z?.name,
-        geometry: new Polygon(d.coordinates.map((ring) => ring.map((c) => fromLonLat(c)))),
+        geometry: new Polygon(
+          d.coordinates.map((ring) => ring.map((c) => fromLonLat(c)))
+        ),
         meta: d,
         components: z?.components,
         createdAt: z?.createdAt ? new Date(z.createdAt).toISOString() : null,
@@ -1049,7 +1020,6 @@ export default function FarmMap({ focusZoneRequest }) {
       clearTimeout(t);
       controller.abort();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedQuery, apiKey]);
 
   const goToLocation = (lon, lat, zoom = 16) => {
@@ -1101,7 +1071,6 @@ export default function FarmMap({ focusZoneRequest }) {
       window.removeEventListener("resize", handleWindowResize);
       document.removeEventListener("visibilitychange", handleVisibility);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -1115,7 +1084,11 @@ export default function FarmMap({ focusZoneRequest }) {
         const savedView = localStorage.getItem(VIEW_KEY);
         if (savedView) {
           const parsed = JSON.parse(savedView);
-          if (parsed && typeof parsed.lon === "number" && typeof parsed.lat === "number") {
+          if (
+            parsed &&
+            typeof parsed.lon === "number" &&
+            typeof parsed.lat === "number"
+          ) {
             centerLonLat = [parsed.lon, parsed.lat];
           }
           if (parsed && typeof parsed.zoom === "number") zoom = parsed.zoom;
@@ -1144,6 +1117,18 @@ export default function FarmMap({ focusZoneRequest }) {
           const hovered = feature.get("hovered") === true;
           const active = selected || hovered;
 
+          const textStyle =
+            selected && feature.get("name")
+              ? new Text({
+                  text: String(feature.get("name")),
+                  offsetY: -18,
+                  font: "700 12px system-ui, sans-serif",
+                  fill: new Fill({ color: "#f9fafb" }),
+                  stroke: new Stroke({ color: "rgba(2,6,23,0.95)", width: 4 }),
+                  padding: [4, 8, 4, 8],
+                })
+              : undefined;
+
           if (kind === "point") {
             return new Style({
               image: new CircleStyle({
@@ -1154,6 +1139,7 @@ export default function FarmMap({ focusZoneRequest }) {
                   width: active ? 2 : 1.5,
                 }),
               }),
+              text: textStyle,
             });
           }
 
@@ -1163,6 +1149,7 @@ export default function FarmMap({ focusZoneRequest }) {
                 color,
                 width: active ? 5 : 3,
               }),
+              text: textStyle,
             });
           }
 
@@ -1173,6 +1160,7 @@ export default function FarmMap({ focusZoneRequest }) {
                 color: active ? "#f9fafb" : "#e5e7eb",
                 width: active ? 3 : 1.5,
               }),
+              text: textStyle,
             });
           }
 
@@ -1181,9 +1169,12 @@ export default function FarmMap({ focusZoneRequest }) {
               color,
               width: active ? 4 : 2,
             }),
+            text: textStyle,
           });
         },
       });
+
+      vectorLayerRef.current = vectorLayer;
 
       const map = new Map({
         target: mapRef.current,
@@ -1195,35 +1186,131 @@ export default function FarmMap({ focusZoneRequest }) {
       });
 
       mapInstanceRef.current = map;
-
-      // ✅ Crear overlay label (nombre encima)
-      const el = document.createElement("div");
-      el.style.padding = "6px 10px";
-      el.style.borderRadius = "999px";
-      el.style.fontSize = "12px";
-      el.style.fontWeight = "700";
-      el.style.letterSpacing = "0.02em";
-      el.style.color = "#e5e7eb";
-      el.style.background = "rgba(2, 6, 23, 0.92)";
-      el.style.border = "1px solid rgba(148, 163, 184, 0.35)";
-      el.style.boxShadow = "0 12px 28px rgba(0,0,0,0.45)";
-      el.style.whiteSpace = "nowrap";
-      el.style.transform = "translateY(-10px)";
-      el.style.pointerEvents = "none";
-
-      const overlay = new Overlay({
-        element: el,
-        offset: [0, -10],
-        positioning: "bottom-center",
-        stopEvent: false,
-      });
-
-      map.addOverlay(overlay);
-      nameOverlayRef.current = overlay;
-      nameOverlayElRef.current = el;
-      hideNameOverlay();
-
       forceMapResize();
+
+      // Fallback local drawings (cache)
+      try {
+        const savedDrawings = localStorage.getItem(DRAWINGS_KEY);
+        if (savedDrawings) {
+          const parsed = JSON.parse(savedDrawings);
+          if (Array.isArray(parsed)) {
+            const newList = [];
+            const counters = { point: 0, line: 0, polygon: 0 };
+
+            parsed.forEach((item) => {
+              const {
+                id,
+                kind,
+                color,
+                name,
+                note,
+                zoneType,
+                status,
+                components,
+                geomType,
+                coordinates,
+                createdAt,
+                updatedAt,
+              } = item;
+              if (!id || !kind || !geomType || !coordinates) return;
+
+              let geometry = null;
+
+              if (geomType === "Point") geometry = new Point(fromLonLat(coordinates));
+              else if (geomType === "LineString")
+                geometry = new LineString(coordinates.map((c) => fromLonLat(c)));
+              else if (geomType === "Polygon")
+                geometry = new Polygon(
+                  coordinates.map((ring) => ring.map((c) => fromLonLat(c)))
+                );
+
+              if (!geometry) return;
+
+              const feature = new Feature(geometry);
+              const safeKind =
+                kind === "point" || kind === "line" || kind === "polygon"
+                  ? kind
+                  : "point";
+
+              counters[safeKind] = (counters[safeKind] || 0) + 1;
+
+              const finalName =
+                name && name.trim().length > 0
+                  ? name
+                  : safeKind === "point"
+                  ? `Punto ${counters[safeKind]}`
+                  : safeKind === "line"
+                  ? `Línea ${counters[safeKind]}`
+                  : `Zona ${counters[safeKind]}`;
+
+              const finalColor = color || pickColor(safeKind, colorIndexRef);
+              const finalZoneType = safeKind === "polygon" ? zoneType || "Zona libre" : null;
+              const finalStatus = safeKind === "polygon" ? status || "Disponible" : null;
+
+              const finalComponents =
+                safeKind === "polygon" && Array.isArray(components)
+                  ? components.map((c, idx) => {
+                      const cCreated = c?.createdAt || nowIso();
+                      const cUpdated = c?.updatedAt || cCreated;
+                      return {
+                        id:
+                          c.id ||
+                          `comp-${idx}-${Date.now().toString(36)}${Math.random()
+                            .toString(36)
+                            .slice(2, 6)}`,
+                        name: c.name || "",
+                        note: c.note || "",
+                        type: c.type || "Otro",
+                        createdAt: cCreated,
+                        updatedAt: cUpdated,
+                      };
+                    })
+                  : [];
+
+              const finalCreatedAt = createdAt || nowIso();
+              const finalUpdatedAt = updatedAt || finalCreatedAt;
+
+              feature.setProperties({
+                id,
+                kind: safeKind,
+                color: finalColor,
+                name: finalName,
+                note: note || "",
+                zoneType: finalZoneType,
+                status: finalStatus,
+                components: finalComponents,
+                createdAt: finalCreatedAt,
+                updatedAt: finalUpdatedAt,
+                geomType,
+                selected: false,
+                hovered: false,
+              });
+
+              vectorSource.addFeature(feature);
+              featuresMapRef.current[id] = feature;
+
+              newList.push({
+                id,
+                kind: safeKind,
+                color: finalColor,
+                name: finalName,
+                note: note || "",
+                zoneType: finalZoneType,
+                status: finalStatus,
+                components: finalComponents,
+                createdAt: finalCreatedAt,
+                updatedAt: finalUpdatedAt,
+              });
+            });
+
+            countersRef.current = counters;
+            setFeaturesList(newList);
+            forceMapResize();
+          }
+        }
+      } catch {
+        // no-op
+      }
 
       const handlePointerMove = (evt) => {
         const mapInstance = mapInstanceRef.current;
@@ -1264,10 +1351,12 @@ export default function FarmMap({ focusZoneRequest }) {
           handleSelectFeature(foundId);
         } else {
           const vectorSourceLocal = vectorSourceRef.current;
-          if (vectorSourceLocal)
-            vectorSourceLocal.getFeatures().forEach((f) => f.set("selected", false));
+          if (vectorSourceLocal) {
+            vectorSourceLocal
+              .getFeatures()
+              .forEach((f) => f.set("selected", false));
+          }
           setSelectedId(null);
-          hideNameOverlay();
         }
       };
 
@@ -1280,16 +1369,6 @@ export default function FarmMap({ focusZoneRequest }) {
         map.un("pointermove", handlePointerMove);
         map.un("singleclick", handleSingleClick);
 
-        if (nameOverlayRef.current) {
-          try {
-            map.removeOverlay(nameOverlayRef.current);
-          } catch {
-            // no-op
-          }
-          nameOverlayRef.current = null;
-          nameOverlayElRef.current = null;
-        }
-
         if (mapInstanceRef.current) {
           if (drawInteractionRef.current)
             mapInstanceRef.current.removeInteraction(drawInteractionRef.current);
@@ -1298,13 +1377,11 @@ export default function FarmMap({ focusZoneRequest }) {
         }
       };
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apiKey]);
 
   useEffect(() => {
     if (!mapReady) return;
     ensureFarmAndLoad();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mapReady]);
 
   useEffect(() => {
@@ -1313,6 +1390,23 @@ export default function FarmMap({ focusZoneRequest }) {
       feature.set("hovered", id === hoveredId);
     });
   }, [hoveredId]);
+
+  // refresca el layer para que el nombre seleccionado se pinte al vuelo
+  useEffect(() => {
+    const layer = vectorLayerRef.current;
+    if (layer) layer.changed();
+  }, [selectedId, hoveredId, featuresList]);
+
+  // autoscroll a la fila seleccionada
+  useEffect(() => {
+    if (!selectedId) return;
+    const row = rowRefs.current[selectedId];
+    if (row && typeof row.scrollIntoView === "function") {
+      setTimeout(() => {
+        row.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      }, 80);
+    }
+  }, [selectedId, filteredList]);
 
   const handleDrawEnd = (feature, mode) => {
     markDirty();
@@ -1351,7 +1445,18 @@ export default function FarmMap({ focusZoneRequest }) {
     setFeaturesList((prev) => {
       const updated = [
         ...prev,
-        { id, kind, color, name, note, zoneType, status, components, createdAt: t, updatedAt: t },
+        {
+          id,
+          kind,
+          color,
+          name,
+          note,
+          zoneType,
+          status,
+          components,
+          createdAt: t,
+          updatedAt: t,
+        },
       ];
       scheduleAutosave(updated);
       return updated;
@@ -1372,7 +1477,13 @@ export default function FarmMap({ focusZoneRequest }) {
 
     if (drawMode === "move") return;
 
-    const type = drawMode === "point" ? "Point" : drawMode === "line" ? "LineString" : "Polygon";
+    const type =
+      drawMode === "point"
+        ? "Point"
+        : drawMode === "line"
+        ? "LineString"
+        : "Polygon";
+
     const draw = new Draw({ source: vectorSource, type });
 
     draw.on("drawend", (evt) => {
@@ -1384,7 +1495,6 @@ export default function FarmMap({ focusZoneRequest }) {
     drawInteractionRef.current = draw;
 
     forceMapResize();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [drawMode]);
 
   const handleSelectFeature = (id) => {
@@ -1393,21 +1503,20 @@ export default function FarmMap({ focusZoneRequest }) {
     const feature = featuresMapRef.current[id];
     if (!map || !vectorSource || !feature) return;
 
-    // ✅ Si el elemento queda escondido por filtros, reset a "todo"
-    const existsInCurrentFilter = (filteredList || []).some((x) => x.id === id);
-    if (!existsInCurrentFilter) setListFilter({ kind: "all", status: null });
+    // si estaba filtrado y escondido, abrimos todo
+    const visibleInFiltered = filteredList.some((item) => item.id === id);
+    if (!visibleInFiltered) {
+      setListFilter({ kind: "all", status: null });
+    }
 
     vectorSource.getFeatures().forEach((f) => f.set("selected", f === feature));
-
-    // ✅ mostrar label encima en el mapa
-    showNameOverlayForFeature(feature);
 
     const geometry = feature.getGeometry();
     if (geometry) {
       map.getView().fit(geometry, {
         maxZoom: 19,
-        duration: 350,
-        padding: [60, 60, 60, 60],
+        duration: 400,
+        padding: [40, 40, 40, 40],
       });
     }
 
@@ -1422,9 +1531,6 @@ export default function FarmMap({ focusZoneRequest }) {
     if (feature) {
       feature.set("name", value);
       feature.set("updatedAt", t);
-
-      // ✅ si estás editando el seleccionado, actualiza label en vivo
-      if (selectedId === id) showNameOverlayForFeature(feature);
     }
 
     setFeaturesList((prev) => {
@@ -1489,10 +1595,7 @@ export default function FarmMap({ focusZoneRequest }) {
       return updated;
     });
 
-    if (selectedId === id) {
-      setSelectedId(null);
-      hideNameOverlay();
-    }
+    if (selectedId === id) setSelectedId(null);
     if (hoveredId === id) setHoveredId(null);
 
     if (componentsModalZoneId === id) closeComponentsModal();
@@ -1514,7 +1617,9 @@ export default function FarmMap({ focusZoneRequest }) {
     markDirty();
 
     const [lon, lat] = toLonLat(center);
-    scheduleAutosave(latestFeaturesListRef.current || [], { view: { center: [lon, lat], zoom } });
+    scheduleAutosave(latestFeaturesListRef.current || [], {
+      view: { center: [lon, lat], zoom },
+    });
   };
 
   const pointCount = featuresList.filter((f) => f.kind === "point").length;
@@ -1538,13 +1643,14 @@ export default function FarmMap({ focusZoneRequest }) {
     if (!focusZoneRequest || !focusZoneRequest.name) return;
     const normalized = focusZoneRequest.name.trim().toLowerCase();
 
-    const target = zonesOnly.find((z) => (z.name || "").trim().toLowerCase() === normalized);
+    const target = zonesOnly.find(
+      (z) => (z.name || "").trim().toLowerCase() === normalized
+    );
 
     if (target) {
       handleSelectFeature(target.id);
       setTimeout(() => forceMapResize(), 0);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusZoneRequest, zonesOnly]);
 
   useEffect(() => {
@@ -1575,15 +1681,27 @@ export default function FarmMap({ focusZoneRequest }) {
     <div className="farm-map-shell">
       {/* MINI-DASHBOARD DE RESUMEN */}
       <div className="farm-map-summary">
-        <FarmSummary pointCount={pointCount} isActiveFilter={isActiveFilter} onSetFilter={setListFilter} />
+        <button
+          type="button"
+          className={`summary-chip summary-btn${
+            isActiveFilter("point") ? " active" : ""
+          }`}
+          aria-pressed={isActiveFilter("point")}
+          onClick={() => handleSummaryFilter("point")}
+        >
+          <span className="summary-dot dot-point" />
+          <span className="summary-label">
+            {pointCount} {pointCount === 1 ? "punto" : "puntos"}
+          </span>
+        </button>
 
         <button
           type="button"
-          className={btnBase + (isActiveFilter("line") ? " active" : "")}
-          aria-pressed={!!isActiveFilter("line")}
-          title="Filtrar: Líneas"
-          onClick={() => toggleKind("line")}
-          style={{ cursor: "pointer" }}
+          className={`summary-chip summary-btn${
+            isActiveFilter("line") ? " active" : ""
+          }`}
+          aria-pressed={isActiveFilter("line")}
+          onClick={() => handleSummaryFilter("line")}
         >
           <span className="summary-dot dot-line" />
           <span className="summary-label">
@@ -1593,11 +1711,11 @@ export default function FarmMap({ focusZoneRequest }) {
 
         <button
           type="button"
-          className={btnBase + (isActiveFilter("polygon") && listFilter.status === null ? " active" : "")}
-          aria-pressed={isActiveFilter("polygon") && listFilter.status === null}
-          title="Filtrar: Zonas"
-          onClick={() => toggleKind("polygon")}
-          style={{ cursor: "pointer" }}
+          className={`summary-chip summary-btn${
+            isActiveFilter("polygon") ? " active" : ""
+          }`}
+          aria-pressed={isActiveFilter("polygon")}
+          onClick={() => handleSummaryFilter("polygon")}
         >
           <span className="summary-dot dot-zone" />
           <span className="summary-label">
@@ -1607,35 +1725,44 @@ export default function FarmMap({ focusZoneRequest }) {
 
         <button
           type="button"
-          className={btnBase + " summary-chip-status" + (isActiveFilter("polygon", "Operativa") ? " active" : "")}
-          aria-pressed={!!isActiveFilter("polygon", "Operativa")}
-          title="Filtrar: Zonas Operativas"
-          onClick={() => toggleZoneStatus("Operativa")}
-          style={{ cursor: "pointer" }}
+          className={`summary-chip summary-btn summary-chip-status${
+            isActiveFilter("polygon", "Operativa") ? " active" : ""
+          }`}
+          aria-pressed={isActiveFilter("polygon", "Operativa")}
+          onClick={() => handleSummaryFilter("operative")}
         >
           <span className="status-pill status-ok" />
           <span className="summary-label">
-            {statusCounts["Operativa"]} operativa{statusCounts["Operativa"] === 1 ? "" : "s"}
+            {statusCounts["Operativa"]} operativa
+            {statusCounts["Operativa"] === 1 ? "" : "s"}
           </span>
         </button>
 
         <button
           type="button"
-          className={btnBase + " summary-chip-status" + (isActiveFilter("polygon", "Prioridad alta") ? " active" : "")}
-          aria-pressed={!!isActiveFilter("polygon", "Prioridad alta")}
-          title="Filtrar: Zonas con Prioridad"
-          onClick={() => toggleZoneStatus("Prioridad alta")}
-          style={{ cursor: "pointer" }}
+          className={`summary-chip summary-btn summary-chip-status${
+            isActiveFilter("polygon", "Prioridad alta") ? " active" : ""
+          }`}
+          aria-pressed={isActiveFilter("polygon", "Prioridad alta")}
+          onClick={() => handleSummaryFilter("priority")}
         >
           <span className="status-pill status-warning" />
-          <span className="summary-label">{statusCounts["Prioridad alta"]} con prioridad</span>
+          <span className="summary-label">
+            {statusCounts["Prioridad alta"]} con prioridad
+          </span>
         </button>
       </div>
 
       {/* Toolbar */}
       <div className="farm-map-toolbar" style={{ gap: "0.75rem" }}>
-        <div className="agromind-search-wrap" style={{ position: "relative", flex: 1, maxWidth: 560 }}>
-          <form onSubmit={handleSearchSubmit} style={{ display: "flex", gap: "0.5rem" }}>
+        <div
+          className="agromind-search-wrap"
+          style={{ position: "relative", flex: 1, maxWidth: 560 }}
+        >
+          <form
+            onSubmit={handleSearchSubmit}
+            style={{ display: "flex", gap: "0.5rem" }}
+          >
             <input
               value={searchQuery}
               onChange={(e) => {
@@ -1665,7 +1792,15 @@ export default function FarmMap({ focusZoneRequest }) {
           </form>
 
           {searchError ? (
-            <div style={{ marginTop: "0.35rem", color: "#fca5a5", fontSize: "0.9rem" }}>{searchError}</div>
+            <div
+              style={{
+                marginTop: "0.35rem",
+                color: "#fca5a5",
+                fontSize: "0.9rem",
+              }}
+            >
+              {searchError}
+            </div>
           ) : null}
 
           {showResults && searchResults.length > 0 && (
@@ -1708,21 +1843,41 @@ export default function FarmMap({ focusZoneRequest }) {
         </div>
 
         <div className="farm-map-tools-left">
-          <button type="button" className={drawMode === "move" ? "tool-btn active" : "tool-btn"} onClick={() => setDrawMode("move")}>
+          <button
+            type="button"
+            className={drawMode === "move" ? "tool-btn active" : "tool-btn"}
+            onClick={() => setDrawMode("move")}
+          >
             Mover
           </button>
-          <button type="button" className={drawMode === "point" ? "tool-btn active" : "tool-btn"} onClick={() => setDrawMode("point")}>
+          <button
+            type="button"
+            className={drawMode === "point" ? "tool-btn active" : "tool-btn"}
+            onClick={() => setDrawMode("point")}
+          >
             Punto
           </button>
-          <button type="button" className={drawMode === "line" ? "tool-btn active" : "tool-btn"} onClick={() => setDrawMode("line")}>
+          <button
+            type="button"
+            className={drawMode === "line" ? "tool-btn active" : "tool-btn"}
+            onClick={() => setDrawMode("line")}
+          >
             Línea
           </button>
-          <button type="button" className={drawMode === "polygon" ? "tool-btn active" : "tool-btn"} onClick={() => setDrawMode("polygon")}>
+          <button
+            type="button"
+            className={drawMode === "polygon" ? "tool-btn active" : "tool-btn"}
+            onClick={() => setDrawMode("polygon")}
+          >
             Zona
           </button>
         </div>
 
-        <button type="button" className="primary-btn" onClick={handleSaveViewClick}>
+        <button
+          type="button"
+          className="primary-btn"
+          onClick={handleSaveViewClick}
+        >
           Usar esta vista como mi finca
         </button>
       </div>
@@ -1743,14 +1898,21 @@ export default function FarmMap({ focusZoneRequest }) {
 
           {filteredList.map((item) => {
             const isZone = item.kind === "polygon";
-            const typeLabel = item.kind === "point" ? "Punto" : item.kind === "line" ? "Línea" : "Zona";
+            const typeLabel =
+              item.kind === "point"
+                ? "Punto"
+                : item.kind === "line"
+                ? "Línea"
+                : "Zona";
 
             const rowClass =
               "farm-zones-row" +
               (selectedId === item.id ? " selected" : "") +
               (hoveredId === item.id ? " hovered" : "");
 
-            const totalComponents = Array.isArray(item.components) ? item.components.length : 0;
+            const totalComponents = Array.isArray(item.components)
+              ? item.components.length
+              : 0;
 
             return (
               <div
@@ -1761,10 +1923,15 @@ export default function FarmMap({ focusZoneRequest }) {
                 className={rowClass}
                 onClick={() => handleSelectFeature(item.id)}
                 onMouseEnter={() => setHoveredId(item.id)}
-                onMouseLeave={() => setHoveredId((prev) => (prev === item.id ? null : prev))}
+                onMouseLeave={() =>
+                  setHoveredId((prev) => (prev === item.id ? null : prev))
+                }
               >
                 <div className="zone-col zone-name">
-                  <span className="feature-color-pill" style={{ backgroundColor: item.color }} />
+                  <span
+                    className="feature-color-pill"
+                    style={{ backgroundColor: item.color }}
+                  />
                   <input
                     className="zone-name-input"
                     value={item.name}
@@ -1816,10 +1983,20 @@ export default function FarmMap({ focusZoneRequest }) {
                   )}
                 </div>
 
-                <div className="zone-col zone-components" style={{ justifyContent: "flex-end", gap: "0.5rem", flexWrap: "wrap" }}>
+                <div
+                  className="zone-col zone-components"
+                  style={{
+                    justifyContent: "flex-end",
+                    gap: "0.5rem",
+                    flexWrap: "wrap",
+                  }}
+                >
                   {isZone && (
                     <>
-                      <span className="components-summary" style={{ whiteSpace: "nowrap" }}>
+                      <span
+                        className="components-summary"
+                        style={{ whiteSpace: "nowrap" }}
+                      >
                         {totalComponents === 0
                           ? "Sin componentes"
                           : totalComponents === 1
@@ -1920,8 +2097,17 @@ export default function FarmMap({ focusZoneRequest }) {
                 gap: "10px",
               }}
             >
-              <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
-                <h4 style={{ margin: 0, color: "#e5e7eb" }}>Componentes de la zona</h4>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "10px",
+                  flexWrap: "wrap",
+                }}
+              >
+                <h4 style={{ margin: 0, color: "#e5e7eb" }}>
+                  Componentes de la zona
+                </h4>
                 <span className="zone-tag">{modalZone.name}</span>
               </div>
 
@@ -1939,7 +2125,8 @@ export default function FarmMap({ focusZoneRequest }) {
             <div style={{ padding: "14px", overflow: "auto" }}>
               {componentsDraft.length === 0 && (
                 <p className="farm-zone-components-empty" style={{ marginTop: 0 }}>
-                  Aún no has agregado componentes a esta zona. Usa el botón <strong>“Agregar componente”</strong>.
+                  Aún no has agregado componentes a esta zona. Usa el botón{" "}
+                  <strong>“Agregar componente”</strong>.
                 </p>
               )}
 
@@ -1956,21 +2143,35 @@ export default function FarmMap({ focusZoneRequest }) {
                     <div className="farm-zone-component-body">
                       <div
                         className="farm-zone-component-header"
-                        style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                        }}
                       >
-                        <span className="component-kind-badge">{comp.type || "Componente"}</span>
+                        <span className="component-kind-badge">
+                          {comp.type || "Componente"}
+                        </span>
 
-                        <button type="button" className="danger-link" onClick={() => draftDeleteComponent(comp.id)}>
+                        <button
+                          type="button"
+                          className="danger-link"
+                          onClick={() => draftDeleteComponent(comp.id)}
+                        >
                           Borrar
                         </button>
                       </div>
 
                       <div className="farm-zone-component-type-row">
-                        <label className="component-type-label">Tipo de componente</label>
+                        <label className="component-type-label">
+                          Tipo de componente
+                        </label>
                         <select
                           className="component-type-select"
                           value={comp.type || "Otro"}
-                          onChange={(e) => draftUpdate(comp.id, { type: e.target.value })}
+                          onChange={(e) =>
+                            draftUpdate(comp.id, { type: e.target.value })
+                          }
                         >
                           {COMPONENT_TYPES.map((t) => (
                             <option key={t} value={t}>
@@ -1983,7 +2184,9 @@ export default function FarmMap({ focusZoneRequest }) {
                       <input
                         className="farm-feature-input"
                         value={comp.name}
-                        onChange={(e) => draftUpdate(comp.id, { name: e.target.value })}
+                        onChange={(e) =>
+                          draftUpdate(comp.id, { name: e.target.value })
+                        }
                         placeholder="Nombre del componente (ej: Gallinero, Bebedero, Bodega)"
                       />
 
@@ -1996,7 +2199,12 @@ export default function FarmMap({ focusZoneRequest }) {
                             gap: "10px",
                           }}
                         >
-                          <span style={{ fontSize: "0.85rem", color: "rgba(226,232,240,0.85)" }}>
+                          <span
+                            style={{
+                              fontSize: "0.85rem",
+                              color: "rgba(226,232,240,0.85)",
+                            }}
+                          >
                             Nota / comentario
                           </span>
 
@@ -2015,7 +2223,9 @@ export default function FarmMap({ focusZoneRequest }) {
                           <textarea
                             className="farm-feature-textarea"
                             value={comp.note}
-                            onChange={(e) => draftUpdate(comp.id, { note: e.target.value })}
+                            onChange={(e) =>
+                              draftUpdate(comp.id, { note: e.target.value })
+                            }
                             placeholder="Notas / detalles (ej: revisar techo, cambiar malla, etc.)"
                             rows={3}
                           />
@@ -2027,11 +2237,15 @@ export default function FarmMap({ focusZoneRequest }) {
                               borderRadius: "12px",
                               border: "1px solid rgba(148,163,184,0.18)",
                               background: "rgba(2,6,23,0.35)",
-                              color: noteText ? "#e5e7eb" : "rgba(226,232,240,0.55)",
+                              color: noteText
+                                ? "#e5e7eb"
+                                : "rgba(226,232,240,0.55)",
                               whiteSpace: "pre-wrap",
                             }}
                           >
-                            {noteText ? noteText : "Sin nota. Tocá ✏️ para agregar una."}
+                            {noteText
+                              ? noteText
+                              : "Sin nota. Tocá ✏️ para agregar una."}
                           </div>
                         )}
                       </div>
@@ -2052,21 +2266,51 @@ export default function FarmMap({ focusZoneRequest }) {
                 flexWrap: "wrap",
               }}
             >
-              <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
-                <button type="button" className="primary-btn" onClick={draftAddComponent}>
+              <div
+                style={{
+                  display: "flex",
+                  gap: "10px",
+                  alignItems: "center",
+                  flexWrap: "wrap",
+                }}
+              >
+                <button
+                  type="button"
+                  className="primary-btn"
+                  onClick={draftAddComponent}
+                >
                   Agregar componente
                 </button>
 
-                <button type="button" className="danger-link" onClick={() => handleDeleteFeature(modalZone.id)}>
+                <button
+                  type="button"
+                  className="danger-link"
+                  onClick={() => handleDeleteFeature(modalZone.id)}
+                >
                   Borrar zona
                 </button>
               </div>
 
-              <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
-                <button type="button" className="secondary-btn" onClick={closeComponentsModal}>
+              <div
+                style={{
+                  display: "flex",
+                  gap: "10px",
+                  alignItems: "center",
+                  flexWrap: "wrap",
+                }}
+              >
+                <button
+                  type="button"
+                  className="secondary-btn"
+                  onClick={closeComponentsModal}
+                >
                   Cancelar
                 </button>
-                <button type="button" className="primary-btn" onClick={saveComponentsModal}>
+                <button
+                  type="button"
+                  className="primary-btn"
+                  onClick={saveComponentsModal}
+                >
                   Guardar
                 </button>
               </div>
