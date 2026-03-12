@@ -429,6 +429,7 @@
   margin-bottom: 16px;
   font-weight: 600;
 }
+
 /* =====================================================
    IA SUGGESTIONS — carrusel horizontal (scroll →)
 ===================================================== */
@@ -470,6 +471,7 @@
     max-width: 85%;
   }
 }
+
 /* =====================================================
    OVERRIDE FINAL: carrusel IA (no columna)
    ===================================================== */
@@ -486,7 +488,9 @@
 }
 .ai-suggestions-list.ai-suggestions-row .ai-suggestion-actions {
   justify-content: flex-end;
-}/* ===== HOTFIX: tabla de tareas más pro y legible ===== */
+}
+
+/* ===== HOTFIX: tabla de tareas más pro y legible ===== */
 .data-table {
   width: 100%;
   border-collapse: separate;
@@ -605,6 +609,7 @@
     white-space: normal;
   }
 }
+
 /* ===== UPGRADE PRO: tabla tipo SaaS (más limpia, más jerarquía) ===== */
 
 /* Contenedor: evita que se rompa en pantallas pequeñas */
@@ -706,5 +711,180 @@
 @media (max-width: 1100px) {
   .task-actions {
     justify-content: flex-start;
+  }
+}
+
+/* =====================================================
+   FULLCALENDAR MOBILE FIX — toolbar ordenada
+   ===================================================== */
+
+.tasks-calendar .fc {
+  color: #e5e7eb;
+}
+
+.tasks-calendar .fc .fc-toolbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.tasks-calendar .fc .fc-toolbar-title {
+  font-size: 2rem;
+  line-height: 1.05;
+  font-weight: 700;
+  color: #e5e7eb;
+}
+
+.tasks-calendar .fc .fc-button {
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: rgba(51, 65, 85, 0.92);
+  color: #e5e7eb;
+  box-shadow: none;
+  text-transform: none;
+}
+
+.tasks-calendar .fc .fc-button:hover {
+  background: rgba(71, 85, 105, 0.98);
+}
+
+.tasks-calendar .fc .fc-button:focus,
+.tasks-calendar .fc .fc-button:active {
+  box-shadow: none;
+}
+
+.tasks-calendar .fc .fc-button-primary:not(:disabled).fc-button-active,
+.tasks-calendar .fc .fc-button-primary:not(:disabled):active {
+  background: rgba(100, 116, 139, 0.98);
+  border-color: rgba(148, 163, 184, 0.3);
+}
+
+.tasks-calendar .fc .fc-toolbar-chunk {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.tasks-calendar .fc .fc-button-group {
+  display: inline-flex;
+  flex-wrap: wrap;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.tasks-calendar .fc .fc-daygrid-event {
+  border: none;
+  border-radius: 8px;
+}
+
+.tasks-calendar .fc .fc-event {
+  font-size: 0.8rem;
+}
+
+/* ===== TABLET / MOBILE ===== */
+@media (max-width: 768px) {
+  .tasks-calendar {
+    margin-top: 28px;
+    padding: 16px;
+    border-radius: 14px;
+    overflow: hidden;
+  }
+
+  .tasks-calendar .fc .fc-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.9rem;
+  }
+
+  .tasks-calendar .fc .fc-toolbar-chunk {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .tasks-calendar .fc .fc-toolbar-title {
+    font-size: 1.45rem;
+    line-height: 1.1;
+    word-break: break-word;
+  }
+
+  .tasks-calendar .fc .fc-button-group {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.45rem;
+    overflow: visible;
+    border-radius: 0;
+  }
+
+  .tasks-calendar .fc .fc-button-group .fc-button {
+    border-radius: 12px !important;
+  }
+
+  .tasks-calendar .fc .fc-button {
+    min-height: 42px;
+    padding: 0.55rem 0.7rem;
+    font-size: 0.9rem;
+  }
+
+  .tasks-calendar .fc .fc-prev-button,
+  .tasks-calendar .fc .fc-next-button,
+  .tasks-calendar .fc .fc-today-button {
+    min-width: 64px;
+  }
+
+  .tasks-calendar .fc .fc-daygrid-day-number {
+    font-size: 0.85rem;
+  }
+
+  .tasks-calendar .fc .fc-col-header-cell-cushion {
+    font-size: 0.78rem;
+  }
+}
+
+/* ===== iPhone angosto ===== */
+@media (max-width: 520px) {
+  .tasks-calendar {
+    padding: 14px 10px;
+  }
+
+  .tasks-calendar .fc .fc-toolbar-title {
+    font-size: 1.2rem;
+  }
+
+  .tasks-calendar .fc .fc-toolbar-chunk:first-child {
+    order: 1;
+  }
+
+  .tasks-calendar .fc .fc-toolbar-chunk:nth-child(2) {
+    order: 2;
+  }
+
+  .tasks-calendar .fc .fc-toolbar-chunk:last-child {
+    order: 3;
+  }
+
+  .tasks-calendar .fc .fc-button-group {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .tasks-calendar .fc .fc-button {
+    font-size: 0.82rem;
+    min-height: 40px;
+    padding: 0.5rem 0.55rem;
+  }
+
+  .tasks-calendar .fc .fc-view-harness {
+    min-height: 520px;
+  }
+
+  .tasks-calendar .fc .fc-daygrid-event-harness {
+    margin-top: 2px;
+  }
+
+  .tasks-calendar .fc .fc-event {
+    font-size: 0.72rem;
   }
 }
