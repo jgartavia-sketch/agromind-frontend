@@ -161,6 +161,7 @@
 .amount-expense {
   color: #f97316;
 }
+
 .page-header-actions {
   display: flex;
   justify-content: space-between;
@@ -168,33 +169,256 @@
   gap: 1rem;
 }
 
+/* =========================
+   MODAL
+========================= */
+
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(4px);
   display: flex;
   justify-content: center;
   align-items: center;
   z-index: 50;
+  padding: 16px;
 }
 
 .modal-card {
-  background: var(--card-bg, #fff);
+  background: linear-gradient(
+    160deg,
+    rgba(10, 18, 35, 0.97),
+    rgba(2, 6, 23, 0.98)
+  );
+  color: #e5e7eb;
   padding: 1.5rem;
-  border-radius: 12px;
+  border-radius: 18px;
   width: 100%;
   max-width: 420px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.45);
 }
 
 .modal-form label {
   display: flex;
   flex-direction: column;
-  gap: 0.3rem;
-  margin-bottom: 0.8rem;
+  gap: 0.35rem;
+  margin-bottom: 0.9rem;
+  color: #cbd5e1;
+  font-size: 0.85rem;
 }
 
 .modal-actions {
   display: flex;
   justify-content: flex-end;
   gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+/* =========================
+   INPUTS / SELECTS / TEXTAREAS
+========================= */
+
+.finance-page input,
+.finance-page select,
+.finance-page textarea,
+.modal-card input,
+.modal-card select,
+.modal-card textarea {
+  width: 100%;
+  background: rgba(2, 6, 23, 0.92);
+  color: #e5e7eb;
+  border: 1px solid rgba(100, 116, 139, 0.65);
+  border-radius: 12px;
+  padding: 0.72rem 0.85rem;
+  font-size: 0.92rem;
+  line-height: 1.25;
+  box-sizing: border-box;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+}
+
+.finance-page input::placeholder,
+.finance-page textarea::placeholder,
+.modal-card input::placeholder,
+.modal-card textarea::placeholder {
+  color: #94a3b8;
+}
+
+.finance-page input:hover,
+.finance-page select:hover,
+.finance-page textarea:hover,
+.modal-card input:hover,
+.modal-card select:hover,
+.modal-card textarea:hover {
+  border-color: rgba(34, 197, 94, 0.38);
+  background: rgba(3, 11, 27, 0.96);
+}
+
+.finance-page input:focus,
+.finance-page select:focus,
+.finance-page textarea:focus,
+.modal-card input:focus,
+.modal-card select:focus,
+.modal-card textarea:focus {
+  border-color: #22c55e;
+  box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.24),
+    0 0 0 4px rgba(34, 197, 94, 0.08);
+}
+
+.finance-page select,
+.modal-card select {
+  padding-right: 2.5rem;
+  cursor: pointer;
+  background-image:
+    linear-gradient(45deg, transparent 50%, #94a3b8 50%),
+    linear-gradient(135deg, #94a3b8 50%, transparent 50%);
+  background-position:
+    calc(100% - 18px) calc(50% - 3px),
+    calc(100% - 12px) calc(50% - 3px);
+  background-size: 6px 6px, 6px 6px;
+  background-repeat: no-repeat;
+}
+
+.finance-page select option,
+.modal-card select option {
+  background: #020617;
+  color: #e5e7eb;
+}
+
+/* =========================
+   ACTIVOS
+========================= */
+
+.assets-section,
+.finance-assets-section {
+  background: linear-gradient(
+    160deg,
+    rgba(15, 23, 42, 0.86),
+    rgba(2, 6, 23, 0.96)
+  );
+  border-radius: 1.25rem;
+  padding: 1.25rem;
+  border: 1px solid rgba(30, 64, 175, 0.35);
+  box-shadow: 0 25px 70px rgba(2, 6, 23, 0.8);
+}
+
+.assets-section h3,
+.finance-assets-section h3 {
+  margin: 0 0 0.35rem;
+  color: #e5e7eb;
+}
+
+.assets-section p,
+.finance-assets-section p {
+  margin: 0 0 1rem;
+  color: #9ca3af;
+}
+
+/* Formularios de activos más cómodos */
+.assets-form,
+.finance-assets-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.9rem;
+  align-items: end;
+}
+
+/* Tarjetas/lista de activos */
+.asset-card,
+.finance-asset-card {
+  background: linear-gradient(
+    180deg,
+    rgba(22, 31, 55, 0.92),
+    rgba(11, 17, 32, 0.96)
+  );
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 16px;
+  padding: 1rem 1.1rem;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.22);
+  color: #e5e7eb;
+}
+
+/* =========================
+   BOTONES GENERALES DE FINANZAS
+========================= */
+
+.finance-page button:not(.type-pill),
+.modal-card button {
+  transition: transform 0.12s ease, opacity 0.12s ease;
+}
+
+.finance-page button:not(.type-pill):hover,
+.modal-card button:hover {
+  transform: translateY(-1px);
+}
+
+/* =========================
+   RESPONSIVE
+========================= */
+
+@media (max-width: 900px) {
+  .finance-page {
+    padding: 2rem 1rem;
+  }
+
+  .finance-container {
+    gap: 2rem;
+  }
+
+  .page-header-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .finance-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .filters-bar {
+    grid-template-columns: 1fr;
+  }
+
+  .finance-table,
+  .finance-ia-section,
+  .assets-section,
+  .finance-assets-section {
+    padding: 1rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .finance-page {
+    padding: 1.25rem 0.85rem;
+  }
+
+  .modal-overlay {
+    align-items: flex-end;
+    padding: 10px;
+  }
+
+  .modal-card {
+    max-width: 100%;
+    border-radius: 18px 18px 14px 14px;
+    padding: 1rem;
+  }
+
+  .assets-form,
+  .finance-assets-form {
+    grid-template-columns: 1fr;
+  }
+
+  .finance-page input,
+  .finance-page select,
+  .finance-page textarea,
+  .modal-card input,
+  .modal-card select,
+  .modal-card textarea {
+    min-height: 44px;
+    font-size: 0.9rem;
+  }
 }
