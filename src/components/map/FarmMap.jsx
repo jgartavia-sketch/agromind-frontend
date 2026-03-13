@@ -25,13 +25,12 @@ import Point from "ol/geom/Point";
 import LineString from "ol/geom/LineString";
 import Polygon from "ol/geom/Polygon";
 
-// ✅ Modal externo
 import ZoneReportModal from "./ZoneReportModal";
 
 // Claves de localStorage (fallback / cache)
 const VIEW_KEY = "agromind_farm_view";
 const DRAWINGS_KEY = "agromind_farm_drawings";
-const ACTIVE_FARM_KEY = "agromind_active_farm_id"; // ✅ finca activa global
+const ACTIVE_FARM_KEY = "agromind_active_farm_id";
 
 // Paletas de colores
 const POINT_COLORS = ["#f97316", "#22c55e", "#38bdf8", "#eab308", "#ec4899"];
@@ -49,6 +48,16 @@ const COMPONENT_TYPES = [
   "Pasillo",
   "Área de descanso",
   "Otro",
+];
+
+const PROCESS_STATUSES = [
+  "Borrador",
+  "Listo para iniciar",
+  "En curso",
+  "En pausa",
+  "Bloqueado",
+  "Completado",
+  "Cancelado",
 ];
 
 function nowIso() {
@@ -83,9 +92,6 @@ function generateName(kind, countersRef) {
   return `Zona ${next}`;
 }
 
-/**
- * 🔐 Token helper
- */
 function getAuthToken() {
   return (
     localStorage.getItem("agromind_token") ||
@@ -97,9 +103,6 @@ function getAuthToken() {
   );
 }
 
-/**
- * 🌐 API base
- */
 const API_BASE =
   import.meta.env.VITE_API_URL || "https://agromind-backend-slem.onrender.com";
 
@@ -156,13 +159,9 @@ export default function FarmMap({ focusZoneRequest }) {
   const drawInteractionRef = useRef(null);
   const vectorLayerRef = useRef(null);
 
-  // id -> Feature del mapa
   const featuresMapRef = useRef({});
-
-  // refs para autoscroll a fila seleccionada
   const rowRefs = useRef({});
 
-  // Lista de negocio: puntos, líneas y zonas
   const [featuresList, setFeaturesList] = useState([]);
   const latestFeaturesListRef = useRef([]);
   useEffect(() => {
@@ -171,8 +170,6 @@ export default function FarmMap({ focusZoneRequest }) {
 
   const [drawMode, setDrawMode] = useState("move");
   const [selectedId, setSelectedId] = useState(null);
-
-  // Para hover bidireccional
   const [hoveredId, setHoveredId] = useState(null);
 
   const countersRef = useRef({ point: 0, line: 0, polygon: 0 });
@@ -180,15 +177,12 @@ export default function FarmMap({ focusZoneRequest }) {
 
   const apiKey = import.meta.env.VITE_MAPTILER_KEY;
 
-  // Backend state
   const [mapReady, setMapReady] = useState(false);
   const [activeFarmId, setActiveFarmId] = useState(null);
   const [backendOnline, setBackendOnline] = useState(true);
 
-  // Debounce autosave
   const autosaveTimerRef = useRef(null);
 
-  // ✅ Blindaje anti-wipe
   const loadedOnceRef = useRef(false);
   const dirtyRef = useRef(false);
 
@@ -197,7 +191,7 @@ export default function FarmMap({ focusZoneRequest }) {
   };
 
   // =========================
-  // 🔎 BUSCADOR MANUAL (Geocoding)
+  // 🔎 BUSCADOR MANUAL
   // =========================
   const [searchQuery, setSearchQuery] = useState("");
   const [searchLoading, setSearchLoading] = useState(false);
@@ -292,15 +286,51 @@ export default function FarmMap({ focusZoneRequest }) {
   };
 
   // =========================
-  // ✅ MODAL COMPONENTES
+  // ✅ MODAL COMPONENTES + PROCESOS
   // =========================
   const [componentsModalOpen, setComponentsModalOpen] = useState(false);
   const [componentsModalZoneId, setComponentsModalZoneId] = useState(null);
   const [componentsDraft, setComponentsDraft] = useState([]);
   const [editingNotesMap, setEditingNotesMap] = useState({});
 
+  const [zoneProcesses, setZoneProcesses] = useState([]);
+  const [processesLoading, setProcessesLoading] = useState(false);
+  const [processesError, setProcessesError] = useState("");
+  const [newProcessName, setNewProcessName] = useState("");
+  const [newProcessDescription, setNewProcessDescription] = useState("");
+  const [creatingProcess, setCreatingProcess] = useState(false);
+  const [newStepNameByProcess, setNewStepNameByProcess] = useState({});
+  const [processBusyMap, setProcessBusyMap] = useState({});
+
   const modalZone =
     componentsModalZoneId && zonesOnly.find((z) => z.id === componentsModalZoneId);
+
+  const setProcessBusy = (key, value) => {
+    setProcessBusyMap((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const loadZoneProcesses = async (zoneId) => {
+    if (!zoneId) {
+      setZoneProcesses([]);
+      return;
+    }
+
+    try {
+      setProcessesLoading(true);
+      setProcessesError("");
+
+      const data = await apiFetch(`/api/processes/zone/${zoneId}`, {
+        method: "GET",
+      });
+
+      setZoneProcesses(Array.isArray(data) ? data : []);
+    } catch (err) {
+      setZoneProcesses([]);
+      setProcessesError(err?.message || "No se pudieron cargar los procesos.");
+    } finally {
+      setProcessesLoading(false);
+    }
+  };
 
   const openComponentsModal = (zoneId) => {
     const zone = zonesOnly.find((z) => z.id === zoneId);
@@ -329,9 +359,18 @@ export default function FarmMap({ focusZoneRequest }) {
     setComponentsModalZoneId(zoneId);
     setComponentsDraft(cloned);
     setEditingNotesMap({});
+    setZoneProcesses([]);
+    setProcessesError("");
+    setNewProcessName("");
+    setNewProcessDescription("");
+    setNewStepNameByProcess({});
+    setProcessBusyMap({});
     setComponentsModalOpen(true);
 
-    setTimeout(() => forceMapResize(), 0);
+    setTimeout(() => {
+      forceMapResize();
+      loadZoneProcesses(zoneId);
+    }, 0);
   };
 
   const closeComponentsModal = () => {
@@ -340,6 +379,12 @@ export default function FarmMap({ focusZoneRequest }) {
       setComponentsModalZoneId(null);
       setComponentsDraft([]);
       setEditingNotesMap({});
+      setZoneProcesses([]);
+      setProcessesError("");
+      setNewProcessName("");
+      setNewProcessDescription("");
+      setNewStepNameByProcess({});
+      setProcessBusyMap({});
     }, 0);
   };
 
@@ -422,6 +467,99 @@ export default function FarmMap({ focusZoneRequest }) {
 
   const toggleEditNote = (compId) => {
     setEditingNotesMap((prev) => ({ ...(prev || {}), [compId]: !prev?.[compId] }));
+  };
+
+  const handleCreateProcess = async () => {
+    if (!modalZone?.id) return;
+
+    const trimmedName = newProcessName.trim();
+    if (!trimmedName) {
+      window.alert("Ponle nombre al proceso.");
+      return;
+    }
+
+    try {
+      setCreatingProcess(true);
+      setProcessesError("");
+
+      await apiFetch("/api/processes", {
+        method: "POST",
+        body: JSON.stringify({
+          zoneId: modalZone.id,
+          name: trimmedName,
+          description: newProcessDescription.trim(),
+          type: "General",
+          status: "Borrador",
+        }),
+      });
+
+      setNewProcessName("");
+      setNewProcessDescription("");
+      await loadZoneProcesses(modalZone.id);
+    } catch (err) {
+      setProcessesError(err?.message || "No se pudo crear el proceso.");
+    } finally {
+      setCreatingProcess(false);
+    }
+  };
+
+  const handleDeleteProcess = async (processId) => {
+    if (!modalZone?.id || !processId) return;
+
+    const ok = window.confirm(
+      "¿Borrar este proceso? Esta acción eliminará también sus etapas."
+    );
+    if (!ok) return;
+
+    const busyKey = `delete-process-${processId}`;
+
+    try {
+      setProcessBusy(busyKey, true);
+      setProcessesError("");
+
+      await apiFetch(`/api/processes/${processId}`, {
+        method: "DELETE",
+      });
+
+      await loadZoneProcesses(modalZone.id);
+    } catch (err) {
+      setProcessesError(err?.message || "No se pudo borrar el proceso.");
+    } finally {
+      setProcessBusy(busyKey, false);
+    }
+  };
+
+  const handleQuickAddStep = async (processId) => {
+    if (!modalZone?.id || !processId) return;
+
+    const raw = newStepNameByProcess?.[processId] || "";
+    const trimmed = raw.trim();
+    if (!trimmed) {
+      window.alert("Escribe el nombre de la etapa.");
+      return;
+    }
+
+    const busyKey = `create-step-${processId}`;
+
+    try {
+      setProcessBusy(busyKey, true);
+      setProcessesError("");
+
+      await apiFetch("/api/processes/step", {
+        method: "POST",
+        body: JSON.stringify({
+          processId,
+          name: trimmed,
+        }),
+      });
+
+      setNewStepNameByProcess((prev) => ({ ...prev, [processId]: "" }));
+      await loadZoneProcesses(modalZone.id);
+    } catch (err) {
+      setProcessesError(err?.message || "No se pudo crear la etapa.");
+    } finally {
+      setProcessBusy(busyKey, false);
+    }
   };
 
   // =========================
@@ -958,7 +1096,7 @@ export default function FarmMap({ focusZoneRequest }) {
   };
 
   // =========================
-  // 🔎 Geocoding (MapTiler)
+  // 🔎 Geocoding
   // =========================
   const geocodeSearch = async (q, signal) => {
     if (!apiKey || apiKey === "TU_API_KEY_AQUI") {
@@ -1188,7 +1326,6 @@ export default function FarmMap({ focusZoneRequest }) {
       mapInstanceRef.current = map;
       forceMapResize();
 
-      // Fallback local drawings (cache)
       try {
         const savedDrawings = localStorage.getItem(DRAWINGS_KEY);
         if (savedDrawings) {
@@ -1352,9 +1489,7 @@ export default function FarmMap({ focusZoneRequest }) {
         } else {
           const vectorSourceLocal = vectorSourceRef.current;
           if (vectorSourceLocal) {
-            vectorSourceLocal
-              .getFeatures()
-              .forEach((f) => f.set("selected", false));
+            vectorSourceLocal.getFeatures().forEach((f) => f.set("selected", false));
           }
           setSelectedId(null);
         }
@@ -1391,13 +1526,11 @@ export default function FarmMap({ focusZoneRequest }) {
     });
   }, [hoveredId]);
 
-  // refresca el layer para que el nombre seleccionado se pinte al vuelo
   useEffect(() => {
     const layer = vectorLayerRef.current;
     if (layer) layer.changed();
   }, [selectedId, hoveredId, featuresList]);
 
-  // autoscroll a la fila seleccionada
   useEffect(() => {
     if (!selectedId) return;
     const row = rowRefs.current[selectedId];
@@ -1503,7 +1636,6 @@ export default function FarmMap({ focusZoneRequest }) {
     const feature = featuresMapRef.current[id];
     if (!map || !vectorSource || !feature) return;
 
-    // si estaba filtrado y escondido, abrimos todo
     const visibleInFiltered = filteredList.some((item) => item.id === id);
     if (!visibleInFiltered) {
       setListFilter({ kind: "all", status: null });
@@ -1679,7 +1811,6 @@ export default function FarmMap({ focusZoneRequest }) {
 
   return (
     <div className="farm-map-shell">
-      {/* MINI-DASHBOARD DE RESUMEN */}
       <div className="farm-map-summary">
         <button
           type="button"
@@ -1753,7 +1884,6 @@ export default function FarmMap({ focusZoneRequest }) {
         </button>
       </div>
 
-      {/* Toolbar */}
       <div className="farm-map-toolbar" style={{ gap: "0.75rem" }}>
         <div
           className="agromind-search-wrap"
@@ -1886,7 +2016,6 @@ export default function FarmMap({ focusZoneRequest }) {
         <div ref={mapRef} className="farm-map" />
       </div>
 
-      {/* TABLA */}
       {filteredList.length > 0 && (
         <div className="farm-zones-table-wrapper">
           <div className="farm-zones-header-row">
@@ -2045,9 +2174,6 @@ export default function FarmMap({ focusZoneRequest }) {
         </div>
       )}
 
-      {/* =========================
-          ✅ MODAL POP-UP COMPONENTES
-         ========================= */}
       {componentsModalOpen && modalZone && (
         <div
           role="dialog"
@@ -2076,8 +2202,8 @@ export default function FarmMap({ focusZoneRequest }) {
             onClick={(e) => e.stopPropagation()}
             style={{
               position: "relative",
-              width: "min(880px, 100%)",
-              maxHeight: "min(78vh, 760px)",
+              width: "min(920px, 100%)",
+              maxHeight: "min(84vh, 820px)",
               background: "rgba(2,6,23,0.96)",
               border: "1px solid rgba(148,163,184,0.22)",
               borderRadius: "18px",
@@ -2123,6 +2249,400 @@ export default function FarmMap({ focusZoneRequest }) {
             </div>
 
             <div style={{ padding: "14px", overflow: "auto" }}>
+              {/* =========================
+                  PROCESOS DE LA ZONA
+                 ========================= */}
+              <div
+                style={{
+                  marginBottom: "18px",
+                  padding: "14px",
+                  borderRadius: "16px",
+                  border: "1px solid rgba(34,197,94,0.16)",
+                  background:
+                    "linear-gradient(180deg, rgba(6,18,38,0.92) 0%, rgba(3,10,24,0.96) 100%)",
+                  boxShadow: "0 12px 26px rgba(0,0,0,0.24)",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: "10px",
+                    flexWrap: "wrap",
+                    marginBottom: "10px",
+                  }}
+                >
+                  <div>
+                    <h5 style={{ margin: 0, color: "#e5e7eb", fontSize: "1rem" }}>
+                      Procesos de la zona
+                    </h5>
+                    <p
+                      style={{
+                        margin: "4px 0 0 0",
+                        color: "rgba(226,232,240,0.7)",
+                        fontSize: "0.83rem",
+                      }}
+                    >
+                      Aquí vive el motor operativo de esta zona.
+                    </p>
+                  </div>
+
+                  <span
+                    style={{
+                      padding: "0.22rem 0.6rem",
+                      borderRadius: "999px",
+                      border: "1px solid rgba(34,197,94,0.22)",
+                      background: "rgba(34,197,94,0.08)",
+                      color: "#bbf7d0",
+                      fontSize: "0.72rem",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {zoneProcesses.length}{" "}
+                    {zoneProcesses.length === 1 ? "proceso" : "procesos"}
+                  </span>
+                </div>
+
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1.2fr 1.4fr auto",
+                    gap: "10px",
+                    alignItems: "end",
+                    marginBottom: "12px",
+                  }}
+                >
+                  <div>
+                    <label
+                      style={{
+                        display: "block",
+                        fontSize: "0.78rem",
+                        color: "rgba(226,232,240,0.8)",
+                        marginBottom: "4px",
+                      }}
+                    >
+                      Nombre del proceso
+                    </label>
+                    <input
+                      className="farm-feature-input"
+                      value={newProcessName}
+                      onChange={(e) => setNewProcessName(e.target.value)}
+                      placeholder="Ej: Producción de tierra abonada"
+                    />
+                  </div>
+
+                  <div>
+                    <label
+                      style={{
+                        display: "block",
+                        fontSize: "0.78rem",
+                        color: "rgba(226,232,240,0.8)",
+                        marginBottom: "4px",
+                      }}
+                    >
+                      Objetivo / descripción breve
+                    </label>
+                    <input
+                      className="farm-feature-input"
+                      value={newProcessDescription}
+                      onChange={(e) => setNewProcessDescription(e.target.value)}
+                      placeholder="Qué se busca lograr en esta zona"
+                    />
+                  </div>
+
+                  <button
+                    type="button"
+                    className="primary-btn"
+                    onClick={handleCreateProcess}
+                    disabled={creatingProcess}
+                    style={{ minHeight: "42px" }}
+                  >
+                    {creatingProcess ? "Creando..." : "Nuevo proceso"}
+                  </button>
+                </div>
+
+                {processesError ? (
+                  <div
+                    style={{
+                      marginBottom: "10px",
+                      color: "#fca5a5",
+                      fontSize: "0.84rem",
+                    }}
+                  >
+                    {processesError}
+                  </div>
+                ) : null}
+
+                {processesLoading ? (
+                  <div
+                    style={{
+                      color: "rgba(226,232,240,0.72)",
+                      fontSize: "0.86rem",
+                    }}
+                  >
+                    Cargando procesos...
+                  </div>
+                ) : zoneProcesses.length === 0 ? (
+                  <div
+                    style={{
+                      padding: "12px",
+                      borderRadius: "12px",
+                      border: "1px dashed rgba(148,163,184,0.22)",
+                      color: "rgba(226,232,240,0.7)",
+                      fontSize: "0.86rem",
+                    }}
+                  >
+                    Esta zona todavía no tiene procesos. Crea el primero y empecemos a operar en serio.
+                  </div>
+                ) : (
+                  <div style={{ display: "grid", gap: "12px" }}>
+                    {zoneProcesses.map((process) => {
+                      const steps = Array.isArray(process.steps) ? process.steps : [];
+                      const busyDelete =
+                        processBusyMap[`delete-process-${process.id}`] === true;
+                      const busyCreateStep =
+                        processBusyMap[`create-step-${process.id}`] === true;
+
+                      return (
+                        <div
+                          key={process.id}
+                          style={{
+                            borderRadius: "14px",
+                            border: "1px solid rgba(148,163,184,0.16)",
+                            background: "rgba(15,23,42,0.55)",
+                            padding: "12px",
+                          }}
+                        >
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "flex-start",
+                              justifyContent: "space-between",
+                              gap: "10px",
+                              flexWrap: "wrap",
+                              marginBottom: "10px",
+                            }}
+                          >
+                            <div style={{ minWidth: 0 }}>
+                              <div
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: "8px",
+                                  flexWrap: "wrap",
+                                  marginBottom: "4px",
+                                }}
+                              >
+                                <strong style={{ color: "#e5e7eb" }}>
+                                  {process.name}
+                                </strong>
+
+                                <span
+                                  style={{
+                                    padding: "0.18rem 0.55rem",
+                                    borderRadius: "999px",
+                                    border: "1px solid rgba(148,163,184,0.18)",
+                                    background: "rgba(2,6,23,0.45)",
+                                    color: "rgba(226,232,240,0.82)",
+                                    fontSize: "0.72rem",
+                                    whiteSpace: "nowrap",
+                                  }}
+                                >
+                                  {process.status || "Borrador"}
+                                </span>
+
+                                <span
+                                  style={{
+                                    padding: "0.18rem 0.55rem",
+                                    borderRadius: "999px",
+                                    border: "1px solid rgba(34,197,94,0.18)",
+                                    background: "rgba(34,197,94,0.08)",
+                                    color: "#bbf7d0",
+                                    fontSize: "0.72rem",
+                                    whiteSpace: "nowrap",
+                                  }}
+                                >
+                                  {steps.length} {steps.length === 1 ? "etapa" : "etapas"}
+                                </span>
+                              </div>
+
+                              {process.description ? (
+                                <div
+                                  style={{
+                                    color: "rgba(226,232,240,0.74)",
+                                    fontSize: "0.83rem",
+                                  }}
+                                >
+                                  {process.description}
+                                </div>
+                              ) : null}
+                            </div>
+
+                            <button
+                              type="button"
+                              className="danger-link"
+                              onClick={() => handleDeleteProcess(process.id)}
+                              disabled={busyDelete}
+                              style={{
+                                opacity: busyDelete ? 0.6 : 1,
+                                cursor: busyDelete ? "not-allowed" : "pointer",
+                              }}
+                            >
+                              {busyDelete ? "Borrando..." : "Borrar"}
+                            </button>
+                          </div>
+
+                          <div
+                            style={{
+                              display: "grid",
+                              gridTemplateColumns: "1fr auto",
+                              gap: "10px",
+                              alignItems: "end",
+                              marginBottom: "10px",
+                            }}
+                          >
+                            <div>
+                              <label
+                                style={{
+                                  display: "block",
+                                  fontSize: "0.77rem",
+                                  color: "rgba(226,232,240,0.78)",
+                                  marginBottom: "4px",
+                                }}
+                              >
+                                Agregar etapa rápida
+                              </label>
+                              <input
+                                className="farm-feature-input"
+                                value={newStepNameByProcess?.[process.id] || ""}
+                                onChange={(e) =>
+                                  setNewStepNameByProcess((prev) => ({
+                                    ...prev,
+                                    [process.id]: e.target.value,
+                                  }))
+                                }
+                                placeholder="Ej: Recolección de materiales"
+                              />
+                            </div>
+
+                            <button
+                              type="button"
+                              className="secondary-btn"
+                              onClick={() => handleQuickAddStep(process.id)}
+                              disabled={busyCreateStep}
+                              style={{ minHeight: "42px" }}
+                            >
+                              {busyCreateStep ? "Agregando..." : "Agregar etapa"}
+                            </button>
+                          </div>
+
+                          {steps.length === 0 ? (
+                            <div
+                              style={{
+                                padding: "10px 12px",
+                                borderRadius: "12px",
+                                border: "1px dashed rgba(148,163,184,0.18)",
+                                color: "rgba(226,232,240,0.64)",
+                                fontSize: "0.82rem",
+                              }}
+                            >
+                              Este proceso aún no tiene etapas.
+                            </div>
+                          ) : (
+                            <div style={{ display: "grid", gap: "8px" }}>
+                              {steps.map((step) => (
+                                <div
+                                  key={step.id}
+                                  style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "space-between",
+                                    gap: "10px",
+                                    flexWrap: "wrap",
+                                    padding: "10px 12px",
+                                    borderRadius: "12px",
+                                    background: "rgba(2,6,23,0.42)",
+                                    border: "1px solid rgba(148,163,184,0.12)",
+                                  }}
+                                >
+                                  <div style={{ minWidth: 0 }}>
+                                    <div
+                                      style={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        gap: "8px",
+                                        flexWrap: "wrap",
+                                      }}
+                                    >
+                                      <span
+                                        style={{
+                                          width: "24px",
+                                          height: "24px",
+                                          borderRadius: "999px",
+                                          display: "inline-flex",
+                                          alignItems: "center",
+                                          justifyContent: "center",
+                                          background: "rgba(34,197,94,0.12)",
+                                          border: "1px solid rgba(34,197,94,0.2)",
+                                          color: "#bbf7d0",
+                                          fontSize: "0.74rem",
+                                          fontWeight: 700,
+                                        }}
+                                      >
+                                        {step.stepOrder}
+                                      </span>
+
+                                      <strong
+                                        style={{
+                                          color: "#e5e7eb",
+                                          fontSize: "0.88rem",
+                                        }}
+                                      >
+                                        {step.name}
+                                      </strong>
+                                    </div>
+
+                                    {step.description ? (
+                                      <div
+                                        style={{
+                                          marginTop: "4px",
+                                          color: "rgba(226,232,240,0.7)",
+                                          fontSize: "0.8rem",
+                                        }}
+                                      >
+                                        {step.description}
+                                      </div>
+                                    ) : null}
+                                  </div>
+
+                                  <span
+                                    style={{
+                                      padding: "0.2rem 0.55rem",
+                                      borderRadius: "999px",
+                                      border: "1px solid rgba(148,163,184,0.18)",
+                                      background: "rgba(15,23,42,0.72)",
+                                      color: "rgba(226,232,240,0.82)",
+                                      fontSize: "0.72rem",
+                                      whiteSpace: "nowrap",
+                                    }}
+                                  >
+                                    {step.status || "Pendiente"}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* =========================
+                  COMPONENTES DE LA ZONA
+                 ========================= */}
               {componentsDraft.length === 0 && (
                 <p className="farm-zone-components-empty" style={{ marginTop: 0 }}>
                   Aún no has agregado componentes a esta zona. Usa el botón{" "}
@@ -2146,13 +2666,9 @@ export default function FarmMap({ focusZoneRequest }) {
                         style={{
                           display: "flex",
                           alignItems: "center",
-                          justifyContent: "space-between",
+                          justifyContent: "flex-end",
                         }}
                       >
-                        <span className="component-kind-badge">
-                          {comp.type || "Componente"}
-                        </span>
-
                         <button
                           type="button"
                           className="danger-link"
