@@ -1,5 +1,3 @@
-// src/components/map/FarmMap.jsx
-
 import { useEffect, useRef, useState, useMemo } from "react";
 import "ol/ol.css";
 import "../../styles/farm-map.css";
@@ -25,21 +23,21 @@ import Point from "ol/geom/Point";
 import LineString from "ol/geom/LineString";
 import Polygon from "ol/geom/Polygon";
 
-// ✅ Modal externo
 import ZoneReportModal from "./ZoneReportModal";
 
-// Claves de localStorage (fallback / cache)
 const VIEW_KEY = "agromind_farm_view";
 const DRAWINGS_KEY = "agromind_farm_drawings";
-const ACTIVE_FARM_KEY = "agromind_active_farm_id"; // ✅ finca activa global
+const ACTIVE_FARM_KEY = "agromind_active_farm_id";
 
-// Paletas de colores
 const POINT_COLORS = ["#f97316", "#22c55e", "#38bdf8", "#eab308", "#ec4899"];
 const LINE_COLORS = ["#22c55e", "#38bdf8", "#f97316", "#a855f7", "#facc15"];
 const POLYGON_COLORS = ["#22c55e88", "#38bdf888", "#f9731688", "#a855f788"];
 
 const ZONE_TYPES = ["Zona de animales", "Pasillo", "Cultivo", "Zona libre"];
 const ZONE_STATUSES = ["Operativa", "Prioridad alta", "Disponible"];
+const PROCESS_PRIORITIES = ["Baja", "Media", "Alta"];
+const PROCESS_STATUSES = ["Borrador", "Activo", "Pausado", "Bloqueado", "Completado"];
+const STEP_STATUSES = ["Pendiente", "En progreso", "Bloqueada", "Completada"];
 
 const COMPONENT_TYPES = [
   "Bebedero",
@@ -83,9 +81,6 @@ function generateName(kind, countersRef) {
   return `Zona ${next}`;
 }
 
-/**
- * 🔐 Token helper
- */
 function getAuthToken() {
   return (
     localStorage.getItem("agromind_token") ||
@@ -97,9 +92,6 @@ function getAuthToken() {
   );
 }
 
-/**
- * 🌐 API base
- */
 const API_BASE =
   import.meta.env.VITE_API_URL || "https://agromind-backend-slem.onrender.com";
 
@@ -188,6 +180,84 @@ function formatProcessDate(date) {
   }
 }
 
+function getEmptyStepDraft() {
+  return {
+    name: "",
+    owner: "",
+    priority: "Media",
+    startDate: "",
+    dueDate: "",
+    notes: "",
+  };
+}
+
+function getProgressFromSteps(steps = []) {
+  const total = Array.isArray(steps) ? steps.length : 0;
+  if (total === 0) return 0;
+  const completed = steps.filter((s) => s?.status === "Completada").length;
+  return Math.round((completed / total) * 100);
+}
+
+function getPriorityPillStyle(priority) {
+  const v = String(priority || "Media").toLowerCase();
+  if (v === "alta") {
+    return {
+      border: "1px solid rgba(248,113,113,0.28)",
+      background: "rgba(248,113,113,0.10)",
+      color: "#fecaca",
+    };
+  }
+  if (v === "baja") {
+    return {
+      border: "1px solid rgba(96,165,250,0.28)",
+      background: "rgba(96,165,250,0.10)",
+      color: "#bfdbfe",
+    };
+  }
+  return {
+    border: "1px solid rgba(250,204,21,0.28)",
+    background: "rgba(250,204,21,0.10)",
+    color: "#fde68a",
+  };
+}
+
+function getStatusPillStyle(status) {
+  const v = String(status || "").toLowerCase();
+  if (v === "completado" || v === "completada") {
+    return {
+      border: "1px solid rgba(34,197,94,0.28)",
+      background: "rgba(34,197,94,0.10)",
+      color: "#bbf7d0",
+    };
+  }
+  if (v === "bloqueado" || v === "bloqueada") {
+    return {
+      border: "1px solid rgba(248,113,113,0.28)",
+      background: "rgba(248,113,113,0.10)",
+      color: "#fecaca",
+    };
+  }
+  if (v === "en progreso" || v === "activo") {
+    return {
+      border: "1px solid rgba(56,189,248,0.28)",
+      background: "rgba(56,189,248,0.10)",
+      color: "#bae6fd",
+    };
+  }
+  if (v === "pausado") {
+    return {
+      border: "1px solid rgba(148,163,184,0.28)",
+      background: "rgba(148,163,184,0.10)",
+      color: "#cbd5e1",
+    };
+  }
+  return {
+    border: "1px solid rgba(250,204,21,0.28)",
+    background: "rgba(250,204,21,0.10)",
+    color: "#fde68a",
+  };
+}
+
 export default function FarmMap({ focusZoneRequest }) {
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
@@ -195,13 +265,9 @@ export default function FarmMap({ focusZoneRequest }) {
   const drawInteractionRef = useRef(null);
   const vectorLayerRef = useRef(null);
 
-  // id -> Feature del mapa
   const featuresMapRef = useRef({});
-
-  // refs para autoscroll a fila seleccionada
   const rowRefs = useRef({});
 
-  // Lista de negocio: puntos, líneas y zonas
   const [featuresList, setFeaturesList] = useState([]);
   const latestFeaturesListRef = useRef([]);
   useEffect(() => {
@@ -210,8 +276,6 @@ export default function FarmMap({ focusZoneRequest }) {
 
   const [drawMode, setDrawMode] = useState("move");
   const [selectedId, setSelectedId] = useState(null);
-
-  // Para hover bidireccional
   const [hoveredId, setHoveredId] = useState(null);
 
   const countersRef = useRef({ point: 0, line: 0, polygon: 0 });
@@ -219,15 +283,11 @@ export default function FarmMap({ focusZoneRequest }) {
 
   const apiKey = import.meta.env.VITE_MAPTILER_KEY;
 
-  // Backend state
   const [mapReady, setMapReady] = useState(false);
   const [activeFarmId, setActiveFarmId] = useState(null);
   const [backendOnline, setBackendOnline] = useState(true);
 
-  // Debounce autosave
   const autosaveTimerRef = useRef(null);
-
-  // ✅ Blindaje anti-wipe
   const loadedOnceRef = useRef(false);
   const dirtyRef = useRef(false);
 
@@ -235,9 +295,6 @@ export default function FarmMap({ focusZoneRequest }) {
     dirtyRef.current = true;
   };
 
-  // =========================
-  // 🔎 BUSCADOR MANUAL (Geocoding)
-  // =========================
   const [searchQuery, setSearchQuery] = useState("");
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchError, setSearchError] = useState("");
@@ -255,9 +312,6 @@ export default function FarmMap({ focusZoneRequest }) {
 
   const zonesOnly = featuresList.filter((f) => f.kind === "polygon");
 
-  // =========================
-  // ✅ FILTRO LISTA
-  // =========================
   const [listFilter, setListFilter] = useState({ kind: "all", status: null });
 
   const isActiveFilter = (kind, status = null) => {
@@ -330,17 +384,11 @@ export default function FarmMap({ focusZoneRequest }) {
     }
   };
 
-  // =========================
-  // ✅ MODAL COMPONENTES
-  // =========================
   const [componentsModalOpen, setComponentsModalOpen] = useState(false);
   const [componentsModalZoneId, setComponentsModalZoneId] = useState(null);
   const [componentsDraft, setComponentsDraft] = useState([]);
   const [editingNotesMap, setEditingNotesMap] = useState({});
 
-  // =========================
-  // ✅ GESTOR DE PROCESOS POR ZONA
-  // =========================
   const [zoneProcessesMap, setZoneProcessesMap] = useState({});
   const [processesLoading, setProcessesLoading] = useState(false);
   const [processesError, setProcessesError] = useState("");
@@ -349,6 +397,11 @@ export default function FarmMap({ focusZoneRequest }) {
   const [showCreateProcessForm, setShowCreateProcessForm] = useState(false);
   const [newProcessName, setNewProcessName] = useState("");
   const [newProcessDescription, setNewProcessDescription] = useState("");
+  const [newProcessOwner, setNewProcessOwner] = useState("");
+  const [newProcessPriority, setNewProcessPriority] = useState("Media");
+  const [newProcessStartDate, setNewProcessStartDate] = useState("");
+  const [newProcessTargetDate, setNewProcessTargetDate] = useState("");
+
   const [newStepByProcess, setNewStepByProcess] = useState({});
 
   const modalZone =
@@ -358,6 +411,17 @@ export default function FarmMap({ focusZoneRequest }) {
     if (!componentsModalZoneId) return [];
     return zoneProcessesMap[componentsModalZoneId] || [];
   }, [componentsModalZoneId, zoneProcessesMap]);
+
+  const updateStepDraftField = (processId, field, value) => {
+    setNewStepByProcess((prev) => ({
+      ...prev,
+      [processId]: {
+        ...getEmptyStepDraft(),
+        ...(prev[processId] || {}),
+        [field]: value,
+      },
+    }));
+  };
 
   const loadZoneProcesses = async (zoneId) => {
     if (!zoneId) return;
@@ -405,6 +469,10 @@ export default function FarmMap({ focusZoneRequest }) {
           zoneId: componentsModalZoneId,
           name: safeName,
           description: safeDescription,
+          owner: newProcessOwner.trim(),
+          priority: newProcessPriority,
+          startDate: newProcessStartDate || null,
+          targetDate: newProcessTargetDate || null,
           type: "General",
           status: "Borrador",
         }),
@@ -412,6 +480,10 @@ export default function FarmMap({ focusZoneRequest }) {
 
       setNewProcessName("");
       setNewProcessDescription("");
+      setNewProcessOwner("");
+      setNewProcessPriority("Media");
+      setNewProcessStartDate("");
+      setNewProcessTargetDate("");
       setShowCreateProcessForm(false);
       await loadZoneProcesses(componentsModalZoneId);
     } catch (err) {
@@ -424,7 +496,12 @@ export default function FarmMap({ focusZoneRequest }) {
   const createStepForProcess = async (process) => {
     if (!process?.id || !componentsModalZoneId) return;
 
-    const stepName = (newStepByProcess[process.id] || "").trim();
+    const draft = {
+      ...getEmptyStepDraft(),
+      ...(newStepByProcess[process.id] || {}),
+    };
+
+    const stepName = draft.name.trim();
 
     if (!stepName) {
       setProcessesError("Escribe el nombre de la etapa.");
@@ -440,17 +517,69 @@ export default function FarmMap({ focusZoneRequest }) {
         body: JSON.stringify({
           processId: process.id,
           name: stepName,
+          owner: draft.owner.trim(),
+          priority: draft.priority || "Media",
+          startDate: draft.startDate || null,
+          dueDate: draft.dueDate || null,
+          notes: draft.notes || "",
+          status: "Pendiente",
         }),
       });
 
       setNewStepByProcess((prev) => ({
         ...prev,
-        [process.id]: "",
+        [process.id]: getEmptyStepDraft(),
       }));
 
       await loadZoneProcesses(componentsModalZoneId);
     } catch (err) {
       setProcessesError(err?.message || "No se pudo crear la etapa.");
+    } finally {
+      setProcessActionLoading(false);
+    }
+  };
+
+  const completeStep = async (step) => {
+    if (!step?.id || !componentsModalZoneId) return;
+
+    try {
+      setProcessActionLoading(true);
+      setProcessesError("");
+
+      await apiFetch(`/api/processes/step/${step.id}`, {
+        method: "PUT",
+        body: JSON.stringify({
+          status: "Completada",
+          completedAt: nowIso(),
+        }),
+      });
+
+      await loadZoneProcesses(componentsModalZoneId);
+    } catch (err) {
+      setProcessesError(err?.message || "No se pudo completar la etapa.");
+    } finally {
+      setProcessActionLoading(false);
+    }
+  };
+
+  const updateProcessStatus = async (process, status) => {
+    if (!process?.id || !componentsModalZoneId) return;
+
+    try {
+      setProcessActionLoading(true);
+      setProcessesError("");
+
+      await apiFetch(`/api/processes/${process.id}`, {
+        method: "PUT",
+        body: JSON.stringify({
+          status,
+          completedAt: status === "Completado" ? nowIso() : null,
+        }),
+      });
+
+      await loadZoneProcesses(componentsModalZoneId);
+    } catch (err) {
+      setProcessesError(err?.message || "No se pudo actualizar el proceso.");
     } finally {
       setProcessActionLoading(false);
     }
@@ -512,6 +641,10 @@ export default function FarmMap({ focusZoneRequest }) {
     setShowCreateProcessForm(false);
     setNewProcessName("");
     setNewProcessDescription("");
+    setNewProcessOwner("");
+    setNewProcessPriority("Media");
+    setNewProcessStartDate("");
+    setNewProcessTargetDate("");
     setNewStepByProcess({});
 
     setTimeout(() => forceMapResize(), 0);
@@ -524,6 +657,10 @@ export default function FarmMap({ focusZoneRequest }) {
     setShowCreateProcessForm(false);
     setNewProcessName("");
     setNewProcessDescription("");
+    setNewProcessOwner("");
+    setNewProcessPriority("Media");
+    setNewProcessStartDate("");
+    setNewProcessTargetDate("");
     setNewStepByProcess({});
     setTimeout(() => {
       setComponentsModalZoneId(null);
@@ -613,9 +750,6 @@ export default function FarmMap({ focusZoneRequest }) {
     setEditingNotesMap((prev) => ({ ...(prev || {}), [compId]: !prev?.[compId] }));
   };
 
-  // =========================
-  // ✅ MODAL REPORTE DE ZONA
-  // =========================
   const [reportModalOpen, setReportModalOpen] = useState(false);
   const [reportZoneId, setReportZoneId] = useState(null);
 
@@ -748,9 +882,6 @@ export default function FarmMap({ focusZoneRequest }) {
     return () => document.removeEventListener("keydown", onKey);
   }, [componentsModalOpen, reportModalOpen]);
 
-  // =========================
-  // SERIALIZE / DESERIALIZE
-  // =========================
   const buildBackendPayloadFromList = (list, options = {}) => {
     const map = mapInstanceRef.current;
     const featuresMap = featuresMapRef.current;
@@ -999,9 +1130,6 @@ export default function FarmMap({ focusZoneRequest }) {
     dirtyRef.current = false;
   };
 
-  // =========================
-  // BACKEND LOAD / SAVE
-  // =========================
   const scheduleAutosave = (list, options = {}) => {
     const force = options?.force === true;
 
@@ -1155,9 +1283,6 @@ export default function FarmMap({ focusZoneRequest }) {
     }
   };
 
-  // =========================
-  // 🔎 Geocoding (MapTiler)
-  // =========================
   const geocodeSearch = async (q, signal) => {
     if (!apiKey || apiKey === "TU_API_KEY_AQUI") {
       throw new Error("Falta VITE_MAPTILER_KEY para buscar lugares.");
@@ -1246,9 +1371,6 @@ export default function FarmMap({ focusZoneRequest }) {
     if (first) handlePickSearchResult(first);
   };
 
-  // =========================
-  // MAP INIT + STYLE
-  // =========================
   useEffect(() => {
     const container = mapRef.current;
     if (!container) return;
@@ -1386,7 +1508,6 @@ export default function FarmMap({ focusZoneRequest }) {
       mapInstanceRef.current = map;
       forceMapResize();
 
-      // Fallback local drawings (cache)
       try {
         const savedDrawings = localStorage.getItem(DRAWINGS_KEY);
         if (savedDrawings) {
@@ -1589,13 +1710,11 @@ export default function FarmMap({ focusZoneRequest }) {
     });
   }, [hoveredId]);
 
-  // refresca el layer para que el nombre seleccionado se pinte al vuelo
   useEffect(() => {
     const layer = vectorLayerRef.current;
     if (layer) layer.changed();
   }, [selectedId, hoveredId, featuresList]);
 
-  // autoscroll a la fila seleccionada
   useEffect(() => {
     if (!selectedId) return;
     const row = rowRefs.current[selectedId];
@@ -1701,7 +1820,6 @@ export default function FarmMap({ focusZoneRequest }) {
     const feature = featuresMapRef.current[id];
     if (!map || !vectorSource || !feature) return;
 
-    // si estaba filtrado y escondido, abrimos todo
     const visibleInFiltered = filteredList.some((item) => item.id === id);
     if (!visibleInFiltered) {
       setListFilter({ kind: "all", status: null });
@@ -1877,7 +1995,6 @@ export default function FarmMap({ focusZoneRequest }) {
 
   return (
     <div className="farm-map-shell">
-      {/* MINI-DASHBOARD DE RESUMEN */}
       <div className="farm-map-summary">
         <button
           type="button"
@@ -1951,7 +2068,6 @@ export default function FarmMap({ focusZoneRequest }) {
         </button>
       </div>
 
-      {/* Toolbar */}
       <div className="farm-map-toolbar" style={{ gap: "0.75rem" }}>
         <div
           className="agromind-search-wrap"
@@ -2084,7 +2200,6 @@ export default function FarmMap({ focusZoneRequest }) {
         <div ref={mapRef} className="farm-map" />
       </div>
 
-      {/* TABLA */}
       {filteredList.length > 0 && (
         <div className="farm-zones-table-wrapper">
           <div className="farm-zones-header-row">
@@ -2243,9 +2358,6 @@ export default function FarmMap({ focusZoneRequest }) {
         </div>
       )}
 
-      {/* =========================
-          ✅ MODAL POP-UP COMPONENTES + PROCESOS
-         ========================= */}
       {componentsModalOpen && modalZone && (
         <div
           role="dialog"
@@ -2274,8 +2386,8 @@ export default function FarmMap({ focusZoneRequest }) {
             onClick={(e) => e.stopPropagation()}
             style={{
               position: "relative",
-              width: "min(980px, 100%)",
-              maxHeight: "min(82vh, 820px)",
+              width: "min(1080px, 100%)",
+              maxHeight: "min(84vh, 860px)",
               background: "rgba(2,6,23,0.96)",
               border: "1px solid rgba(148,163,184,0.22)",
               borderRadius: "18px",
@@ -2321,9 +2433,6 @@ export default function FarmMap({ focusZoneRequest }) {
             </div>
 
             <div style={{ padding: "14px", overflow: "auto" }}>
-              {/* =========================
-                  NUEVO BLOQUE: PROCESOS
-                 ========================= */}
               <div
                 style={{
                   marginBottom: "16px",
@@ -2387,12 +2496,12 @@ export default function FarmMap({ focusZoneRequest }) {
                       borderRadius: "12px",
                       border: "1px solid rgba(148,163,184,0.16)",
                       background: "rgba(2,6,23,0.42)",
-                      display: "flex",
-                      flexDirection: "column",
+                      display: "grid",
+                      gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
                       gap: "10px",
                     }}
                   >
-                    <div>
+                    <div style={{ gridColumn: "1 / -1" }}>
                       <label
                         style={{
                           display: "block",
@@ -2411,7 +2520,7 @@ export default function FarmMap({ focusZoneRequest }) {
                       />
                     </div>
 
-                    <div>
+                    <div style={{ gridColumn: "1 / -1" }}>
                       <label
                         style={{
                           display: "block",
@@ -2431,12 +2540,95 @@ export default function FarmMap({ focusZoneRequest }) {
                       />
                     </div>
 
+                    <div>
+                      <label
+                        style={{
+                          display: "block",
+                          marginBottom: "6px",
+                          color: "#cbd5e1",
+                          fontSize: "0.82rem",
+                        }}
+                      >
+                        Responsable
+                      </label>
+                      <input
+                        className="farm-feature-input"
+                        value={newProcessOwner}
+                        onChange={(e) => setNewProcessOwner(e.target.value)}
+                        placeholder="Ej: José"
+                      />
+                    </div>
+
+                    <div>
+                      <label
+                        style={{
+                          display: "block",
+                          marginBottom: "6px",
+                          color: "#cbd5e1",
+                          fontSize: "0.82rem",
+                        }}
+                      >
+                        Prioridad
+                      </label>
+                      <select
+                        className="component-type-select"
+                        value={newProcessPriority}
+                        onChange={(e) => setNewProcessPriority(e.target.value)}
+                      >
+                        {PROCESS_PRIORITIES.map((p) => (
+                          <option key={p} value={p}>
+                            {p}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label
+                        style={{
+                          display: "block",
+                          marginBottom: "6px",
+                          color: "#cbd5e1",
+                          fontSize: "0.82rem",
+                        }}
+                      >
+                        Fecha inicio
+                      </label>
+                      <input
+                        className="farm-feature-input"
+                        type="date"
+                        value={newProcessStartDate}
+                        onChange={(e) => setNewProcessStartDate(e.target.value)}
+                      />
+                    </div>
+
+                    <div>
+                      <label
+                        style={{
+                          display: "block",
+                          marginBottom: "6px",
+                          color: "#cbd5e1",
+                          fontSize: "0.82rem",
+                        }}
+                      >
+                        Fecha meta
+                      </label>
+                      <input
+                        className="farm-feature-input"
+                        type="date"
+                        value={newProcessTargetDate}
+                        onChange={(e) => setNewProcessTargetDate(e.target.value)}
+                      />
+                    </div>
+
                     <div
                       style={{
+                        gridColumn: "1 / -1",
                         display: "flex",
                         gap: "10px",
                         flexWrap: "wrap",
                         justifyContent: "flex-end",
+                        marginTop: "4px",
                       }}
                     >
                       <button
@@ -2446,6 +2638,10 @@ export default function FarmMap({ focusZoneRequest }) {
                           setShowCreateProcessForm(false);
                           setNewProcessName("");
                           setNewProcessDescription("");
+                          setNewProcessOwner("");
+                          setNewProcessPriority("Media");
+                          setNewProcessStartDate("");
+                          setNewProcessTargetDate("");
                           setProcessesError("");
                         }}
                       >
@@ -2503,10 +2699,14 @@ export default function FarmMap({ focusZoneRequest }) {
                     Esta zona aún no tiene procesos. Crea el primero y aquí comenzará el motor operativo de AgroMind.
                   </div>
                 ) : (
-                  <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
                     {modalZoneProcesses.map((process) => {
                       const steps = Array.isArray(process.steps) ? process.steps : [];
-                      const stepDraft = newStepByProcess[process.id] || "";
+                      const progress = getProgressFromSteps(steps);
+                      const draft = {
+                        ...getEmptyStepDraft(),
+                        ...(newStepByProcess[process.id] || {}),
+                      };
 
                       return (
                         <div
@@ -2535,26 +2735,39 @@ export default function FarmMap({ focusZoneRequest }) {
                                   alignItems: "center",
                                   gap: "8px",
                                   flexWrap: "wrap",
-                                  marginBottom: "4px",
+                                  marginBottom: "6px",
                                 }}
                               >
-                                <strong style={{ color: "#e5e7eb", fontSize: "0.96rem" }}>
+                                <strong style={{ color: "#e5e7eb", fontSize: "0.98rem" }}>
                                   {process.name}
                                 </strong>
+
                                 <span
                                   style={{
                                     display: "inline-flex",
                                     alignItems: "center",
                                     padding: "0.18rem 0.55rem",
                                     borderRadius: "999px",
-                                    border: "1px solid rgba(34,197,94,0.28)",
-                                    background: "rgba(34,197,94,0.10)",
-                                    color: "#bbf7d0",
                                     fontSize: "0.72rem",
+                                    ...getStatusPillStyle(process.status || "Borrador"),
                                   }}
                                 >
                                   {process.status || "Borrador"}
                                 </span>
+
+                                <span
+                                  style={{
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    padding: "0.18rem 0.55rem",
+                                    borderRadius: "999px",
+                                    fontSize: "0.72rem",
+                                    ...getPriorityPillStyle(process.priority || "Media"),
+                                  }}
+                                >
+                                  Prioridad {process.priority || "Media"}
+                                </span>
+
                                 <span
                                   style={{
                                     display: "inline-flex",
@@ -2594,8 +2807,42 @@ export default function FarmMap({ focusZoneRequest }) {
                                 }}
                               >
                                 <span>Tipo: {process.type || "General"}</span>
+                                <span>Responsable: {process.owner || "—"}</span>
                                 <span>Inicio: {formatProcessDate(process.startDate)}</span>
                                 <span>Meta: {formatProcessDate(process.targetDate)}</span>
+                              </div>
+
+                              <div style={{ marginBottom: "12px" }}>
+                                <div
+                                  style={{
+                                    display: "flex",
+                                    justifyContent: "space-between",
+                                    marginBottom: "6px",
+                                    fontSize: "0.76rem",
+                                    color: "#cbd5e1",
+                                  }}
+                                >
+                                  <span>Avance</span>
+                                  <span>{progress}%</span>
+                                </div>
+                                <div
+                                  style={{
+                                    width: "100%",
+                                    height: "8px",
+                                    borderRadius: "999px",
+                                    background: "rgba(148,163,184,0.18)",
+                                    overflow: "hidden",
+                                  }}
+                                >
+                                  <div
+                                    style={{
+                                      width: `${progress}%`,
+                                      height: "100%",
+                                      background:
+                                        "linear-gradient(90deg, rgba(34,197,94,0.9), rgba(56,189,248,0.9))",
+                                    }}
+                                  />
+                                </div>
                               </div>
 
                               <div
@@ -2604,29 +2851,25 @@ export default function FarmMap({ focusZoneRequest }) {
                                   gap: "8px",
                                   flexWrap: "wrap",
                                   alignItems: "center",
-                                  marginBottom: steps.length > 0 ? "10px" : "0",
+                                  marginBottom: "10px",
                                 }}
                               >
-                                <input
-                                  className="farm-feature-input"
-                                  value={stepDraft}
-                                  onChange={(e) =>
-                                    setNewStepByProcess((prev) => ({
-                                      ...prev,
-                                      [process.id]: e.target.value,
-                                    }))
-                                  }
-                                  placeholder="Nueva etapa (ej: Recolección de material)"
-                                  style={{ flex: 1, minWidth: "220px" }}
-                                />
+                                <button
+                                  type="button"
+                                  className="secondary-btn"
+                                  disabled={processActionLoading || process.status === "Activo"}
+                                  onClick={() => updateProcessStatus(process, "Activo")}
+                                >
+                                  Activar
+                                </button>
 
                                 <button
                                   type="button"
                                   className="secondary-btn"
-                                  onClick={() => createStepForProcess(process)}
-                                  disabled={processActionLoading}
+                                  disabled={processActionLoading || process.status === "Completado"}
+                                  onClick={() => updateProcessStatus(process, "Completado")}
                                 >
-                                  + Etapa
+                                  Completar
                                 </button>
 
                                 <button
@@ -2639,24 +2882,182 @@ export default function FarmMap({ focusZoneRequest }) {
                                 </button>
                               </div>
 
+                              <div
+                                style={{
+                                  padding: "12px",
+                                  borderRadius: "12px",
+                                  border: "1px solid rgba(148,163,184,0.16)",
+                                  background: "rgba(2,6,23,0.34)",
+                                  display: "grid",
+                                  gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+                                  gap: "10px",
+                                  marginBottom: steps.length > 0 ? "12px" : "10px",
+                                }}
+                              >
+                                <div style={{ gridColumn: "1 / -1" }}>
+                                  <label
+                                    style={{
+                                      display: "block",
+                                      marginBottom: "6px",
+                                      color: "#cbd5e1",
+                                      fontSize: "0.82rem",
+                                    }}
+                                  >
+                                    Nueva etapa
+                                  </label>
+                                  <input
+                                    className="farm-feature-input"
+                                    value={draft.name}
+                                    onChange={(e) =>
+                                      updateStepDraftField(process.id, "name", e.target.value)
+                                    }
+                                    placeholder="Ej: Recolección de material"
+                                  />
+                                </div>
+
+                                <div>
+                                  <label
+                                    style={{
+                                      display: "block",
+                                      marginBottom: "6px",
+                                      color: "#cbd5e1",
+                                      fontSize: "0.82rem",
+                                    }}
+                                  >
+                                    Responsable
+                                  </label>
+                                  <input
+                                    className="farm-feature-input"
+                                    value={draft.owner}
+                                    onChange={(e) =>
+                                      updateStepDraftField(process.id, "owner", e.target.value)
+                                    }
+                                    placeholder="Ej: José"
+                                  />
+                                </div>
+
+                                <div>
+                                  <label
+                                    style={{
+                                      display: "block",
+                                      marginBottom: "6px",
+                                      color: "#cbd5e1",
+                                      fontSize: "0.82rem",
+                                    }}
+                                  >
+                                    Prioridad
+                                  </label>
+                                  <select
+                                    className="component-type-select"
+                                    value={draft.priority}
+                                    onChange={(e) =>
+                                      updateStepDraftField(process.id, "priority", e.target.value)
+                                    }
+                                  >
+                                    {PROCESS_PRIORITIES.map((p) => (
+                                      <option key={p} value={p}>
+                                        {p}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+
+                                <div>
+                                  <label
+                                    style={{
+                                      display: "block",
+                                      marginBottom: "6px",
+                                      color: "#cbd5e1",
+                                      fontSize: "0.82rem",
+                                    }}
+                                  >
+                                    Fecha inicio
+                                  </label>
+                                  <input
+                                    className="farm-feature-input"
+                                    type="date"
+                                    value={draft.startDate}
+                                    onChange={(e) =>
+                                      updateStepDraftField(process.id, "startDate", e.target.value)
+                                    }
+                                  />
+                                </div>
+
+                                <div>
+                                  <label
+                                    style={{
+                                      display: "block",
+                                      marginBottom: "6px",
+                                      color: "#cbd5e1",
+                                      fontSize: "0.82rem",
+                                    }}
+                                  >
+                                    Fecha meta
+                                  </label>
+                                  <input
+                                    className="farm-feature-input"
+                                    type="date"
+                                    value={draft.dueDate}
+                                    onChange={(e) =>
+                                      updateStepDraftField(process.id, "dueDate", e.target.value)
+                                    }
+                                  />
+                                </div>
+
+                                <div style={{ gridColumn: "1 / -1" }}>
+                                  <label
+                                    style={{
+                                      display: "block",
+                                      marginBottom: "6px",
+                                      color: "#cbd5e1",
+                                      fontSize: "0.82rem",
+                                    }}
+                                  >
+                                    Notas
+                                  </label>
+                                  <textarea
+                                    className="farm-feature-textarea"
+                                    value={draft.notes}
+                                    onChange={(e) =>
+                                      updateStepDraftField(process.id, "notes", e.target.value)
+                                    }
+                                    placeholder="Bitácora corta, observaciones o instrucciones"
+                                    rows={3}
+                                  />
+                                </div>
+
+                                <div
+                                  style={{
+                                    gridColumn: "1 / -1",
+                                    display: "flex",
+                                    justifyContent: "flex-end",
+                                  }}
+                                >
+                                  <button
+                                    type="button"
+                                    className="secondary-btn"
+                                    onClick={() => createStepForProcess(process)}
+                                    disabled={processActionLoading}
+                                  >
+                                    + Crear etapa
+                                  </button>
+                                </div>
+                              </div>
+
                               {steps.length > 0 && (
                                 <div
                                   style={{
                                     marginTop: "4px",
                                     display: "flex",
                                     flexDirection: "column",
-                                    gap: "6px",
+                                    gap: "8px",
                                   }}
                                 >
                                   {steps.map((step) => (
                                     <div
                                       key={step.id}
                                       style={{
-                                        display: "flex",
-                                        alignItems: "center",
-                                        justifyContent: "space-between",
-                                        gap: "10px",
-                                        padding: "8px 10px",
+                                        padding: "10px",
                                         borderRadius: "10px",
                                         background: "rgba(2,6,23,0.4)",
                                         border: "1px solid rgba(148,163,184,0.12)",
@@ -2665,45 +3066,126 @@ export default function FarmMap({ focusZoneRequest }) {
                                       <div
                                         style={{
                                           display: "flex",
-                                          alignItems: "center",
+                                          alignItems: "flex-start",
+                                          justifyContent: "space-between",
                                           gap: "10px",
-                                          minWidth: 0,
+                                          flexWrap: "wrap",
                                         }}
                                       >
-                                        <span
-                                          style={{
-                                            minWidth: "24px",
-                                            height: "24px",
-                                            borderRadius: "999px",
-                                            display: "inline-flex",
-                                            alignItems: "center",
-                                            justifyContent: "center",
-                                            background: "rgba(34,197,94,0.14)",
-                                            color: "#bbf7d0",
-                                            fontSize: "0.72rem",
-                                            fontWeight: 700,
-                                          }}
-                                        >
-                                          {step.stepOrder}
-                                        </span>
-                                        <div style={{ minWidth: 0 }}>
+                                        <div style={{ minWidth: 0, flex: 1 }}>
                                           <div
                                             style={{
-                                              color: "#e5e7eb",
-                                              fontSize: "0.84rem",
-                                              fontWeight: 600,
+                                              display: "flex",
+                                              alignItems: "center",
+                                              gap: "8px",
+                                              flexWrap: "wrap",
+                                              marginBottom: "4px",
                                             }}
                                           >
-                                            {step.name}
+                                            <span
+                                              style={{
+                                                minWidth: "24px",
+                                                height: "24px",
+                                                borderRadius: "999px",
+                                                display: "inline-flex",
+                                                alignItems: "center",
+                                                justifyContent: "center",
+                                                background: "rgba(34,197,94,0.14)",
+                                                color: "#bbf7d0",
+                                                fontSize: "0.72rem",
+                                                fontWeight: 700,
+                                              }}
+                                            >
+                                              {step.stepOrder}
+                                            </span>
+
+                                            <div
+                                              style={{
+                                                color: "#e5e7eb",
+                                                fontSize: "0.84rem",
+                                                fontWeight: 600,
+                                              }}
+                                            >
+                                              {step.name}
+                                            </div>
+
+                                            <span
+                                              style={{
+                                                display: "inline-flex",
+                                                alignItems: "center",
+                                                padding: "0.18rem 0.55rem",
+                                                borderRadius: "999px",
+                                                fontSize: "0.72rem",
+                                                ...getStatusPillStyle(step.status || "Pendiente"),
+                                              }}
+                                            >
+                                              {step.status || "Pendiente"}
+                                            </span>
+
+                                            <span
+                                              style={{
+                                                display: "inline-flex",
+                                                alignItems: "center",
+                                                padding: "0.18rem 0.55rem",
+                                                borderRadius: "999px",
+                                                fontSize: "0.72rem",
+                                                ...getPriorityPillStyle(step.priority || "Media"),
+                                              }}
+                                            >
+                                              {step.priority || "Media"}
+                                            </span>
                                           </div>
+
                                           <div
                                             style={{
+                                              display: "flex",
+                                              gap: "10px",
+                                              flexWrap: "wrap",
                                               color: "rgba(148,163,184,0.88)",
                                               fontSize: "0.74rem",
+                                              marginBottom: step.notes ? "6px" : "0",
                                             }}
                                           >
-                                            {step.status || "Pendiente"}
+                                            <span>Responsable: {step.owner || "—"}</span>
+                                            <span>Inicio: {formatProcessDate(step.startDate)}</span>
+                                            <span>Meta: {formatProcessDate(step.dueDate)}</span>
+                                            <span>
+                                              Completada: {formatProcessDate(step.completedAt)}
+                                            </span>
                                           </div>
+
+                                          {step.notes ? (
+                                            <div
+                                              style={{
+                                                marginTop: "6px",
+                                                color: "rgba(226,232,240,0.78)",
+                                                fontSize: "0.78rem",
+                                                whiteSpace: "pre-wrap",
+                                              }}
+                                            >
+                                              {step.notes}
+                                            </div>
+                                          ) : null}
+                                        </div>
+
+                                        <div
+                                          style={{
+                                            display: "flex",
+                                            gap: "8px",
+                                            flexWrap: "wrap",
+                                            alignItems: "center",
+                                          }}
+                                        >
+                                          {step.status !== "Completada" && (
+                                            <button
+                                              type="button"
+                                              className="secondary-btn"
+                                              onClick={() => completeStep(step)}
+                                              disabled={processActionLoading}
+                                            >
+                                              Completar
+                                            </button>
+                                          )}
                                         </div>
                                       </div>
                                     </div>
@@ -2719,9 +3201,6 @@ export default function FarmMap({ focusZoneRequest }) {
                 )}
               </div>
 
-              {/* =========================
-                  COMPONENTES
-                 ========================= */}
               {componentsDraft.length === 0 && (
                 <p className="farm-zone-components-empty" style={{ marginTop: 0 }}>
                   Aún no has agregado componentes a esta zona. Usa el botón{" "}
