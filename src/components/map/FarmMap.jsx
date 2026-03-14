@@ -772,6 +772,7 @@ export default function FarmMap({ focusZoneRequest }) {
       if (geomType === "Point") {
         const coord = toLonLat(geometry.getCoordinates());
         points.push({
+          id: item.id,
           name: item.name,
           data: {
             type: "Point",
@@ -786,6 +787,7 @@ export default function FarmMap({ focusZoneRequest }) {
       if (geomType === "LineString") {
         const coords = geometry.getCoordinates().map((c) => toLonLat(c));
         lines.push({
+          id: item.id,
           name: item.name,
           data: {
             type: "LineString",
@@ -803,6 +805,7 @@ export default function FarmMap({ focusZoneRequest }) {
           .map((ring) => ring.map((c) => toLonLat(c)));
 
         zones.push({
+          id: item.id,
           name: item.name,
           data: {
             type: "Polygon",
@@ -856,6 +859,7 @@ export default function FarmMap({ focusZoneRequest }) {
     }
 
     const addFeature = ({
+      serverId,
       kind,
       name,
       geometry,
@@ -864,7 +868,9 @@ export default function FarmMap({ focusZoneRequest }) {
       createdAt,
       updatedAt,
     }) => {
-      const id = `${kind}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const id =
+        serverId ||
+        `${kind}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
       counters[kind] = (counters[kind] || 0) + 1;
 
@@ -944,6 +950,7 @@ export default function FarmMap({ focusZoneRequest }) {
       const d = p?.data || {};
       if (d?.type !== "Point" || !Array.isArray(d.coordinates)) return;
       addFeature({
+        serverId: p?.id,
         kind: "point",
         name: p?.name,
         geometry: new Point(fromLonLat(d.coordinates)),
@@ -957,6 +964,7 @@ export default function FarmMap({ focusZoneRequest }) {
       const d = l?.data || {};
       if (d?.type !== "LineString" || !Array.isArray(d.coordinates)) return;
       addFeature({
+        serverId: l?.id,
         kind: "line",
         name: l?.name,
         geometry: new LineString(d.coordinates.map((c) => fromLonLat(c))),
@@ -970,6 +978,7 @@ export default function FarmMap({ focusZoneRequest }) {
       const d = z?.data || {};
       if (d?.type !== "Polygon" || !Array.isArray(d.coordinates)) return;
       addFeature({
+        serverId: z?.id,
         kind: "polygon",
         name: z?.name,
         geometry: new Polygon(
@@ -1433,8 +1442,10 @@ export default function FarmMap({ focusZoneRequest }) {
                   : `Zona ${counters[safeKind]}`;
 
               const finalColor = color || pickColor(safeKind, colorIndexRef);
-              const finalZoneType = safeKind === "polygon" ? zoneType || "Zona libre" : null;
-              const finalStatus = safeKind === "polygon" ? status || "Disponible" : null;
+              const finalZoneType =
+                safeKind === "polygon" ? zoneType || "Zona libre" : null;
+              const finalStatus =
+                safeKind === "polygon" ? status || "Disponible" : null;
 
               const finalComponents =
                 safeKind === "polygon" && Array.isArray(components)
@@ -1541,9 +1552,7 @@ export default function FarmMap({ focusZoneRequest }) {
         } else {
           const vectorSourceLocal = vectorSourceRef.current;
           if (vectorSourceLocal) {
-            vectorSourceLocal
-              .getFeatures()
-              .forEach((f) => f.set("selected", false));
+            vectorSourceLocal.getFeatures().forEach((f) => f.set("selected", false));
           }
           setSelectedId(null);
         }
