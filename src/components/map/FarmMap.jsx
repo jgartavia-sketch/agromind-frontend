@@ -103,6 +103,39 @@ function getAuthToken() {
 const API_BASE =
   import.meta.env.VITE_API_URL || "https://agromind-backend-slem.onrender.com";
 
+function looksLikeHtml(text) {
+  return typeof text === "string" && /<(!doctype|html|body|pre)/i.test(text);
+}
+
+function normalizeApiErrorMessage(status, data) {
+  if (typeof data === "string") {
+    if (
+      data.includes("Cannot GET /api/processes") ||
+      data.includes("Cannot POST /api/processes") ||
+      data.includes("Cannot DELETE /api/processes") ||
+      data.includes("Cannot PUT /api/processes") ||
+      data.includes("Cannot GET /api/processes/") ||
+      data.includes("Cannot POST /api/processes/step") ||
+      data.includes("Cannot PUT /api/processes/step") ||
+      data.includes("Cannot DELETE /api/processes/step")
+    ) {
+      return "El backend desplegado todavía no tiene activas las rutas del gestor de procesos.";
+    }
+
+    if (looksLikeHtml(data)) {
+      return `Error ${status || 500} del servidor.`;
+    }
+
+    return data;
+  }
+
+  if (data && typeof data === "object" && data.error) {
+    return data.error;
+  }
+
+  return "Error en request.";
+}
+
 async function apiFetch(path, options = {}) {
   const token = getAuthToken();
   const headers = {
@@ -126,10 +159,7 @@ async function apiFetch(path, options = {}) {
   }
 
   if (!res.ok) {
-    const msg =
-      (data && data.error) ||
-      (typeof data === "string" ? data : "Error en request.");
-    const err = new Error(msg);
+    const err = new Error(normalizeApiErrorMessage(res.status, data));
     err.status = res.status;
     err.payload = data;
     throw err;
@@ -316,6 +346,11 @@ export default function FarmMap({ focusZoneRequest }) {
   const [processesError, setProcessesError] = useState("");
   const [processActionLoading, setProcessActionLoading] = useState(false);
 
+  const [showCreateProcessForm, setShowCreateProcessForm] = useState(false);
+  const [newProcessName, setNewProcessName] = useState("");
+  const [newProcessDescription, setNewProcessDescription] = useState("");
+  const [newStepByProcess, setNewStepByProcess] = useState({});
+
   const modalZone =
     componentsModalZoneId && zonesOnly.find((z) => z.id === componentsModalZoneId);
 
@@ -340,6 +375,10 @@ export default function FarmMap({ focusZoneRequest }) {
       }));
     } catch (err) {
       setProcessesError(err?.message || "No se pudieron cargar los procesos.");
+      setZoneProcessesMap((prev) => ({
+        ...prev,
+        [zoneId]: [],
+      }));
     } finally {
       setProcessesLoading(false);
     }
@@ -348,17 +387,13 @@ export default function FarmMap({ focusZoneRequest }) {
   const createProcessForZone = async () => {
     if (!componentsModalZoneId || !modalZone) return;
 
-    const name = window.prompt(
-      `Nombre del proceso para la zona "${modalZone.name || "Zona"}":`,
-      ""
-    );
+    const safeName = newProcessName.trim();
+    const safeDescription = newProcessDescription.trim();
 
-    if (!name || !name.trim()) return;
-
-    const description = window.prompt(
-      "Descripción breve del proceso (opcional):",
-      ""
-    );
+    if (!safeName) {
+      setProcessesError("Escribe el nombre del proceso.");
+      return;
+    }
 
     try {
       setProcessActionLoading(true);
@@ -368,13 +403,16 @@ export default function FarmMap({ focusZoneRequest }) {
         method: "POST",
         body: JSON.stringify({
           zoneId: componentsModalZoneId,
-          name: name.trim(),
-          description: description?.trim() || "",
+          name: safeName,
+          description: safeDescription,
           type: "General",
           status: "Borrador",
         }),
       });
 
+      setNewProcessName("");
+      setNewProcessDescription("");
+      setShowCreateProcessForm(false);
       await loadZoneProcesses(componentsModalZoneId);
     } catch (err) {
       setProcessesError(err?.message || "No se pudo crear el proceso.");
@@ -386,12 +424,12 @@ export default function FarmMap({ focusZoneRequest }) {
   const createStepForProcess = async (process) => {
     if (!process?.id || !componentsModalZoneId) return;
 
-    const stepName = window.prompt(
-      `Nueva etapa para "${process.name}":`,
-      ""
-    );
+    const stepName = (newStepByProcess[process.id] || "").trim();
 
-    if (!stepName || !stepName.trim()) return;
+    if (!stepName) {
+      setProcessesError("Escribe el nombre de la etapa.");
+      return;
+    }
 
     try {
       setProcessActionLoading(true);
@@ -401,9 +439,14 @@ export default function FarmMap({ focusZoneRequest }) {
         method: "POST",
         body: JSON.stringify({
           processId: process.id,
-          name: stepName.trim(),
+          name: stepName,
         }),
       });
+
+      setNewStepByProcess((prev) => ({
+        ...prev,
+        [process.id]: "",
+      }));
 
       await loadZoneProcesses(componentsModalZoneId);
     } catch (err) {
@@ -466,6 +509,10 @@ export default function FarmMap({ focusZoneRequest }) {
     setEditingNotesMap({});
     setComponentsModalOpen(true);
     setProcessesError("");
+    setShowCreateProcessForm(false);
+    setNewProcessName("");
+    setNewProcessDescription("");
+    setNewStepByProcess({});
 
     setTimeout(() => forceMapResize(), 0);
     await loadZoneProcesses(zoneId);
@@ -474,6 +521,10 @@ export default function FarmMap({ focusZoneRequest }) {
   const closeComponentsModal = () => {
     setComponentsModalOpen(false);
     setProcessesError("");
+    setShowCreateProcessForm(false);
+    setNewProcessName("");
+    setNewProcessDescription("");
+    setNewStepByProcess({});
     setTimeout(() => {
       setComponentsModalZoneId(null);
       setComponentsDraft([]);
@@ -2309,12 +2360,100 @@ export default function FarmMap({ focusZoneRequest }) {
                   <button
                     type="button"
                     className="primary-btn"
-                    onClick={createProcessForZone}
+                    onClick={() => {
+                      setShowCreateProcessForm((prev) => !prev);
+                      setProcessesError("");
+                    }}
                     disabled={processActionLoading}
                   >
-                    {processActionLoading ? "Trabajando..." : "Nuevo proceso"}
+                    {showCreateProcessForm ? "Cancelar" : "Nuevo proceso"}
                   </button>
                 </div>
+
+                {showCreateProcessForm && (
+                  <div
+                    style={{
+                      marginBottom: "12px",
+                      padding: "12px",
+                      borderRadius: "12px",
+                      border: "1px solid rgba(148,163,184,0.16)",
+                      background: "rgba(2,6,23,0.42)",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "10px",
+                    }}
+                  >
+                    <div>
+                      <label
+                        style={{
+                          display: "block",
+                          marginBottom: "6px",
+                          color: "#cbd5e1",
+                          fontSize: "0.82rem",
+                        }}
+                      >
+                        Nombre del proceso
+                      </label>
+                      <input
+                        className="farm-feature-input"
+                        value={newProcessName}
+                        onChange={(e) => setNewProcessName(e.target.value)}
+                        placeholder="Ej: Producción de tierra abonada"
+                      />
+                    </div>
+
+                    <div>
+                      <label
+                        style={{
+                          display: "block",
+                          marginBottom: "6px",
+                          color: "#cbd5e1",
+                          fontSize: "0.82rem",
+                        }}
+                      >
+                        Descripción breve
+                      </label>
+                      <textarea
+                        className="farm-feature-textarea"
+                        value={newProcessDescription}
+                        onChange={(e) => setNewProcessDescription(e.target.value)}
+                        placeholder="Qué se busca lograr en esta zona"
+                        rows={3}
+                      />
+                    </div>
+
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: "10px",
+                        flexWrap: "wrap",
+                        justifyContent: "flex-end",
+                      }}
+                    >
+                      <button
+                        type="button"
+                        className="secondary-btn"
+                        onClick={() => {
+                          setShowCreateProcessForm(false);
+                          setNewProcessName("");
+                          setNewProcessDescription("");
+                          setProcessesError("");
+                        }}
+                      >
+                        Cancelar
+                      </button>
+
+                      <button
+                        type="button"
+                        className="primary-btn"
+                        onClick={createProcessForZone}
+                        disabled={processActionLoading}
+                      >
+                        {processActionLoading ? "Guardando..." : "Guardar proceso"}
+                      </button>
+                    </div>
+                  </div>
+                )}
 
                 {processesError ? (
                   <div
@@ -2358,6 +2497,8 @@ export default function FarmMap({ focusZoneRequest }) {
                   <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                     {modalZoneProcesses.map((process) => {
                       const steps = Array.isArray(process.steps) ? process.steps : [];
+                      const stepDraft = newStepByProcess[process.id] || "";
+
                       return (
                         <div
                           key={process.id}
@@ -2440,12 +2581,53 @@ export default function FarmMap({ focusZoneRequest }) {
                                   flexWrap: "wrap",
                                   color: "rgba(148,163,184,0.9)",
                                   fontSize: "0.76rem",
-                                  marginBottom: steps.length > 0 ? "8px" : "0",
+                                  marginBottom: "10px",
                                 }}
                               >
                                 <span>Tipo: {process.type || "General"}</span>
                                 <span>Inicio: {formatProcessDate(process.startDate)}</span>
                                 <span>Meta: {formatProcessDate(process.targetDate)}</span>
+                              </div>
+
+                              <div
+                                style={{
+                                  display: "flex",
+                                  gap: "8px",
+                                  flexWrap: "wrap",
+                                  alignItems: "center",
+                                  marginBottom: steps.length > 0 ? "10px" : "0",
+                                }}
+                              >
+                                <input
+                                  className="farm-feature-input"
+                                  value={stepDraft}
+                                  onChange={(e) =>
+                                    setNewStepByProcess((prev) => ({
+                                      ...prev,
+                                      [process.id]: e.target.value,
+                                    }))
+                                  }
+                                  placeholder="Nueva etapa (ej: Recolección de material)"
+                                  style={{ flex: 1, minWidth: "220px" }}
+                                />
+
+                                <button
+                                  type="button"
+                                  className="secondary-btn"
+                                  onClick={() => createStepForProcess(process)}
+                                  disabled={processActionLoading}
+                                >
+                                  + Etapa
+                                </button>
+
+                                <button
+                                  type="button"
+                                  className="danger-link"
+                                  onClick={() => deleteProcess(process)}
+                                  disabled={processActionLoading}
+                                >
+                                  Borrar proceso
+                                </button>
                               </div>
 
                               {steps.length > 0 && (
@@ -2519,33 +2701,6 @@ export default function FarmMap({ focusZoneRequest }) {
                                   ))}
                                 </div>
                               )}
-                            </div>
-
-                            <div
-                              style={{
-                                display: "flex",
-                                gap: "8px",
-                                flexWrap: "wrap",
-                                alignItems: "center",
-                              }}
-                            >
-                              <button
-                                type="button"
-                                className="secondary-btn"
-                                onClick={() => createStepForProcess(process)}
-                                disabled={processActionLoading}
-                              >
-                                + Etapa
-                              </button>
-
-                              <button
-                                type="button"
-                                className="danger-link"
-                                onClick={() => deleteProcess(process)}
-                                disabled={processActionLoading}
-                              >
-                                Borrar proceso
-                              </button>
                             </div>
                           </div>
                         </div>
