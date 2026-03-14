@@ -876,7 +876,7 @@
     padding: 0.5rem 0.55rem;
   }
 
-  .tasks-calendar .fc .fc-view-harness {
+  .tasks-calendar .fc .fc-view-harness {/
     min-height: 520px;
   }
 
