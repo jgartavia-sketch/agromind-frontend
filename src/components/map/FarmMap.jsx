@@ -36,7 +36,13 @@ const POLYGON_COLORS = ["#22c55e88", "#38bdf888", "#f9731688", "#a855f788"];
 const ZONE_TYPES = ["Zona de animales", "Pasillo", "Cultivo", "Zona libre"];
 const ZONE_STATUSES = ["Operativa", "Prioridad alta", "Disponible"];
 const PROCESS_PRIORITIES = ["Baja", "Media", "Alta"];
-const PROCESS_STATUSES = ["Borrador", "Activo", "Pausado", "Bloqueado", "Completado"];
+const PROCESS_STATUSES = [
+  "Borrador",
+  "Activo",
+  "Pausado",
+  "Bloqueado",
+  "Completado",
+];
 const STEP_STATUSES = ["Pendiente", "En progreso", "Bloqueada", "Completada"];
 
 const COMPONENT_TYPES = [
@@ -539,8 +545,10 @@ export default function FarmMap({ focusZoneRequest }) {
     }
   };
 
-  const completeStep = async (step) => {
+  const toggleStepCompletion = async (step) => {
     if (!step?.id || !componentsModalZoneId) return;
+
+    const isCompleted = step.status === "Completada";
 
     try {
       setProcessActionLoading(true);
@@ -548,15 +556,27 @@ export default function FarmMap({ focusZoneRequest }) {
 
       await apiFetch(`/api/processes/step/${step.id}`, {
         method: "PUT",
-        body: JSON.stringify({
-          status: "Completada",
-          completedAt: nowIso(),
-        }),
+        body: JSON.stringify(
+          isCompleted
+            ? {
+                status: "Pendiente",
+                completedAt: null,
+              }
+            : {
+                status: "Completada",
+                completedAt: nowIso(),
+              }
+        ),
       });
 
       await loadZoneProcesses(componentsModalZoneId);
     } catch (err) {
-      setProcessesError(err?.message || "No se pudo completar la etapa.");
+      setProcessesError(
+        err?.message ||
+          (isCompleted
+            ? "No se pudo reabrir la etapa."
+            : "No se pudo completar la etapa.")
+      );
     } finally {
       setProcessActionLoading(false);
     }
@@ -3053,143 +3073,204 @@ export default function FarmMap({ focusZoneRequest }) {
                                     gap: "8px",
                                   }}
                                 >
-                                  {steps.map((step) => (
-                                    <div
-                                      key={step.id}
-                                      style={{
-                                        padding: "10px",
-                                        borderRadius: "10px",
-                                        background: "rgba(2,6,23,0.4)",
-                                        border: "1px solid rgba(148,163,184,0.12)",
-                                      }}
-                                    >
+                                  {steps.map((step) => {
+                                    const isCompleted = step.status === "Completada";
+
+                                    return (
                                       <div
+                                        key={step.id}
                                         style={{
-                                          display: "flex",
-                                          alignItems: "flex-start",
-                                          justifyContent: "space-between",
-                                          gap: "10px",
-                                          flexWrap: "wrap",
+                                          padding: "10px",
+                                          borderRadius: "10px",
+                                          background: "rgba(2,6,23,0.4)",
+                                          border: "1px solid rgba(148,163,184,0.12)",
                                         }}
                                       >
-                                        <div style={{ minWidth: 0, flex: 1 }}>
-                                          <div
-                                            style={{
-                                              display: "flex",
-                                              alignItems: "center",
-                                              gap: "8px",
-                                              flexWrap: "wrap",
-                                              marginBottom: "4px",
-                                            }}
-                                          >
-                                            <span
-                                              style={{
-                                                minWidth: "24px",
-                                                height: "24px",
-                                                borderRadius: "999px",
-                                                display: "inline-flex",
-                                                alignItems: "center",
-                                                justifyContent: "center",
-                                                background: "rgba(34,197,94,0.14)",
-                                                color: "#bbf7d0",
-                                                fontSize: "0.72rem",
-                                                fontWeight: 700,
-                                              }}
-                                            >
-                                              {step.stepOrder}
-                                            </span>
-
-                                            <div
-                                              style={{
-                                                color: "#e5e7eb",
-                                                fontSize: "0.84rem",
-                                                fontWeight: 600,
-                                              }}
-                                            >
-                                              {step.name}
-                                            </div>
-
-                                            <span
-                                              style={{
-                                                display: "inline-flex",
-                                                alignItems: "center",
-                                                padding: "0.18rem 0.55rem",
-                                                borderRadius: "999px",
-                                                fontSize: "0.72rem",
-                                                ...getStatusPillStyle(step.status || "Pendiente"),
-                                              }}
-                                            >
-                                              {step.status || "Pendiente"}
-                                            </span>
-
-                                            <span
-                                              style={{
-                                                display: "inline-flex",
-                                                alignItems: "center",
-                                                padding: "0.18rem 0.55rem",
-                                                borderRadius: "999px",
-                                                fontSize: "0.72rem",
-                                                ...getPriorityPillStyle(step.priority || "Media"),
-                                              }}
-                                            >
-                                              {step.priority || "Media"}
-                                            </span>
-                                          </div>
-
-                                          <div
-                                            style={{
-                                              display: "flex",
-                                              gap: "10px",
-                                              flexWrap: "wrap",
-                                              color: "rgba(148,163,184,0.88)",
-                                              fontSize: "0.74rem",
-                                              marginBottom: step.notes ? "6px" : "0",
-                                            }}
-                                          >
-                                            <span>Responsable: {step.owner || "—"}</span>
-                                            <span>Inicio: {formatProcessDate(step.startDate)}</span>
-                                            <span>Meta: {formatProcessDate(step.dueDate)}</span>
-                                            <span>
-                                              Completada: {formatProcessDate(step.completedAt)}
-                                            </span>
-                                          </div>
-
-                                          {step.notes ? (
-                                            <div
-                                              style={{
-                                                marginTop: "6px",
-                                                color: "rgba(226,232,240,0.78)",
-                                                fontSize: "0.78rem",
-                                                whiteSpace: "pre-wrap",
-                                              }}
-                                            >
-                                              {step.notes}
-                                            </div>
-                                          ) : null}
-                                        </div>
-
                                         <div
                                           style={{
                                             display: "flex",
-                                            gap: "8px",
+                                            alignItems: "flex-start",
+                                            justifyContent: "space-between",
+                                            gap: "10px",
                                             flexWrap: "wrap",
-                                            alignItems: "center",
                                           }}
                                         >
-                                          {step.status !== "Completada" && (
+                                          <div
+                                            style={{
+                                              display: "flex",
+                                              gap: "12px",
+                                              alignItems: "flex-start",
+                                              minWidth: 0,
+                                              flex: 1,
+                                            }}
+                                          >
+                                            <button
+                                              type="button"
+                                              onClick={() => toggleStepCompletion(step)}
+                                              disabled={processActionLoading}
+                                              title={
+                                                isCompleted
+                                                  ? "Reabrir etapa"
+                                                  : "Marcar como completada"
+                                              }
+                                              style={{
+                                                width: "28px",
+                                                height: "28px",
+                                                minWidth: "28px",
+                                                borderRadius: "999px",
+                                                border: isCompleted
+                                                  ? "1px solid rgba(34,197,94,0.38)"
+                                                  : "1px solid rgba(148,163,184,0.28)",
+                                                background: isCompleted
+                                                  ? "rgba(34,197,94,0.16)"
+                                                  : "rgba(15,23,42,0.9)",
+                                                color: isCompleted ? "#bbf7d0" : "#94a3b8",
+                                                display: "inline-flex",
+                                                alignItems: "center",
+                                                justifyContent: "center",
+                                                cursor: processActionLoading
+                                                  ? "not-allowed"
+                                                  : "pointer",
+                                                fontSize: "0.95rem",
+                                                fontWeight: 700,
+                                                lineHeight: 1,
+                                                marginTop: "2px",
+                                              }}
+                                            >
+                                              {isCompleted ? "✓" : ""}
+                                            </button>
+
+                                            <div style={{ minWidth: 0, flex: 1 }}>
+                                              <div
+                                                style={{
+                                                  display: "flex",
+                                                  alignItems: "center",
+                                                  gap: "8px",
+                                                  flexWrap: "wrap",
+                                                  marginBottom: "4px",
+                                                }}
+                                              >
+                                                <span
+                                                  style={{
+                                                    minWidth: "24px",
+                                                    height: "24px",
+                                                    borderRadius: "999px",
+                                                    display: "inline-flex",
+                                                    alignItems: "center",
+                                                    justifyContent: "center",
+                                                    background: "rgba(34,197,94,0.14)",
+                                                    color: "#bbf7d0",
+                                                    fontSize: "0.72rem",
+                                                    fontWeight: 700,
+                                                  }}
+                                                >
+                                                  {step.stepOrder}
+                                                </span>
+
+                                                <div
+                                                  style={{
+                                                    color: isCompleted
+                                                      ? "rgba(226,232,240,0.72)"
+                                                      : "#e5e7eb",
+                                                    fontSize: "0.84rem",
+                                                    fontWeight: 600,
+                                                    textDecoration: isCompleted
+                                                      ? "line-through"
+                                                      : "none",
+                                                  }}
+                                                >
+                                                  {step.name}
+                                                </div>
+
+                                                <span
+                                                  style={{
+                                                    display: "inline-flex",
+                                                    alignItems: "center",
+                                                    padding: "0.18rem 0.55rem",
+                                                    borderRadius: "999px",
+                                                    fontSize: "0.72rem",
+                                                    ...getStatusPillStyle(
+                                                      step.status || "Pendiente"
+                                                    ),
+                                                  }}
+                                                >
+                                                  {step.status || "Pendiente"}
+                                                </span>
+
+                                                <span
+                                                  style={{
+                                                    display: "inline-flex",
+                                                    alignItems: "center",
+                                                    padding: "0.18rem 0.55rem",
+                                                    borderRadius: "999px",
+                                                    fontSize: "0.72rem",
+                                                    ...getPriorityPillStyle(
+                                                      step.priority || "Media"
+                                                    ),
+                                                  }}
+                                                >
+                                                  {step.priority || "Media"}
+                                                </span>
+                                              </div>
+
+                                              <div
+                                                style={{
+                                                  display: "flex",
+                                                  gap: "10px",
+                                                  flexWrap: "wrap",
+                                                  color: "rgba(148,163,184,0.88)",
+                                                  fontSize: "0.74rem",
+                                                  marginBottom: step.notes ? "6px" : "0",
+                                                }}
+                                              >
+                                                <span>Responsable: {step.owner || "—"}</span>
+                                                <span>
+                                                  Inicio: {formatProcessDate(step.startDate)}
+                                                </span>
+                                                <span>
+                                                  Meta: {formatProcessDate(step.dueDate)}
+                                                </span>
+                                                <span>
+                                                  Completada: {formatProcessDate(step.completedAt)}
+                                                </span>
+                                              </div>
+
+                                              {step.notes ? (
+                                                <div
+                                                  style={{
+                                                    marginTop: "6px",
+                                                    color: "rgba(226,232,240,0.78)",
+                                                    fontSize: "0.78rem",
+                                                    whiteSpace: "pre-wrap",
+                                                  }}
+                                                >
+                                                  {step.notes}
+                                                </div>
+                                              ) : null}
+                                            </div>
+                                          </div>
+
+                                          <div
+                                            style={{
+                                              display: "flex",
+                                              gap: "8px",
+                                              flexWrap: "wrap",
+                                              alignItems: "center",
+                                            }}
+                                          >
                                             <button
                                               type="button"
                                               className="secondary-btn"
-                                              onClick={() => completeStep(step)}
+                                              onClick={() => toggleStepCompletion(step)}
                                               disabled={processActionLoading}
                                             >
-                                              Completar
+                                              {isCompleted ? "Reabrir" : "Completar"}
                                             </button>
-                                          )}
+                                          </div>
                                         </div>
                                       </div>
-                                    </div>
-                                  ))}
+                                    );
+                                  })}
                                 </div>
                               )}
                             </div>
