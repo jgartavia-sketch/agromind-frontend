@@ -63,11 +63,101 @@
 }
 
 .clima-subtitle {
-  margin: 0;
+  margin: 0 0 18px;
   font-size: 1rem;
   line-height: 1.7;
   color: #475569;
   max-width: 65ch;
+}
+
+.clima-search-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.clima-search-input {
+  flex: 1 1 260px;
+  min-width: 0;
+  height: 46px;
+  border-radius: 14px;
+  border: 1px solid #cbd5e1;
+  padding: 0 14px;
+  font-size: 0.96rem;
+  color: #0f172a;
+  background: #ffffff;
+  outline: none;
+}
+
+.clima-search-input:focus {
+  border-color: #38bdf8;
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.14);
+}
+
+.clima-search-btn,
+.clima-location-btn {
+  height: 46px;
+  border: none;
+  border-radius: 14px;
+  padding: 0 16px;
+  font-size: 0.92rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease;
+}
+
+.clima-search-btn {
+  background: linear-gradient(135deg, #0ea5e9, #2563eb);
+  color: #ffffff;
+}
+
+.clima-location-btn {
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  color: #ffffff;
+}
+
+.clima-search-btn:hover,
+.clima-location-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.12);
+}
+
+.clima-search-btn:disabled,
+.clima-location-btn:disabled {
+  opacity: 0.7;
+  cursor: wait;
+  transform: none;
+  box-shadow: none;
+}
+
+.clima-location-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: #475569;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.clima-error-box,
+.clima-empty-box {
+  margin-top: 10px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  font-weight: 600;
+}
+
+.clima-error-box {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+}
+
+.clima-empty-box {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  color: #475569;
 }
 
 .clima-current-card {
@@ -271,6 +361,7 @@
 .clima-daily-day {
   font-weight: 800;
   color: #0f172a;
+  text-transform: capitalize;
 }
 
 .clima-daily-summary {
@@ -309,13 +400,11 @@
   overflow: hidden;
 }
 
-/* Scroll elegante si luego hay mucho contenido */
 .clima-hourly-list,
 .clima-daily-list {
   overflow-x: auto;
 }
 
-/* Responsive */
 @media (max-width: 1100px) {
   .clima-hero,
   .clima-sections-grid {
@@ -380,8 +469,19 @@
   .clima-panel-head p,
   .clima-alert-item,
   .clima-future-item,
-  .clima-daily-summary {
+  .clima-daily-summary,
+  .clima-location-meta {
     font-size: 0.94rem;
+  }
+
+  .clima-search-bar {
+    flex-direction: column;
+  }
+
+  .clima-search-input,
+  .clima-search-btn,
+  .clima-location-btn {
+    width: 100%;
   }
 }
 

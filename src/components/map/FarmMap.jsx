@@ -264,7 +264,7 @@ function getStatusPillStyle(status) {
   };
 }
 
-export default function FarmMap({ focusZoneRequest }) {
+export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const vectorSourceRef = useRef(null);
@@ -273,6 +273,7 @@ export default function FarmMap({ focusZoneRequest }) {
 
   const featuresMapRef = useRef({});
   const rowRefs = useRef({});
+  const latestLocationSentRef = useRef("");
 
   const [featuresList, setFeaturesList] = useState([]);
   const latestFeaturesListRef = useRef([]);
@@ -314,6 +315,51 @@ export default function FarmMap({ focusZoneRequest }) {
     if (!map) return;
     map.updateSize();
     requestAnimationFrame(() => map.updateSize());
+  };
+
+  const emitFarmLocationChange = (source = "map") => {
+    if (typeof onFarmLocationChange !== "function") return;
+
+    const map = mapInstanceRef.current;
+    if (!map) return;
+
+    const view = map.getView();
+    const center = view.getCenter();
+    const zoom = view.getZoom();
+
+    if (!center || typeof zoom !== "number") return;
+
+    const [lon, lat] = toLonLat(center);
+
+    if (
+      typeof lon !== "number" ||
+      Number.isNaN(lon) ||
+      typeof lat !== "number" ||
+      Number.isNaN(lat)
+    ) {
+      return;
+    }
+
+    const payload = {
+      lat,
+      lon,
+      zoom,
+      farmId: activeFarmId || localStorage.getItem(ACTIVE_FARM_KEY) || null,
+      source,
+    };
+
+    const signature = JSON.stringify({
+      lat: Number(lat.toFixed(8)),
+      lon: Number(lon.toFixed(8)),
+      zoom: Number(zoom.toFixed(2)),
+      farmId: payload.farmId,
+      source,
+    });
+
+    if (latestLocationSentRef.current === signature) return;
+    latestLocationSentRef.current = signature;
+
+    onFarmLocationChange(payload);
   };
 
   const zonesOnly = featuresList.filter((f) => f.kind === "polygon");
@@ -1148,6 +1194,8 @@ export default function FarmMap({ focusZoneRequest }) {
 
     loadedOnceRef.current = true;
     dirtyRef.current = false;
+
+    setTimeout(() => emitFarmLocationChange("backend-load"), 0);
   };
 
   const scheduleAutosave = (list, options = {}) => {
@@ -1228,6 +1276,7 @@ export default function FarmMap({ focusZoneRequest }) {
 
         setBackendOnline(true);
         dirtyRef.current = false;
+        emitFarmLocationChange("autosave");
       } catch (err) {
         console.warn("Autosave backend falló:", err?.message || err);
         setBackendOnline(false);
@@ -1286,6 +1335,8 @@ export default function FarmMap({ focusZoneRequest }) {
             const latest = latestFeaturesListRef.current || [];
             if (latest.length > 0) {
               scheduleAutosave(latest, { force: true });
+            } else {
+              emitFarmLocationChange("local-view");
             }
           } catch {
             // no-op
@@ -1297,6 +1348,7 @@ export default function FarmMap({ focusZoneRequest }) {
 
       applyBackendMapToUI(mapRes);
       setBackendOnline(true);
+      setTimeout(() => emitFarmLocationChange("farm-load"), 0);
     } catch (err) {
       console.warn("Backend load falló:", err?.message || err);
       setBackendOnline(false);
@@ -1376,6 +1428,8 @@ export default function FarmMap({ focusZoneRequest }) {
     scheduleAutosave(latestFeaturesListRef.current || [], {
       view: { center: [lon, lat], zoom },
     });
+
+    setTimeout(() => emitFarmLocationChange("search"), 0);
   };
 
   const handlePickSearchResult = (item) => {
@@ -1699,14 +1753,21 @@ export default function FarmMap({ focusZoneRequest }) {
         }
       };
 
+      const handleMoveEnd = () => {
+        emitFarmLocationChange("moveend");
+      };
+
       map.on("pointermove", handlePointerMove);
       map.on("singleclick", handleSingleClick);
+      map.on("moveend", handleMoveEnd);
 
       setMapReady(true);
+      setTimeout(() => emitFarmLocationChange("init"), 0);
 
       return () => {
         map.un("pointermove", handlePointerMove);
         map.un("singleclick", handleSingleClick);
+        map.un("moveend", handleMoveEnd);
 
         if (mapInstanceRef.current) {
           if (drawInteractionRef.current)
@@ -1722,6 +1783,11 @@ export default function FarmMap({ focusZoneRequest }) {
     if (!mapReady) return;
     ensureFarmAndLoad();
   }, [mapReady]);
+
+  useEffect(() => {
+    if (!mapReady) return;
+    emitFarmLocationChange("farm-id-change");
+  }, [activeFarmId, mapReady]);
 
   useEffect(() => {
     const featuresMap = featuresMapRef.current;
@@ -1956,6 +2022,8 @@ export default function FarmMap({ focusZoneRequest }) {
     scheduleAutosave(latestFeaturesListRef.current || [], {
       view: { center: [lon, lat], zoom },
     });
+
+    emitFarmLocationChange("save-view");
   };
 
   const pointCount = featuresList.filter((f) => f.kind === "point").length;

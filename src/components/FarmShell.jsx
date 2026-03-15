@@ -54,11 +54,29 @@ export default function FarmShell({ user, onLogout }) {
   const [token, setToken] = useState(() => getAuthToken());
   const [farmId, setFarmId] = useState(() => getActiveFarmId());
 
+  // ✅ nueva fuente de verdad para ubicación real de la finca
+  const [farmLocation, setFarmLocation] = useState({
+    lat: null,
+    lon: null,
+    zoom: null,
+    farmId: getActiveFarmId() || null,
+    source: null,
+    updatedAt: null,
+  });
+
   // ✅ si cambia localStorage (login/logout en otra parte), nos enteramos
   useEffect(() => {
     const sync = () => {
-      setToken(getAuthToken());
-      setFarmId(getActiveFarmId());
+      const nextToken = getAuthToken();
+      const nextFarmId = getActiveFarmId();
+
+      setToken(nextToken);
+      setFarmId(nextFarmId);
+
+      setFarmLocation((prev) => ({
+        ...prev,
+        farmId: nextFarmId || prev.farmId || null,
+      }));
     };
 
     // evento nativo (entre tabs) + fallback (mismo tab) por seguridad
@@ -86,6 +104,44 @@ export default function FarmShell({ user, onLogout }) {
     setActiveTab("mapa");
   };
 
+  // ✅ FarmMap nos empuja la ubicación real aquí
+  const handleFarmLocationChange = (location) => {
+    if (!location) return;
+
+    setFarmLocation((prev) => {
+      const next = {
+        lat:
+          typeof location.lat === "number" && !Number.isNaN(location.lat)
+            ? location.lat
+            : prev.lat,
+        lon:
+          typeof location.lon === "number" && !Number.isNaN(location.lon)
+            ? location.lon
+            : prev.lon,
+        zoom:
+          typeof location.zoom === "number" && !Number.isNaN(location.zoom)
+            ? location.zoom
+            : prev.zoom,
+        farmId: location.farmId || farmId || prev.farmId || null,
+        source: location.source || prev.source || null,
+        updatedAt: Date.now(),
+      };
+
+      return next;
+    });
+  };
+
+  const climaLocation = useMemo(() => {
+    return {
+      lat: farmLocation?.lat,
+      lon: farmLocation?.lon,
+      zoom: farmLocation?.zoom,
+      farmId: farmLocation?.farmId || farmId || null,
+      source: farmLocation?.source || null,
+      updatedAt: farmLocation?.updatedAt || null,
+    };
+  }, [farmLocation, farmId]);
+
   // ✅ Logout “a prueba de usuarios”
   const handleLogoutClick = () => {
     // limpia token + finca activa (y cualquier rastro)
@@ -95,6 +151,14 @@ export default function FarmShell({ user, onLogout }) {
     // refresca estado local inmediato
     setToken("");
     setFarmId("");
+    setFarmLocation({
+      lat: null,
+      lon: null,
+      zoom: null,
+      farmId: null,
+      source: null,
+      updatedAt: Date.now(),
+    });
 
     // vuelve a mapa por higiene visual
     setActiveTab("mapa");
@@ -151,7 +215,12 @@ export default function FarmShell({ user, onLogout }) {
 
       <main className="farm-shell-main">
         <section className="farm-shell-map-card">
-          {activeTab === "mapa" && <FarmMap focusZoneRequest={focusZoneRequest} />}
+          {activeTab === "mapa" && (
+            <FarmMap
+              focusZoneRequest={focusZoneRequest}
+              onFarmLocationChange={handleFarmLocationChange}
+            />
+          )}
 
           {activeTab === "tareas" && (
             <TareasPage
@@ -162,7 +231,15 @@ export default function FarmShell({ user, onLogout }) {
           )}
 
           {activeTab === "finanzas" && <FinanzasPage />}
-          {activeTab === "clima" && <ClimaPage />}
+
+          {activeTab === "clima" && (
+            <ClimaPage
+              farmLocation={climaLocation}
+              token={token}
+              farmId={farmId}
+            />
+          )}
+
           {activeTab === "dispositivos" && <DispositivosPage />}
           {activeTab === "investigador" && <InvestigadorPage />}
           {activeTab === "productos" && <ProductosPage />}
