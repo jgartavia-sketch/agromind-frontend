@@ -6,6 +6,7 @@ import FinanzasPage from "../pages/FinanzasPage";
 import DispositivosPage from "../pages/DispositivosPage";
 import InvestigadorPage from "../pages/InvestigadorPage";
 import ProductosPage from "../pages/ProductosPage";
+import ClimaPage from "../pages/ClimaPage";
 import Footer from "./Footer";
 import "../styles/farm-shell.css";
 
@@ -119,6 +120,7 @@ export default function FarmShell({ user, onLogout }) {
             ["mapa", "Mapa de la finca"],
             ["tareas", "Tareas"],
             ["finanzas", "Finanzas"],
+            ["clima", "Clima"],
             ["dispositivos", "Dispositivos"],
             ["investigador", "Investigador IA"],
             ["productos", "Productos de interés"],
@@ -160,6 +162,7 @@ export default function FarmShell({ user, onLogout }) {
           )}
 
           {activeTab === "finanzas" && <FinanzasPage />}
+          {activeTab === "clima" && <ClimaPage />}
           {activeTab === "dispositivos" && <DispositivosPage />}
           {activeTab === "investigador" && <InvestigadorPage />}
           {activeTab === "productos" && <ProductosPage />}
