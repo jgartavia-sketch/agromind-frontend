@@ -257,7 +257,7 @@ export default function ClimaPage() {
         setLocationName(prettyName);
       }
     } catch {
-      // silencio elegante: si no resuelve nombre, igual sirven las coordenadas
+      // no-op
     }
   }, []);
 
@@ -657,27 +657,6 @@ export default function ClimaPage() {
                 : "Cargando pronóstico diario..."}
             </div>
           )}
-        </div>
-      </section>
-
-      <section className="clima-panel clima-future-panel">
-        <div className="clima-panel-head">
-          <h3>Clima conectado al negocio</h3>
-          <p>La joya no es ver el clima; la joya es usarlo para decidir mejor.</p>
-        </div>
-
-        <div className="clima-future-points">
-          <div className="clima-future-item">
-            Cruzar clima con tareas para alertar si una labor conviene, se retrasa o se
-            vuelve riesgosa.
-          </div>
-          <div className="clima-future-item">
-            Leer automáticamente la ubicación real de la finca desde el mapa para no
-            depender de búsquedas manuales.
-          </div>
-          <div className="clima-future-item">
-            Generar recomendaciones por proceso agrícola, zona y prioridad operativa.
-          </div>
         </div>
       </section>
     </div>
