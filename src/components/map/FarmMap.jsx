@@ -59,6 +59,33 @@ function nowIso() {
   return new Date().toISOString();
 }
 
+function persistFarmLocation({ lat, lon, zoom, farmId = null, source = "map" }) {
+  if (
+    typeof lat !== "number" ||
+    Number.isNaN(lat) ||
+    typeof lon !== "number" ||
+    Number.isNaN(lon)
+  ) {
+    return;
+  }
+
+  try {
+    localStorage.setItem(
+      "farmLocation",
+      JSON.stringify({
+        lat,
+        lon,
+        zoom: typeof zoom === "number" && !Number.isNaN(zoom) ? zoom : null,
+        farmId,
+        source,
+        updatedAt: nowIso(),
+      })
+    );
+  } catch {
+    // no-op
+  }
+}
+
 function toYYYYMMDD(d = new Date()) {
   const date = d instanceof Date ? d : new Date(d);
   if (Number.isNaN(date.getTime())) return "";
@@ -318,8 +345,6 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
   };
 
   const emitFarmLocationChange = (source = "map") => {
-    if (typeof onFarmLocationChange !== "function") return;
-
     const map = mapInstanceRef.current;
     if (!map) return;
 
@@ -348,6 +373,8 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
       source,
     };
 
+    persistFarmLocation(payload);
+
     const signature = JSON.stringify({
       lat: Number(lat.toFixed(8)),
       lon: Number(lon.toFixed(8)),
@@ -359,7 +386,9 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
     if (latestLocationSentRef.current === signature) return;
     latestLocationSentRef.current = signature;
 
-    onFarmLocationChange(payload);
+    if (typeof onFarmLocationChange === "function") {
+      onFarmLocationChange(payload);
+    }
   };
 
   const zonesOnly = featuresList.filter((f) => f.kind === "polygon");
@@ -1248,7 +1277,16 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
         const zoom = view.getZoom();
         if (center && typeof zoom === "number") {
           const [lon, lat] = toLonLat(center);
+
           localStorage.setItem(VIEW_KEY, JSON.stringify({ lon, lat, zoom }));
+
+          persistFarmLocation({
+            lat,
+            lon,
+            zoom,
+            farmId: activeFarmId || localStorage.getItem(ACTIVE_FARM_KEY) || null,
+            source: "schedule-autosave",
+          });
         }
       }
     } catch {
