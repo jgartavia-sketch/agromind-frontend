@@ -413,11 +413,13 @@ export default function ClimaPage() {
 
           <h1 className="clima-title">El tiempo también manda en la finca.</h1>
 
-          <p className="clima-subtitle">
-            {hasFarmLocation
-              ? "Esta página ya está leyendo la ubicación real de tu finca para mostrar condiciones actuales, pronóstico por horas y panorama semanal."
-              : "Cuando la finca tenga coordenadas guardadas, AgroMind traerá el clima real automáticamente. Mientras tanto, puedes buscar una ubicación o usar tu posición actual."}
-          </p>
+          {!hasFarmLocation && (
+            <p className="clima-subtitle">
+              Cuando la finca tenga coordenadas guardadas, AgroMind traerá el clima
+              real automáticamente. Mientras tanto, puedes buscar una ubicación o usar
+              tu posición actual.
+            </p>
+          )}
 
           <form className="clima-search-bar" onSubmit={handleSearchSubmit}>
             <input
