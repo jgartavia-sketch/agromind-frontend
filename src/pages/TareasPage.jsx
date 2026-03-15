@@ -62,6 +62,12 @@ const EMPTY_FORM = {
   owner: "",
 };
 
+const DEFAULT_WEATHER_LOCATION = {
+  name: "Ciudad Quesada, Costa Rica",
+  latitude: 10.3238,
+  longitude: -84.4271,
+};
+
 function pickLocalStorage(keys) {
   for (const k of keys) {
     const v = localStorage.getItem(k);
@@ -110,6 +116,228 @@ function addDaysYYYYMMDD(dateStr, days) {
   return d.toISOString().slice(0, 10);
 }
 
+function getWeatherCodeLabel(code) {
+  const map = {
+    0: "Despejado",
+    1: "Mayormente despejado",
+    2: "Parcialmente nublado",
+    3: "Nublado",
+    45: "Neblina",
+    48: "Neblina con escarcha",
+    51: "Llovizna ligera",
+    53: "Llovizna moderada",
+    55: "Llovizna intensa",
+    56: "Llovizna helada ligera",
+    57: "Llovizna helada intensa",
+    61: "Lluvia ligera",
+    63: "Lluvia moderada",
+    65: "Lluvia fuerte",
+    66: "Lluvia helada ligera",
+    67: "Lluvia helada fuerte",
+    71: "Nieve ligera",
+    73: "Nieve moderada",
+    75: "Nieve fuerte",
+    77: "Granos de nieve",
+    80: "Chubascos ligeros",
+    81: "Chubascos moderados",
+    82: "Chubascos violentos",
+    85: "Nevadas ligeras",
+    86: "Nevadas fuertes",
+    95: "Tormenta",
+    96: "Tormenta con granizo ligero",
+    99: "Tormenta con granizo fuerte",
+  };
+  return map[code] || "Condición variable";
+}
+
+function normalizeZoneName(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function getWeatherSeverityLevel(risks) {
+  if (risks.some((r) => r.level === "alert")) return "alert";
+  if (risks.some((r) => r.level === "warning")) return "warning";
+  return "info";
+}
+
+function buildWeatherRisk(weather) {
+  if (!weather) return null;
+
+  const risks = [];
+  const recommendations = [];
+
+  const temp = Number(weather.temperature ?? 0);
+  const wind = Number(weather.windSpeed ?? 0);
+  const humidity = Number(weather.humidity ?? 0);
+  const uv = Number(weather.uvIndex ?? 0);
+  const precipProb = Number(weather.precipitationProbability ?? 0);
+  const precip = Number(weather.precipitation ?? 0);
+  const weatherCode = Number(weather.weatherCode ?? -1);
+
+  const rainyCodes = [
+    51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82, 95, 96, 99,
+  ];
+
+  const hasRainRisk =
+    precipProb >= 55 || precip >= 0.8 || rainyCodes.includes(weatherCode);
+
+  if (hasRainRisk) {
+    const strongRain =
+      precipProb >= 75 || precip >= 3 || [65, 82, 95, 96, 99].includes(weatherCode);
+
+    risks.push({
+      key: "rain",
+      label: strongRain ? "Riesgo alto de lluvia" : "Probabilidad de lluvia",
+      level: strongRain ? "alert" : "warning",
+    });
+
+    recommendations.push(
+      strongRain
+        ? "Evita programar cosecha, aplicaciones foliares o secado al aire libre."
+        : "Revisa tareas de campo sensibles al agua antes de ejecutarlas."
+    );
+  }
+
+  if (wind >= 30) {
+    const strongWind = wind >= 45;
+    risks.push({
+      key: "wind",
+      label: strongWind ? "Viento fuerte" : "Viento elevado",
+      level: strongWind ? "alert" : "warning",
+    });
+
+    recommendations.push(
+      strongWind
+        ? "Pausa fumigación, trabajos en altura y manejo liviano de materiales."
+        : "Toma precaución con aplicaciones y labores expuestas."
+    );
+  }
+
+  if (humidity >= 88) {
+    risks.push({
+      key: "humidity",
+      label: "Humedad alta",
+      level: humidity >= 94 ? "warning" : "info",
+    });
+
+    recommendations.push(
+      "La humedad favorece hongos, barro y retrasos operativos; prioriza revisión de drenajes y ventilación."
+    );
+  }
+
+  if (uv >= 8) {
+    risks.push({
+      key: "uv",
+      label: uv >= 11 ? "UV extremo" : "UV alto",
+      level: uv >= 11 ? "alert" : "warning",
+    });
+
+    recommendations.push(
+      "Programa labores pesadas temprano o al final de la tarde y protege al personal."
+    );
+  }
+
+  if (temp >= 32) {
+    recommendations.push(
+      "La temperatura está alta; hidrata al personal y vigila animales, viveros y riegos."
+    );
+  }
+
+  if (risks.length === 0) {
+    recommendations.push(
+      "Condiciones relativamente favorables para operación normal, con monitoreo básico."
+    );
+  }
+
+  const level = getWeatherSeverityLevel(risks);
+
+  let title = "Ventana operativa favorable";
+  if (level === "warning") title = "Clima con atención operativa";
+  if (level === "alert") title = "Clima con riesgo operativo";
+
+  const summary =
+    risks.length > 0
+      ? risks.map((r) => r.label).join(" · ")
+      : "Sin señales fuertes de riesgo inmediato";
+
+  return {
+    level,
+    title,
+    summary,
+    recommendations,
+    risks,
+  };
+}
+
+function getWeatherBannerClass(level) {
+  switch (level) {
+    case "alert":
+      return "weather-banner-alert";
+    case "warning":
+      return "weather-banner-warning";
+    case "info":
+      return "weather-banner-info";
+    default:
+      return "weather-banner-neutral";
+  }
+}
+
+async function reverseGeocodeName(latitude, longitude) {
+  try {
+    const url = `https://geocoding-api.open-meteo.com/v1/reverse?latitude=${latitude}&longitude=${longitude}&language=es&format=json`;
+    const res = await fetch(url, { cache: "no-store" });
+    const data = await res.json();
+    const item = Array.isArray(data?.results) ? data.results[0] : null;
+    if (!item) return "";
+    const parts = [item.name, item.admin2, item.admin1, item.country].filter(Boolean);
+    return parts.join(", ");
+  } catch {
+    return "";
+  }
+}
+
+async function resolveBrowserLocation() {
+  return new Promise((resolve) => {
+    if (!navigator?.geolocation) {
+      resolve(DEFAULT_WEATHER_LOCATION);
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const latitude = position?.coords?.latitude;
+        const longitude = position?.coords?.longitude;
+
+        if (
+          typeof latitude !== "number" ||
+          Number.isNaN(latitude) ||
+          typeof longitude !== "number" ||
+          Number.isNaN(longitude)
+        ) {
+          resolve(DEFAULT_WEATHER_LOCATION);
+          return;
+        }
+
+        const name =
+          (await reverseGeocodeName(latitude, longitude)) ||
+          "Ubicación actual";
+
+        resolve({
+          name,
+          latitude,
+          longitude,
+        });
+      },
+      () => resolve(DEFAULT_WEATHER_LOCATION),
+      {
+        enableHighAccuracy: true,
+        timeout: 7000,
+        maximumAge: 1000 * 60 * 15,
+      }
+    );
+  });
+}
+
 export default function TareasPage({
   onOpenZoneInMap,
   zonesFromMap = [],
@@ -122,7 +350,11 @@ export default function TareasPage({
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
-  // ✅ IA Suggestions
+  const [weatherLoading, setWeatherLoading] = useState(false);
+  const [weatherError, setWeatherError] = useState("");
+  const [weatherData, setWeatherData] = useState(null);
+  const [weatherRisk, setWeatherRisk] = useState(null);
+
   const [suggestions, setSuggestions] = useState([]);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   const [ignoredSuggestions, setIgnoredSuggestions] = useState(() => new Set());
@@ -172,9 +404,67 @@ export default function TareasPage({
     return data;
   }
 
-  // =========================
-  // Fetchers reutilizables
-  // =========================
+  const fetchWeather = useCallback(async () => {
+    setWeatherLoading(true);
+    setWeatherError("");
+
+    try {
+      const location = await resolveBrowserLocation();
+
+      const url =
+        `https://api.open-meteo.com/v1/forecast?latitude=${location.latitude}` +
+        `&longitude=${location.longitude}` +
+        `&current=temperature_2m,relative_humidity_2m,precipitation,weather_code,wind_speed_10m` +
+        `&hourly=uv_index,precipitation_probability` +
+        `&forecast_days=1&timezone=auto`;
+
+      const res = await fetch(url, { cache: "no-store" });
+      const data = await res.json();
+
+      const current = data?.current || {};
+      const hourly = data?.hourly || {};
+      const currentTime = current?.time || "";
+      const hourlyTimes = Array.isArray(hourly?.time) ? hourly.time : [];
+
+      let hourlyIndex = hourlyTimes.findIndex((t) => t === currentTime);
+      if (hourlyIndex < 0) hourlyIndex = 0;
+
+      const uvIndex = Array.isArray(hourly?.uv_index)
+        ? Number(hourly.uv_index[hourlyIndex] ?? 0)
+        : 0;
+
+      const precipitationProbability = Array.isArray(
+        hourly?.precipitation_probability
+      )
+        ? Number(hourly.precipitation_probability[hourlyIndex] ?? 0)
+        : 0;
+
+      const normalized = {
+        locationName: location.name || DEFAULT_WEATHER_LOCATION.name,
+        latitude: location.latitude,
+        longitude: location.longitude,
+        temperature: Number(current?.temperature_2m ?? 0),
+        humidity: Number(current?.relative_humidity_2m ?? 0),
+        precipitation: Number(current?.precipitation ?? 0),
+        precipitationProbability,
+        weatherCode: Number(current?.weather_code ?? -1),
+        weatherLabel: getWeatherCodeLabel(Number(current?.weather_code ?? -1)),
+        windSpeed: Number(current?.wind_speed_10m ?? 0),
+        uvIndex,
+        time: currentTime,
+      };
+
+      setWeatherData(normalized);
+      setWeatherRisk(buildWeatherRisk(normalized));
+    } catch {
+      setWeatherError("No se pudo cargar el clima actual para tareas.");
+      setWeatherData(null);
+      setWeatherRisk(null);
+    } finally {
+      setWeatherLoading(false);
+    }
+  }, []);
+
   const fetchTasks = useCallback(async () => {
     setErrorMsg("");
 
@@ -231,9 +521,6 @@ export default function TareasPage({
     }
   }, [farmId, token, API_BASE]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // =========================
-  // LOAD inicial (tasks + suggestions)
-  // =========================
   useEffect(() => {
     let cancelled = false;
 
@@ -242,24 +529,20 @@ export default function TareasPage({
       await fetchTasks();
       if (cancelled) return;
       await fetchSuggestions();
+      if (cancelled) return;
+      await fetchWeather();
     }
 
     loadAll();
+
     return () => {
       cancelled = true;
     };
-  }, [fetchTasks, fetchSuggestions]);
+  }, [fetchTasks, fetchSuggestions, fetchWeather]);
 
-  // =========================
-  // ✅ REFRESH BUS (Finanzas -> Tareas)
-  // Escucha:
-  // - CustomEvent: agromind:tasks:refresh
-  // - localStorage ping: agromind_tasks_refresh
-  // =========================
   useEffect(() => {
     function onRefreshEvent(e) {
       const targetFarmId = e?.detail?.farmId ? String(e.detail.farmId) : "";
-      // Si viene farmId, solo refrescar si coincide; si no viene, refrescar igual.
       if (targetFarmId && farmId && String(farmId) !== targetFarmId) return;
       fetchTasks();
       fetchSuggestions();
@@ -267,7 +550,6 @@ export default function TareasPage({
 
     function onStorage(e) {
       if (e?.key !== "agromind_tasks_refresh") return;
-      // Cuando cambie ese key, refrescar.
       fetchTasks();
       fetchSuggestions();
     }
@@ -321,9 +603,68 @@ export default function TareasPage({
     });
   }, [suggestions, ignoredSuggestions]);
 
-  // =========================
-  // FORM
-  // =========================
+  const weatherTaskMatches = useMemo(() => {
+    if (!weatherRisk || !Array.isArray(filteredTasks) || filteredTasks.length === 0) {
+      return [];
+    }
+
+    const riskKeys = new Set((weatherRisk.risks || []).map((r) => r.key));
+
+    return filteredTasks.filter((task) => {
+      const title = String(task?.title || "").toLowerCase();
+      const type = String(task?.type || "").toLowerCase();
+      const zone = normalizeZoneName(task?.zone);
+
+      if (
+        riskKeys.has("rain") &&
+        (
+          title.includes("cosecha") ||
+          title.includes("fumig") ||
+          title.includes("secado") ||
+          type.includes("cosecha")
+        )
+      ) {
+        return true;
+      }
+
+      if (
+        riskKeys.has("wind") &&
+        (
+          title.includes("fumig") ||
+          title.includes("aspers") ||
+          title.includes("altura")
+        )
+      ) {
+        return true;
+      }
+
+      if (
+        riskKeys.has("humidity") &&
+        (
+          title.includes("hong") ||
+          title.includes("dren") ||
+          zone.includes("vivero") ||
+          zone.includes("invernadero")
+        )
+      ) {
+        return true;
+      }
+
+      if (
+        riskKeys.has("uv") &&
+        (
+          type.includes("mantenimiento") ||
+          type.includes("cosecha") ||
+          title.includes("campo")
+        )
+      ) {
+        return true;
+      }
+
+      return false;
+    });
+  }, [filteredTasks, weatherRisk]);
+
   const handleFormChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
@@ -464,8 +805,6 @@ export default function TareasPage({
       }
 
       handleResetForm();
-
-      // ✅ refrescar sugerencias IA (porque al crear tareas cambian)
       fireTasksRefresh();
     } catch (err) {
       setErrorMsg(err?.message || "No se pudo guardar la tarea.");
@@ -551,7 +890,88 @@ export default function TareasPage({
         </section>
       )}
 
-      {/* IA */}
+      <section
+        className={`card tasks-weather-card ${
+          weatherRisk ? getWeatherBannerClass(weatherRisk.level) : "weather-banner-neutral"
+        }`}
+      >
+        <div className="weather-operational-header">
+          <div className="weather-operational-main">
+            <h3 className="weather-operational-title">Clima operativo para tareas</h3>
+
+            {weatherLoading ? (
+              <p className="weather-operational-summary">
+                Leyendo clima actual para afinar la operación…
+              </p>
+            ) : weatherError ? (
+              <p className="weather-operational-summary">{weatherError}</p>
+            ) : weatherData && weatherRisk ? (
+              <>
+                <p className="weather-operational-state">{weatherRisk.title}</p>
+
+                <p className="weather-operational-summary">
+                  {weatherRisk.summary}
+                </p>
+
+                <p className="weather-operational-location">
+                  {weatherData.locationName} · {weatherData.weatherLabel}
+                </p>
+
+                <div className="weather-metrics">
+                  <span className="status-badge">Temp: {weatherData.temperature}°C</span>
+                  <span className="status-badge">Humedad: {weatherData.humidity}%</span>
+                  <span className="status-badge">Viento: {weatherData.windSpeed} km/h</span>
+                  <span className="status-badge">Lluvia: {weatherData.precipitation} mm</span>
+                  <span className="status-badge">
+                    Prob. lluvia: {weatherData.precipitationProbability}%
+                  </span>
+                  <span className="status-badge">UV: {weatherData.uvIndex}</span>
+                </div>
+
+                <div className="weather-tips">
+                  {weatherRisk.recommendations.map((tip, idx) => (
+                    <p key={idx} className="weather-tip">
+                      • {tip}
+                    </p>
+                  ))}
+                </div>
+
+                {weatherTaskMatches.length > 0 && (
+                  <div className="weather-task-impact">
+                    <p className="weather-task-impact-title">
+                      Tareas potencialmente afectadas ahora: {weatherTaskMatches.length}
+                    </p>
+
+                    <div className="weather-task-tags">
+                      {weatherTaskMatches.slice(0, 6).map((task) => (
+                        <span key={task.id} className="priority-badge priority-medium">
+                          {task.title}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              <p className="weather-operational-summary">
+                Sin lectura climática disponible todavía.
+              </p>
+            )}
+          </div>
+
+          <div className="weather-refresh-box">
+            <button
+              type="button"
+              className="secondary-btn"
+              onClick={fetchWeather}
+              disabled={weatherLoading}
+            >
+              {weatherLoading ? "Actualizando clima…" : "Actualizar clima"}
+            </button>
+          </div>
+        </div>
+      </section>
+
       <section className="card ia-placeholder">
         <h3>Recomendaciones IA</h3>
 
@@ -563,7 +983,6 @@ export default function TareasPage({
             está en control.)
           </p>
         ) : (
-          // ✅ Carrusel horizontal: scroll izquierda→derecha
           <div className="ai-suggestions-list ai-suggestions-row">
             {visibleSuggestions.map((s) => {
               const id = String(s?.id || s?._id || Math.random());

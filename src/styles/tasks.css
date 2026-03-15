@@ -1,3 +1,128 @@
+/* =========================================================
+   TAREAS PAGE — PREMIUM UI
+   ========================================================= */
+
+/* -------- BASE -------- */
+
+.card {
+  background: rgba(15, 23, 42, 0.98);
+  border-radius: 0.9rem;
+  padding: 1rem 1.2rem;
+  border: 1px solid rgba(30, 64, 175, 0.6);
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.9);
+}
+
+/* -------- CLIMA OPERATIVO -------- */
+
+.tasks-weather-card {
+  margin-bottom: 1rem;
+}
+
+.weather-operational-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.weather-operational-main {
+  flex: 1 1 520px;
+  min-width: 280px;
+}
+
+.weather-operational-title {
+  margin: 0 0 0.4rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #e5e7eb;
+}
+
+.weather-operational-state {
+  margin: 0 0 0.4rem;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #f8fafc;
+}
+
+.weather-operational-summary {
+  margin: 0 0 0.5rem;
+  color: rgba(226, 232, 240, 0.92);
+  line-height: 1.45;
+}
+
+.weather-operational-location {
+  margin: 0 0 0.75rem;
+  color: #94a3b8;
+  font-size: 0.92rem;
+}
+
+.weather-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.9rem;
+}
+
+.weather-tips {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.weather-tip {
+  margin: 0;
+  color: rgba(226, 232, 240, 0.9);
+  line-height: 1.45;
+}
+
+.weather-task-impact {
+  margin-top: 1rem;
+  padding-top: 0.8rem;
+  border-top: 1px solid rgba(148, 163, 184, 0.18);
+}
+
+.weather-task-impact-title {
+  margin: 0 0 0.55rem;
+  font-weight: 700;
+  color: #f8fafc;
+}
+
+.weather-task-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.weather-refresh-box {
+  flex: 0 0 auto;
+}
+
+.weather-banner-alert {
+  border: 1px solid rgba(220, 38, 38, 0.35);
+  background:
+    linear-gradient(135deg, rgba(127, 29, 29, 0.18), rgba(239, 68, 68, 0.12)),
+    rgba(15, 23, 42, 0.96);
+}
+
+.weather-banner-warning {
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  background:
+    linear-gradient(135deg, rgba(120, 53, 15, 0.18), rgba(245, 158, 11, 0.12)),
+    rgba(15, 23, 42, 0.96);
+}
+
+.weather-banner-info {
+  border: 1px solid rgba(34, 197, 94, 0.28);
+  background:
+    linear-gradient(135deg, rgba(20, 83, 45, 0.16), rgba(34, 197, 94, 0.1)),
+    rgba(15, 23, 42, 0.96);
+}
+
+.weather-banner-neutral {
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: rgba(15, 23, 42, 0.96);
+}
+
 /* -------- TAREAS: MINI DASHBOARD -------- */
 
 .tasks-summary {
@@ -8,7 +133,7 @@
 }
 
 .summary-card {
-  background: rgba(15, 23, 42, 0.95); /* navy oscuro */
+  background: rgba(15, 23, 42, 0.95);
   border-radius: 0.75rem;
   padding: 0.9rem 1rem;
   border: 1px solid rgba(148, 163, 184, 0.35);
@@ -95,11 +220,12 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0.2rem 0.55rem;
+  padding: 6px 10px;
   border-radius: 999px;
-  font-size: 0.75rem;
+  font-size: 0.82rem;
   font-weight: 500;
-  letter-spacing: 0.03em;
+  line-height: 1;
+  letter-spacing: 0.2px;
   white-space: nowrap;
 }
 
@@ -141,21 +267,12 @@
   border: 1px solid rgba(16, 185, 129, 0.8);
 }
 
-/* Ajuste pequeño a la card de la tabla si no lo tienes ya */
-.card {
-  background: rgba(15, 23, 42, 0.98);
-  border-radius: 0.9rem;
-  padding: 1rem 1.2rem;
-  border: 1px solid rgba(30, 64, 175, 0.6);
-  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.9);
-}
-
 /* -------- ZONA EN TABLA -------- */
 
 .task-zone-cell {
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
+  gap: 6px;
 }
 
 .task-zone-actions {
@@ -164,17 +281,21 @@
 }
 
 .link-button {
-  background: transparent;
-  border: none;
+  align-self: flex-start;
   padding: 0;
-  font-size: 0.8rem;
+  font-size: 0.85rem;
   color: #38bdf8;
   cursor: pointer;
-  text-decoration: underline;
+  background: transparent;
+  border: none;
+  text-decoration: none;
+  opacity: 0.75;
 }
 
 .link-button:hover {
   color: #0ea5e9;
+  opacity: 1;
+  text-decoration: underline;
 }
 
 /* -------- EDITOR DE TAREAS -------- */
@@ -232,8 +353,8 @@
 
 .task-actions {
   display: flex;
-  gap: 0.4rem;
-  justify-content: flex-start;
+  gap: 8px;
+  justify-content: flex-end;
   flex-wrap: wrap;
 }
 
@@ -241,23 +362,29 @@
   border-radius: 999px;
   border: 1px solid rgba(148, 163, 184, 0.7);
   background: transparent;
-  padding: 0.18rem 0.7rem;
-  font-size: 0.75rem;
+  padding: 6px 10px;
+  font-size: 0.85rem;
   color: #e5e7eb;
   cursor: pointer;
+  opacity: 0.92;
+  transition: transform 140ms ease, opacity 140ms ease, background 140ms ease;
 }
 
 .small-btn:hover {
   background: rgba(15, 23, 42, 0.9);
+  opacity: 1;
+  transform: translateY(-1px);
 }
 
 .small-btn-danger {
   border-color: rgba(248, 113, 113, 0.8);
   color: #fecaca;
+  opacity: 0.85;
 }
 
 .small-btn-danger:hover {
   background: rgba(127, 29, 29, 0.7);
+  opacity: 1;
 }
 
 /* -------- SELECTOR ZONA INPUT + SELECT -------- */
@@ -283,7 +410,7 @@
 }
 
 /* =========================================================
-   ✅ IA SUGGESTIONS: GLASS CARDS (Premium)
+   IA SUGGESTIONS: GLASS CARDS (Premium)
    ========================================================= */
 
 .ai-suggestions-list {
@@ -293,22 +420,17 @@
   margin-top: 0.75rem;
 }
 
-/* La “card cristal” */
 .ai-suggestion-card {
   position: relative;
   padding: 1rem 1.1rem;
   border-radius: 18px;
-
   background: rgba(2, 6, 23, 0.55);
   border: 1px solid rgba(148, 163, 184, 0.18);
-
   box-shadow:
     0 12px 30px rgba(0, 0, 0, 0.35),
     inset 0 1px 0 rgba(255, 255, 255, 0.05);
-
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-
   transition: transform 160ms ease, border-color 160ms ease;
 }
 
@@ -317,7 +439,6 @@
   border-color: rgba(56, 189, 248, 0.25);
 }
 
-/* Header: título + chip */
 .ai-suggestion-head {
   display: flex;
   align-items: center;
@@ -343,14 +464,12 @@
   white-space: nowrap;
 }
 
-/* Mensaje */
 .ai-suggestion-message {
   color: rgba(226, 232, 240, 0.9);
   line-height: 1.35rem;
   margin-bottom: 0.9rem;
 }
 
-/* Botones */
 .ai-suggestion-actions {
   display: flex;
   gap: 0.6rem;
@@ -363,12 +482,10 @@
   padding: 0.55rem 0.9rem;
   font-weight: 700;
   font-size: 0.9rem;
-
   border: 1px solid rgba(148, 163, 184, 0.18);
   background: rgba(2, 6, 23, 0.35);
   color: rgba(226, 232, 240, 0.95);
   cursor: pointer;
-
   transition: transform 140ms ease, border-color 140ms ease, opacity 140ms ease;
 }
 
@@ -384,14 +501,10 @@
   opacity: 0.55;
 }
 
-/* =========================================================
-   Niveles (sutil, elegante)
-   - dejamos tus clases ia-suggestion/ia-*
-   y las usamos como “acento” sin arruinar el glass
-   ========================================================= */
+/* -------- Niveles IA -------- */
 
 .ia-suggestion {
-  /* ya no controla layout; solo sirve de etiqueta/compatibilidad */
+  /* compatibilidad */
 }
 
 .ia-info.ai-suggestion-card {
@@ -405,14 +518,14 @@
   box-shadow:
     0 12px 30px rgba(0, 0, 0, 0.35),
     inset 0 1px 0 rgba(255, 255, 255, 0.05),
-    inset 0 0 0 1px rgba(251, 191, 36, 0.10);
+    inset 0 0 0 1px rgba(251, 191, 36, 0.1);
 }
 
 .ia-alert.ai-suggestion-card {
   box-shadow:
     0 12px 30px rgba(0, 0, 0, 0.35),
     inset 0 1px 0 rgba(255, 255, 255, 0.05),
-    inset 0 0 0 1px rgba(248, 113, 113, 0.10);
+    inset 0 0 0 1px rgba(248, 113, 113, 0.1);
 }
 
 /* -------- CALENDARIO -------- */
@@ -431,8 +544,8 @@
 }
 
 /* =====================================================
-   IA SUGGESTIONS — carrusel horizontal (scroll →)
-===================================================== */
+   IA SUGGESTIONS — carrusel horizontal
+   ===================================================== */
 
 .ai-suggestions-row {
   display: flex;
@@ -441,7 +554,6 @@
   overflow-y: hidden;
   padding: 0.25rem 0 0.75rem;
   margin-top: 0.75rem;
-
   scroll-snap-type: x mandatory;
   scroll-behavior: smooth;
   -webkit-overflow-scrolling: touch;
@@ -450,51 +562,47 @@
 .ai-suggestions-row::-webkit-scrollbar {
   height: 10px;
 }
+
 .ai-suggestions-row::-webkit-scrollbar-track {
   background: transparent;
 }
+
 .ai-suggestions-row::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.12);
   border-radius: 999px;
 }
 
-/* cada card: ancho premium fijo para “panel ejecutivo” */
 .ai-suggestion-card-h {
   flex: 0 0 320px;
   max-width: 320px;
   scroll-snap-align: start;
 }
 
-@media (max-width: 520px) {
-  .ai-suggestion-card-h {
-    flex-basis: 85%;
-    max-width: 85%;
-  }
-}
-
-/* =====================================================
-   OVERRIDE FINAL: carrusel IA (no columna)
-   ===================================================== */
-
-/* Si el contenedor tiene ambas clases, manda el carrusel */
 .ai-suggestions-list.ai-suggestions-row {
   flex-direction: row;
   align-items: stretch;
 }
 
-/* Para que las cards se vean como “tarjetas” y no se estiren raro */
 .ai-suggestions-list.ai-suggestions-row .ai-suggestion-card {
   height: 100%;
 }
+
 .ai-suggestions-list.ai-suggestions-row .ai-suggestion-actions {
   justify-content: flex-end;
 }
 
 /* ===== HOTFIX: tabla de tareas más pro y legible ===== */
+
 .data-table {
   width: 100%;
   border-collapse: separate;
-  border-spacing: 0 10px; /* separa filas como “cards” */
+  border-spacing: 0 10px;
+}
+
+.card .data-table {
+  display: block;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .data-table thead th {
@@ -507,6 +615,12 @@
   letter-spacing: 0.2px;
   backdrop-filter: blur(10px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  font-size: 0.95rem;
+}
+
+.data-table th,
+.data-table td {
+  font-size: 0.95rem;
 }
 
 .data-table tbody tr {
@@ -522,6 +636,14 @@
   padding: 12px 12px;
   vertical-align: middle;
   line-height: 1.25;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.15);
+}
+
+.data-table tbody tr td:first-child,
+.data-table tbody tr td:last-child {
+  border-top: none;
+  border-bottom: none;
 }
 
 .data-table tbody tr td:first-child {
@@ -534,10 +656,12 @@
   border-bottom-right-radius: 14px;
 }
 
-/* Celdas con texto largo: que no rompa todo */
 .data-table td:nth-child(2) {
   max-width: 360px;
+  font-weight: 600;
+  letter-spacing: 0.1px;
 }
+
 .data-table td:nth-child(2),
 .data-table td:nth-child(3) {
   overflow: hidden;
@@ -545,177 +669,26 @@
   white-space: nowrap;
 }
 
-/* Zona: organiza mejor el “Ver en mapa” */
-.task-zone-cell {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.link-button {
-  align-self: flex-start;
-  padding: 0;
-  font-size: 0.85rem;
-  opacity: 0.85;
-}
-
-/* Acciones: botones más compactos y alineados */
-.task-actions {
-  display: flex;
-  gap: 8px;
-  justify-content: flex-end;
-  flex-wrap: wrap;
-}
-
-.small-btn {
-  padding: 6px 10px;
-  border-radius: 999px;
-  font-size: 0.85rem;
-}
-
-/* Responsive: en pantallas medianas, evita que todo se aplaste */
-@media (max-width: 1100px) {
-  .data-table thead {
-    display: none;
-  }
-
-  .data-table,
-  .data-table tbody,
-  .data-table tr,
-  .data-table td {
-    display: block;
-    width: 100%;
-  }
-
-  .data-table tbody tr {
-    padding: 12px;
-  }
-
-  .data-table td {
-    display: flex;
-    justify-content: space-between;
-    gap: 14px;
-    padding: 10px 6px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  }
-
-  .data-table td:last-child {
-    border-bottom: none;
-  }
-
-  .data-table td:nth-child(2),
-  .data-table td:nth-child(3) {
-    max-width: none;
-    white-space: normal;
-  }
-}
-
-/* ===== UPGRADE PRO: tabla tipo SaaS (más limpia, más jerarquía) ===== */
-
-/* Contenedor: evita que se rompa en pantallas pequeñas */
-.card .data-table {
-  display: block;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-}
-
-/* Mejor tipografía y alineación */
-.data-table td,
-.data-table th {
-  font-size: 0.95rem;
-}
-
-.data-table td:nth-child(5),
-.data-table td:nth-child(6) {
-  font-variant-numeric: tabular-nums; /* fechas alineadas pro */
-  opacity: 0.9;
-  white-space: nowrap;
+.data-table td:nth-child(3) span {
+  opacity: 0.95;
 }
 
 .data-table td:nth-child(4),
 .data-table td:nth-child(5),
 .data-table td:nth-child(6),
 .data-table td:nth-child(7) {
-  white-space: nowrap; /* tipo/fechas/estado más compactos */
-}
-
-/* La columna “Tarea” manda: que respire y se lea mejor */
-.data-table td:nth-child(2) {
-  font-weight: 600;
-  letter-spacing: 0.1px;
-}
-
-/* “Zona / elemento”: que no parezca pegado */
-.data-table td:nth-child(3) span {
-  opacity: 0.95;
-}
-
-/* Badges (prioridad/estado) más finos y consistentes */
-.priority-badge,
-.status-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 6px 10px;
-  border-radius: 999px;
-  font-size: 0.82rem;
-  line-height: 1;
-  letter-spacing: 0.2px;
   white-space: nowrap;
 }
 
-/* Botón “Ver en mapa” más elegante */
-.link-button {
-  text-decoration: none;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  opacity: 0.75;
-}
-.link-button:hover {
-  opacity: 1;
-  text-decoration: underline;
-}
-
-/* Acciones: que no griten */
-.task-actions .small-btn {
-  opacity: 0.92;
-}
-.task-actions .small-btn:hover {
-  opacity: 1;
-  transform: translateY(-1px);
-}
-
-/* “Borrar” más serio (menos rojo chillón si tu CSS lo permite) */
-.small-btn-danger {
-  opacity: 0.85;
-}
-.small-btn-danger:hover {
-  opacity: 1;
-}
-
-/* Micro-separadores dentro de la fila (hace que el ojo “escanee” mejor) */
-.data-table tbody tr td {
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
-  border-bottom: 1px solid rgba(0, 0, 0, 0.15);
-}
-
-/* Pero sin romper el look redondeado de card-row */
-.data-table tbody tr td:first-child,
-.data-table tbody tr td:last-child {
-  border-top: none;
-  border-bottom: none;
-}
-
-/* Responsive extra: acciones abajo y alineadas */
-@media (max-width: 1100px) {
-  .task-actions {
-    justify-content: flex-start;
-  }
+.data-table td:nth-child(5),
+.data-table td:nth-child(6) {
+  font-variant-numeric: tabular-nums;
+  opacity: 0.9;
+  white-space: nowrap;
 }
 
 /* =====================================================
-   FULLCALENDAR MOBILE FIX — toolbar ordenada
+   FULLCALENDAR MOBILE FIX
    ===================================================== */
 
 .tasks-calendar .fc {
@@ -784,13 +757,69 @@
   font-size: 0.8rem;
 }
 
-/* ===== TABLET / MOBILE ===== */
+/* =====================================================
+   RESPONSIVE
+   ===================================================== */
+
+@media (max-width: 1100px) {
+  .data-table thead {
+    display: none;
+  }
+
+  .data-table,
+  .data-table tbody,
+  .data-table tr,
+  .data-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .data-table tbody tr {
+    padding: 12px;
+  }
+
+  .data-table td {
+    display: flex;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 10px 6px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .data-table td:last-child {
+    border-bottom: none;
+  }
+
+  .data-table td:nth-child(2),
+  .data-table td:nth-child(3) {
+    max-width: none;
+    white-space: normal;
+  }
+
+  .task-actions {
+    justify-content: flex-start;
+  }
+}
+
 @media (max-width: 768px) {
   .tasks-calendar {
     margin-top: 28px;
     padding: 16px;
     border-radius: 14px;
     overflow: hidden;
+  }
+
+  .weather-operational-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .weather-refresh-box {
+    width: 100%;
+  }
+
+  .weather-refresh-box .secondary-btn {
+    width: 100%;
   }
 
   .tasks-calendar .fc .fc-toolbar {
@@ -844,8 +873,12 @@
   }
 }
 
-/* ===== iPhone angosto ===== */
 @media (max-width: 520px) {
+  .ai-suggestion-card-h {
+    flex-basis: 85%;
+    max-width: 85%;
+  }
+
   .tasks-calendar {
     padding: 14px 10px;
   }
@@ -876,7 +909,7 @@
     padding: 0.5rem 0.55rem;
   }
 
-  .tasks-calendar .fc .fc-view-harness {/
+  .tasks-calendar .fc .fc-view-harness {
     min-height: 520px;
   }
 
@@ -886,5 +919,17 @@
 
   .tasks-calendar .fc .fc-event {
     font-size: 0.72rem;
+  }
+
+  .weather-metrics {
+    gap: 0.4rem;
+  }
+
+  .weather-operational-title {
+    font-size: 1rem;
+  }
+
+  .weather-operational-state {
+    font-size: 0.95rem;
   }
 }
