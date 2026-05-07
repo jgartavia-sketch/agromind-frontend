@@ -68,3 +68,5 @@ Proyecto en desarrollo activo con enfoque en automatización agrícola y gestió
 
 ### Dispositivos
 ![Finanzas](./screenshots/Dispositivos1.png)
+### Dispositivos
+![Finanzas](./screenshots/Dispositivos1.png)
