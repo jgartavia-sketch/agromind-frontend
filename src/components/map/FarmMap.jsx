@@ -92,6 +92,30 @@ function toYYYYMMDD(d = new Date()) {
   return date.toISOString().slice(0, 10);
 }
 
+function addDaysToYYYYMMDD(startDate, durationDays) {
+  if (!startDate) return "";
+  const days = Number(durationDays);
+  if (!Number.isFinite(days) || days < 0) return "";
+
+  const date = new Date(`${startDate}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return "";
+
+  date.setDate(date.getDate() + days);
+  return toYYYYMMDD(date);
+}
+
+function getDurationDays(startDate, dueDate) {
+  if (!startDate || !dueDate) return "—";
+
+  const start = new Date(`${startDate}T00:00:00`);
+  const end = new Date(`${dueDate}T00:00:00`);
+
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return "—";
+
+  const diff = Math.round((end.getTime() - start.getTime()) / 86400000);
+  return diff >= 0 ? String(diff) : "—";
+}
+
 function pickColor(kind, colorIndexRef) {
   let palette = POINT_COLORS;
   if (kind === "line") palette = LINE_COLORS;
@@ -216,10 +240,8 @@ function formatProcessDate(date) {
 function getEmptyStepDraft() {
   return {
     name: "",
-    owner: "",
-    priority: "Media",
     startDate: "",
-    dueDate: "",
+    durationDays: "",
     notes: "",
   };
 }
@@ -485,6 +507,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
   const [newProcessTargetDate, setNewProcessTargetDate] = useState("");
 
   const [newStepByProcess, setNewStepByProcess] = useState({});
+  const [openStepFormByProcess, setOpenStepFormByProcess] = useState({});
 
   const modalZone =
     componentsModalZoneId && zonesOnly.find((z) => z.id === componentsModalZoneId);
@@ -562,8 +585,8 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
           description: safeDescription,
           owner: newProcessOwner.trim(),
           priority: newProcessPriority,
-          startDate: newProcessStartDate || null,
-          targetDate: newProcessTargetDate || null,
+          startDate: null,
+          targetDate: null,
           type: "General",
           status: "Borrador",
         }),
@@ -587,15 +610,33 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
   const createStepForProcess = async (process) => {
     if (!process?.id || !componentsModalZoneId) return;
 
+    const existingSteps = Array.isArray(process.steps) ? process.steps : [];
+    const nextStepNumber = existingSteps.length + 1;
+
     const draft = {
       ...getEmptyStepDraft(),
       ...(newStepByProcess[process.id] || {}),
     };
 
-    const stepName = draft.name.trim();
+    const stepName = draft.name.trim() || `Etapa ${nextStepNumber}`;
+    const durationNumber = Number(draft.durationDays);
+    const calculatedDueDate = addDaysToYYYYMMDD(
+      draft.startDate,
+      draft.durationDays
+    );
 
-    if (!stepName) {
-      setProcessesError("Escribe el nombre de la etapa.");
+    if (!draft.startDate) {
+      setProcessesError("Selecciona la fecha de inicio de la etapa.");
+      return;
+    }
+
+    if (!Number.isFinite(durationNumber) || durationNumber < 0) {
+      setProcessesError("Escribe la duración de la etapa en días.");
+      return;
+    }
+
+    if (!calculatedDueDate) {
+      setProcessesError("No se pudo calcular la fecha final de la etapa.");
       return;
     }
 
@@ -608,10 +649,10 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
         body: JSON.stringify({
           processId: process.id,
           name: stepName,
-          owner: draft.owner.trim(),
-          priority: draft.priority || "Media",
+          owner: process.owner || "",
+          priority: process.priority || "Media",
           startDate: draft.startDate || null,
-          dueDate: draft.dueDate || null,
+          dueDate: calculatedDueDate || null,
           notes: draft.notes || "",
           status: "Pendiente",
         }),
@@ -620,6 +661,11 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
       setNewStepByProcess((prev) => ({
         ...prev,
         [process.id]: getEmptyStepDraft(),
+      }));
+
+      setOpenStepFormByProcess((prev) => ({
+        ...prev,
+        [process.id]: true,
       }));
 
       await loadZoneProcesses(componentsModalZoneId);
@@ -752,6 +798,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
     setNewProcessStartDate("");
     setNewProcessTargetDate("");
     setNewStepByProcess({});
+    setOpenStepFormByProcess({});
 
     setTimeout(() => forceMapResize(), 0);
 
@@ -776,6 +823,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
     setNewProcessStartDate("");
     setNewProcessTargetDate("");
     setNewStepByProcess({});
+    setOpenStepFormByProcess({});
     setTimeout(() => {
       setComponentsModalZoneId(null);
       setComponentsDraft([]);
@@ -2768,43 +2816,6 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
                       </select>
                     </div>
 
-                    <div>
-                      <label
-                        style={{
-                          display: "block",
-                          marginBottom: "6px",
-                          color: "#cbd5e1",
-                          fontSize: "0.82rem",
-                        }}
-                      >
-                        Fecha inicio
-                      </label>
-                      <input
-                        className="farm-feature-input"
-                        type="date"
-                        value={newProcessStartDate}
-                        onChange={(e) => setNewProcessStartDate(e.target.value)}
-                      />
-                    </div>
-
-                    <div>
-                      <label
-                        style={{
-                          display: "block",
-                          marginBottom: "6px",
-                          color: "#cbd5e1",
-                          fontSize: "0.82rem",
-                        }}
-                      >
-                        Fecha meta
-                      </label>
-                      <input
-                        className="farm-feature-input"
-                        type="date"
-                        value={newProcessTargetDate}
-                        onChange={(e) => setNewProcessTargetDate(e.target.value)}
-                      />
-                    </div>
 
                     <div
                       style={{
@@ -2892,6 +2903,13 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
                         ...getEmptyStepDraft(),
                         ...(newStepByProcess[process.id] || {}),
                       };
+                      const nextStepNumber = steps.length + 1;
+                      const draftDueDate = addDaysToYYYYMMDD(
+                        draft.startDate,
+                        draft.durationDays
+                      );
+                      const isStepFormOpen =
+                        openStepFormByProcess[process.id] === true;
 
                       return (
                         <div
@@ -2993,8 +3011,6 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
                               >
                                 <span>Tipo: {process.type || "General"}</span>
                                 <span>Responsable: {process.owner || "—"}</span>
-                                <span>Inicio: {formatProcessDate(process.startDate)}</span>
-                                <span>Meta: {formatProcessDate(process.targetDate)}</span>
                               </div>
 
                               <div style={{ marginBottom: "12px" }}>
@@ -3069,165 +3085,184 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
 
                               <div
                                 style={{
-                                  padding: "12px",
-                                  borderRadius: "12px",
-                                  border: "1px solid rgba(148,163,184,0.16)",
-                                  background: "rgba(2,6,23,0.34)",
-                                  display: "grid",
-                                  gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-                                  gap: "10px",
-                                  marginBottom: steps.length > 0 ? "12px" : "10px",
+                                  display: "flex",
+                                  justifyContent: "flex-end",
+                                  marginBottom: "10px",
                                 }}
                               >
-                                <div style={{ gridColumn: "1 / -1" }}>
-                                  <label
-                                    style={{
-                                      display: "block",
-                                      marginBottom: "6px",
-                                      color: "#cbd5e1",
-                                      fontSize: "0.82rem",
-                                    }}
-                                  >
-                                    Nueva etapa
-                                  </label>
-                                  <input
-                                    className="farm-feature-input"
-                                    value={draft.name}
-                                    onChange={(e) =>
-                                      updateStepDraftField(process.id, "name", e.target.value)
-                                    }
-                                    placeholder="Ej: Recolección de material"
-                                  />
-                                </div>
+                                <button
+                                  type="button"
+                                  className="secondary-btn"
+                                  onClick={() => {
+                                    setOpenStepFormByProcess((prev) => ({
+                                      ...prev,
+                                      [process.id]: !prev[process.id],
+                                    }));
+                                    setProcessesError("");
+                                  }}
+                                  disabled={processActionLoading}
+                                >
+                                  {isStepFormOpen ? "Cerrar etapa" : "Nueva etapa"}
+                                </button>
+                              </div>
 
-                                <div>
-                                  <label
-                                    style={{
-                                      display: "block",
-                                      marginBottom: "6px",
-                                      color: "#cbd5e1",
-                                      fontSize: "0.82rem",
-                                    }}
-                                  >
-                                    Responsable
-                                  </label>
-                                  <input
-                                    className="farm-feature-input"
-                                    value={draft.owner}
-                                    onChange={(e) =>
-                                      updateStepDraftField(process.id, "owner", e.target.value)
-                                    }
-                                    placeholder="Ej: José"
-                                  />
-                                </div>
-
-                                <div>
-                                  <label
-                                    style={{
-                                      display: "block",
-                                      marginBottom: "6px",
-                                      color: "#cbd5e1",
-                                      fontSize: "0.82rem",
-                                    }}
-                                  >
-                                    Prioridad
-                                  </label>
-                                  <select
-                                    className="component-type-select"
-                                    value={draft.priority}
-                                    onChange={(e) =>
-                                      updateStepDraftField(process.id, "priority", e.target.value)
-                                    }
-                                  >
-                                    {PROCESS_PRIORITIES.map((p) => (
-                                      <option key={p} value={p}>
-                                        {p}
-                                      </option>
-                                    ))}
-                                  </select>
-                                </div>
-
-                                <div>
-                                  <label
-                                    style={{
-                                      display: "block",
-                                      marginBottom: "6px",
-                                      color: "#cbd5e1",
-                                      fontSize: "0.82rem",
-                                    }}
-                                  >
-                                    Fecha inicio
-                                  </label>
-                                  <input
-                                    className="farm-feature-input"
-                                    type="date"
-                                    value={draft.startDate}
-                                    onChange={(e) =>
-                                      updateStepDraftField(process.id, "startDate", e.target.value)
-                                    }
-                                  />
-                                </div>
-
-                                <div>
-                                  <label
-                                    style={{
-                                      display: "block",
-                                      marginBottom: "6px",
-                                      color: "#cbd5e1",
-                                      fontSize: "0.82rem",
-                                    }}
-                                  >
-                                    Fecha meta
-                                  </label>
-                                  <input
-                                    className="farm-feature-input"
-                                    type="date"
-                                    value={draft.dueDate}
-                                    onChange={(e) =>
-                                      updateStepDraftField(process.id, "dueDate", e.target.value)
-                                    }
-                                  />
-                                </div>
-
-                                <div style={{ gridColumn: "1 / -1" }}>
-                                  <label
-                                    style={{
-                                      display: "block",
-                                      marginBottom: "6px",
-                                      color: "#cbd5e1",
-                                      fontSize: "0.82rem",
-                                    }}
-                                  >
-                                    Notas
-                                  </label>
-                                  <textarea
-                                    className="farm-feature-textarea"
-                                    value={draft.notes}
-                                    onChange={(e) =>
-                                      updateStepDraftField(process.id, "notes", e.target.value)
-                                    }
-                                    placeholder="Bitácora corta, observaciones o instrucciones"
-                                    rows={3}
-                                  />
-                                </div>
-
+                              {isStepFormOpen && (
                                 <div
                                   style={{
-                                    gridColumn: "1 / -1",
-                                    display: "flex",
-                                    justifyContent: "flex-end",
+                                    padding: "12px",
+                                    borderRadius: "12px",
+                                    border: "1px solid rgba(148,163,184,0.16)",
+                                    background: "rgba(2,6,23,0.34)",
+                                    display: "grid",
+                                    gridTemplateColumns:
+                                      "repeat(auto-fit, minmax(220px, 1fr))",
+                                    gap: "10px",
+                                    marginBottom: steps.length > 0 ? "12px" : "10px",
                                   }}
                                 >
-                                  <button
-                                    type="button"
-                                    className="secondary-btn"
-                                    onClick={() => createStepForProcess(process)}
-                                    disabled={processActionLoading}
+                                  <div>
+                                    <label
+                                      style={{
+                                        display: "block",
+                                        marginBottom: "6px",
+                                        color: "#cbd5e1",
+                                        fontSize: "0.82rem",
+                                      }}
+                                    >
+                                      Etapa
+                                    </label>
+                                    <input
+                                      className="farm-feature-input"
+                                      value={draft.name || `Etapa ${nextStepNumber}`}
+                                      onChange={(e) =>
+                                        updateStepDraftField(
+                                          process.id,
+                                          "name",
+                                          e.target.value
+                                        )
+                                      }
+                                      placeholder={`Etapa ${nextStepNumber}`}
+                                    />
+                                  </div>
+
+                                  <div>
+                                    <label
+                                      style={{
+                                        display: "block",
+                                        marginBottom: "6px",
+                                        color: "#cbd5e1",
+                                        fontSize: "0.82rem",
+                                      }}
+                                    >
+                                      Fecha de inicio
+                                    </label>
+                                    <input
+                                      className="farm-feature-input"
+                                      type="date"
+                                      value={draft.startDate}
+                                      onChange={(e) =>
+                                        updateStepDraftField(
+                                          process.id,
+                                          "startDate",
+                                          e.target.value
+                                        )
+                                      }
+                                    />
+                                  </div>
+
+                                  <div>
+                                    <label
+                                      style={{
+                                        display: "block",
+                                        marginBottom: "6px",
+                                        color: "#cbd5e1",
+                                        fontSize: "0.82rem",
+                                      }}
+                                    >
+                                      Duración en días
+                                    </label>
+                                    <input
+                                      className="farm-feature-input"
+                                      type="number"
+                                      min="0"
+                                      step="1"
+                                      value={draft.durationDays}
+                                      onChange={(e) =>
+                                        updateStepDraftField(
+                                          process.id,
+                                          "durationDays",
+                                          e.target.value
+                                        )
+                                      }
+                                      placeholder="Ej: 7"
+                                    />
+                                  </div>
+
+                                  <div>
+                                    <label
+                                      style={{
+                                        display: "block",
+                                        marginBottom: "6px",
+                                        color: "#cbd5e1",
+                                        fontSize: "0.82rem",
+                                      }}
+                                    >
+                                      Fecha final
+                                    </label>
+                                    <input
+                                      className="farm-feature-input"
+                                      value={draftDueDate || ""}
+                                      readOnly
+                                      placeholder="Se calcula automáticamente"
+                                    />
+                                  </div>
+
+                                  <div style={{ gridColumn: "1 / -1" }}>
+                                    <label
+                                      style={{
+                                        display: "block",
+                                        marginBottom: "6px",
+                                        color: "#cbd5e1",
+                                        fontSize: "0.82rem",
+                                      }}
+                                    >
+                                      Notas
+                                    </label>
+                                    <textarea
+                                      className="farm-feature-textarea"
+                                      value={draft.notes}
+                                      onChange={(e) =>
+                                        updateStepDraftField(
+                                          process.id,
+                                          "notes",
+                                          e.target.value
+                                        )
+                                      }
+                                      placeholder="Notas de la etapa, observaciones o instrucciones"
+                                      rows={3}
+                                    />
+                                  </div>
+
+                                  <div
+                                    style={{
+                                      gridColumn: "1 / -1",
+                                      display: "flex",
+                                      justifyContent: "flex-end",
+                                    }}
                                   >
-                                    + Crear etapa
-                                  </button>
+                                    <button
+                                      type="button"
+                                      className="primary-btn"
+                                      onClick={() => createStepForProcess(process)}
+                                      disabled={processActionLoading}
+                                    >
+                                      {processActionLoading
+                                        ? "Agregando..."
+                                        : `Agregar etapa ${nextStepNumber}`}
+                                    </button>
+                                  </div>
                                 </div>
-                              </div>
+                              )}
 
                               {steps.length > 0 && (
                                 <div
@@ -3393,7 +3428,10 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
                                                   Inicio: {formatProcessDate(step.startDate)}
                                                 </span>
                                                 <span>
-                                                  Meta: {formatProcessDate(step.dueDate)}
+                                                  Días: {getDurationDays(step.startDate, step.dueDate)}
+                                                </span>
+                                                <span>
+                                                  Final: {formatProcessDate(step.dueDate)}
                                                 </span>
                                                 <span>
                                                   Completada: {formatProcessDate(step.completedAt)}
