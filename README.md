@@ -43,30 +43,30 @@ Proyecto en desarrollo activo con enfoque en automatización agrícola y gestió
 ## 📸 Screenshots
 
 ### Login
-![Dashboard](./screenshots/login.png)
+![Dashboard](./screenshots/login.PNG)
 
 ### Mapas
-![Dashboard](./screenshots/mapa1.png)
-![Dashboard](./screenshots/mapa2.png)
+![Dashboard](./screenshots/mapa1.PNG)
+![Dashboard](./screenshots/mapa2.PNG)
 
 
 ### Tareas
-![Tareas](./screenshots/tareas3.png)
-![Tareas](./screenshots/tareas4.png)
-![Tareas](./screenshots/tareas6.png)
+![Tareas](./screenshots/tareas3.PNG)
+![Tareas](./screenshots/tareas4.PNG)
+![Tareas](./screenshots/tareas6.PNG)
 
 
 ### Finanzas
-![Finanzas](./screenshots/finanzas1.png)
-![Finanzas](./screenshots/finanzas2.png)
+![Finanzas](./screenshots/finanzas1.PNG)
+![Finanzas](./screenshots/finanzas2.PNG)
 
 ### Clima e IA
-![IA](./screenshots/clima1.png)
-![IA](./screenshots/clima2.png)
-![IA](./screenshots/clima3.png)
-![IA](./screenshots/clima4.png)
+![IA](./screenshots/clima1.PNG)
+![IA](./screenshots/clima2.PNG)
+![IA](./screenshots/clima3.PNG)
+![IA](./screenshots/clima4.PNG)
 
 ### Dispositivos
-![Finanzas](./screenshots/Dispositivos1.png)
+![Finanzas](./screenshots/Dispositivos1.PNG)
 ### Dispositivos
-![Finanzas](./screenshots/Dispositivos1.png)
+![Finanzas](./screenshots/Dispositivos1.PNG)
