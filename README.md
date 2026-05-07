@@ -39,3 +39,32 @@ https://www.agromindcr.es
 ## Estado
 
 Proyecto en desarrollo activo con enfoque en automatización agrícola y gestión inteligente de fincas.
+
+## 📸 Screenshots
+
+### Login
+![Dashboard](./screenshots/login.png)
+
+### Mapas
+![Dashboard](./screenshots/mapa1.png)
+![Dashboard](./screenshots/mapa2.png)
+
+
+### Tareas
+![Tareas](./screenshots/tareas3.png)
+![Tareas](./screenshots/tareas4.png)
+![Tareas](./screenshots/tareas6.png)
+
+
+### Finanzas
+![Finanzas](./screenshots/finanzas1.png)
+![Finanzas](./screenshots/finanzas2.png)
+
+### Clima e IA
+![IA](./screenshots/clima1.png)
+![IA](./screenshots/clima2.png)
+![IA](./screenshots/clima3.png)
+![IA](./screenshots/clima4.png)
+
+### Dispositivos
+![Finanzas](./screenshots/Dispositivos1.png)
