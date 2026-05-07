@@ -2615,41 +2615,6 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
               </button>
             </div>
 
-            <div
-              style={{
-                padding: "10px 14px",
-                borderBottom: "1px solid rgba(148,163,184,0.14)",
-                display: "flex",
-                gap: "10px",
-                flexWrap: "wrap",
-                background: "rgba(15,23,42,0.42)",
-              }}
-            >
-              <button
-                type="button"
-                className={
-                  componentsModalView === "components"
-                    ? "primary-btn"
-                    : "secondary-btn"
-                }
-                onClick={() => setComponentsModalView("components")}
-              >
-                Componentes
-              </button>
-
-              <button
-                type="button"
-                className={
-                  componentsModalView === "processes"
-                    ? "primary-btn"
-                    : "secondary-btn"
-                }
-                onClick={() => setComponentsModalView("processes")}
-              >
-                Procesos
-              </button>
-            </div>
-
             <div style={{ padding: "14px", overflow: "auto" }}>
               <div
                 id="zone-processes-section"
