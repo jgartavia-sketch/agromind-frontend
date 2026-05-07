@@ -467,6 +467,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
 
   const [componentsModalOpen, setComponentsModalOpen] = useState(false);
   const [componentsModalZoneId, setComponentsModalZoneId] = useState(null);
+  const [componentsModalView, setComponentsModalView] = useState("components");
   const [componentsDraft, setComponentsDraft] = useState([]);
   const [editingNotesMap, setEditingNotesMap] = useState({});
 
@@ -543,6 +544,15 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
     try {
       setProcessActionLoading(true);
       setProcessesError("");
+
+      try {
+        await saveMapNow(latestFeaturesListRef.current || []);
+      } catch (err) {
+        console.warn("No se pudo sincronizar la zona antes de crear el proceso:", err);
+        setProcessesError("No se pudo sincronizar la zona antes de crear el proceso.");
+        setProcessActionLoading(false);
+        return;
+      }
 
       await apiFetch("/api/processes", {
         method: "POST",
@@ -704,7 +714,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
     }
   };
 
-  const openComponentsModal = async (zoneId) => {
+  const openComponentsModal = async (zoneId, view = "components") => {
     const zone = zonesOnly.find((z) => z.id === zoneId);
     if (!zone) return;
 
@@ -729,6 +739,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
     });
 
     setComponentsModalZoneId(zoneId);
+    setComponentsModalView(view === "processes" ? "processes" : "components");
     setComponentsDraft(cloned);
     setEditingNotesMap({});
     setComponentsModalOpen(true);
@@ -743,12 +754,20 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
     setNewStepByProcess({});
 
     setTimeout(() => forceMapResize(), 0);
+
+    try {
+      await saveMapNow(latestFeaturesListRef.current || []);
+    } catch (err) {
+      console.warn("No se pudo sincronizar la zona antes de cargar procesos:", err);
+    }
+
     await loadZoneProcesses(zoneId);
   };
 
   const closeComponentsModal = () => {
     setComponentsModalOpen(false);
     setProcessesError("");
+    setComponentsModalView("components");
     setShowCreateProcessForm(false);
     setNewProcessName("");
     setNewProcessDescription("");
@@ -1320,6 +1339,31 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
         setBackendOnline(false);
       }
     }, 900);
+  };
+
+  const saveMapNow = async (list = latestFeaturesListRef.current || [], options = {}) => {
+    if (!activeFarmId) return false;
+
+    const token = getAuthToken();
+    if (!token) return false;
+
+    const payload = buildBackendPayloadFromList(list, options);
+    if (!payload) return false;
+
+    if (autosaveTimerRef.current) {
+      clearTimeout(autosaveTimerRef.current);
+      autosaveTimerRef.current = null;
+    }
+
+    await apiFetch(`/api/farms/${activeFarmId}/map`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    });
+
+    setBackendOnline(true);
+    dirtyRef.current = false;
+    emitFarmLocationChange("manual-sync");
+    return true;
   };
 
   const ensureFarmAndLoad = async () => {
@@ -2448,7 +2492,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
                         className="secondary-btn"
                         onClick={(e) => {
                           e.stopPropagation();
-                          openComponentsModal(item.id);
+                          openComponentsModal(item.id, "components");
                         }}
                       >
                         Ver componentes
@@ -2459,18 +2503,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
                         className="secondary-btn"
                         onClick={(e) => {
                           e.stopPropagation();
-                          openComponentsModal(item.id);
-
-                          setTimeout(() => {
-                            const el = document.getElementById("zone-processes-section");
-
-                            if (el) {
-                              el.scrollIntoView({
-                                behavior: "smooth",
-                                block: "start",
-                              });
-                            }
-                          }, 120);
+                          openComponentsModal(item.id, "processes");
                         }}
                       >
                         Procesos
@@ -2564,7 +2597,9 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
                 }}
               >
                 <h4 style={{ margin: 0, color: "#e5e7eb" }}>
-                  Componentes de la zona
+                  {componentsModalView === "processes"
+                    ? "Procesos de la zona"
+                    : "Componentes de la zona"}
                 </h4>
                 <span className="zone-tag">{modalZone.name}</span>
               </div>
@@ -2580,10 +2615,46 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
               </button>
             </div>
 
+            <div
+              style={{
+                padding: "10px 14px",
+                borderBottom: "1px solid rgba(148,163,184,0.14)",
+                display: "flex",
+                gap: "10px",
+                flexWrap: "wrap",
+                background: "rgba(15,23,42,0.42)",
+              }}
+            >
+              <button
+                type="button"
+                className={
+                  componentsModalView === "components"
+                    ? "primary-btn"
+                    : "secondary-btn"
+                }
+                onClick={() => setComponentsModalView("components")}
+              >
+                Componentes
+              </button>
+
+              <button
+                type="button"
+                className={
+                  componentsModalView === "processes"
+                    ? "primary-btn"
+                    : "secondary-btn"
+                }
+                onClick={() => setComponentsModalView("processes")}
+              >
+                Procesos
+              </button>
+            </div>
+
             <div style={{ padding: "14px", overflow: "auto" }}>
               <div
                 id="zone-processes-section"
                 style={{
+                  display: componentsModalView === "processes" ? "block" : "none",
                   marginBottom: "16px",
                   padding: "14px",
                   borderRadius: "16px",
@@ -3411,7 +3482,12 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
                 )}
               </div>
 
-              {componentsDraft.length === 0 && (
+              <div
+                style={{
+                  display: componentsModalView === "components" ? "block" : "none",
+                }}
+              >
+                {componentsDraft.length === 0 && (
                 <p className="farm-zone-components-empty" style={{ marginTop: 0 }}>
                   Aún no has agregado componentes a esta zona. Usa el botón{" "}
                   <strong>“Agregar componente”</strong>.
@@ -3537,6 +3613,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
                   </div>
                 );
               })}
+              </div>
             </div>
 
             <div
@@ -3552,7 +3629,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
             >
               <div
                 style={{
-                  display: "flex",
+                  display: componentsModalView === "components" ? "flex" : "none",
                   gap: "10px",
                   alignItems: "center",
                   flexWrap: "wrap",
@@ -3590,13 +3667,15 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
                 >
                   Cancelar
                 </button>
-                <button
-                  type="button"
-                  className="primary-btn"
-                  onClick={saveComponentsModal}
-                >
-                  Guardar
-                </button>
+                {componentsModalView === "components" && (
+                  <button
+                    type="button"
+                    className="primary-btn"
+                    onClick={saveComponentsModal}
+                  >
+                    Guardar
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -3612,7 +3691,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
         onEditComponents={() => {
           if (!reportZone) return;
           closeReportModal();
-          openComponentsModal(reportZone.id);
+          openComponentsModal(reportZone.id, "components");
         }}
         onDeleteZone={() => {
           if (!reportZone) return;
