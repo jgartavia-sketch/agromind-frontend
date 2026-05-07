@@ -544,15 +544,6 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
       setProcessActionLoading(true);
       setProcessesError("");
 
-      try {
-        await saveMapNow(latestFeaturesListRef.current || []);
-      } catch (err) {
-        console.warn("No se pudo sincronizar la zona antes de crear el proceso:", err);
-        setProcessesError("No se pudo sincronizar la zona antes de crear el proceso.");
-        setProcessActionLoading(false);
-        return;
-      }
-
       await apiFetch("/api/processes", {
         method: "POST",
         body: JSON.stringify({
@@ -752,13 +743,6 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
     setNewStepByProcess({});
 
     setTimeout(() => forceMapResize(), 0);
-
-    try {
-      await saveMapNow(latestFeaturesListRef.current || []);
-    } catch (err) {
-      console.warn("No se pudo sincronizar la zona antes de cargar procesos:", err);
-    }
-
     await loadZoneProcesses(zoneId);
   };
 
@@ -1336,31 +1320,6 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
         setBackendOnline(false);
       }
     }, 900);
-  };
-
-  const saveMapNow = async (list = latestFeaturesListRef.current || [], options = {}) => {
-    if (!activeFarmId) return false;
-
-    const token = getAuthToken();
-    if (!token) return false;
-
-    const payload = buildBackendPayloadFromList(list, options);
-    if (!payload) return false;
-
-    if (autosaveTimerRef.current) {
-      clearTimeout(autosaveTimerRef.current);
-      autosaveTimerRef.current = null;
-    }
-
-    await apiFetch(`/api/farms/${activeFarmId}/map`, {
-      method: "PUT",
-      body: JSON.stringify(payload),
-    });
-
-    setBackendOnline(true);
-    dirtyRef.current = false;
-    emitFarmLocationChange("manual-sync");
-    return true;
   };
 
   const ensureFarmAndLoad = async () => {
@@ -2500,6 +2459,28 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
                         className="secondary-btn"
                         onClick={(e) => {
                           e.stopPropagation();
+                          openComponentsModal(item.id);
+
+                          setTimeout(() => {
+                            const el = document.getElementById("zone-processes-section");
+
+                            if (el) {
+                              el.scrollIntoView({
+                                behavior: "smooth",
+                                block: "start",
+                              });
+                            }
+                          }, 120);
+                        }}
+                      >
+                        Procesos
+                      </button>
+
+                      <button
+                        type="button"
+                        className="secondary-btn"
+                        onClick={(e) => {
+                          e.stopPropagation();
                           openReportModal(item.id);
                         }}
                       >
@@ -2601,6 +2582,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
 
             <div style={{ padding: "14px", overflow: "auto" }}>
               <div
+                id="zone-processes-section"
                 style={{
                   marginBottom: "16px",
                   padding: "14px",
