@@ -66,7 +66,6 @@ Proyecto en desarrollo activo con enfoque en automatización agrícola y gestió
 ![IA](./screenshots/clima3.PNG)
 ![IA](./screenshots/clima4.PNG)
 
-### Dispositivos
-![Finanzas](./screenshots/Dispositivos1.PNG)
+
 ### Dispositivos
 ![Finanzas](./screenshots/Dispositivos1.PNG)
