@@ -1,16 +1,16 @@
 // src/components/FarmShell.jsx
-import { useEffect, useMemo, useState } from "react";
-import FarmMap from "./map/FarmMap";
-import TareasPage from "../pages/TareasPage";
-import FinanzasPage from "../pages/FinanzasPage";
-import DispositivosPage from "../pages/DispositivosPage";
-import InvestigadorPage from "../pages/InvestigadorPage";
-import ProductosPage from "../pages/ProductosPage";
-import ClimaPage from "../pages/ClimaPage";
-import Footer from "./Footer";
+import { Suspense, lazy, useEffect, useMemo, useState } from "react";
 import "../styles/farm-shell.css";
 
-// Helpers: fuente única para token/farmId (sin “magia” dispersa)
+const FarmMap = lazy(() => import("./map/FarmMap"));
+const TareasPage = lazy(() => import("../pages/TareasPage"));
+const FinanzasPage = lazy(() => import("../pages/FinanzasPage"));
+const DispositivosPage = lazy(() => import("../pages/DispositivosPage"));
+const InvestigadorPage = lazy(() => import("../pages/InvestigadorPage"));
+const ProductosPage = lazy(() => import("../pages/ProductosPage"));
+const ClimaPage = lazy(() => import("../pages/ClimaPage"));
+const Footer = lazy(() => import("./Footer"));
+
 function pickLocalStorage(keys) {
   for (const k of keys) {
     const v = localStorage.getItem(k);
@@ -46,15 +46,32 @@ function clearLocalStorage(keys) {
   for (const k of keys) localStorage.removeItem(k);
 }
 
+function ModuleLoader({ text = "Cargando módulo..." }) {
+  return (
+    <div
+      style={{
+        minHeight: "420px",
+        display: "grid",
+        placeItems: "center",
+        color: "#173b1a",
+        fontFamily: "system-ui, sans-serif",
+      }}
+    >
+      <div style={{ textAlign: "center" }}>
+        <strong>AgroMind CR</strong>
+        <p style={{ marginTop: "0.4rem" }}>{text}</p>
+      </div>
+    </div>
+  );
+}
+
 export default function FarmShell({ user, onLogout }) {
   const [activeTab, setActiveTab] = useState("mapa");
   const [focusZoneRequest, setFocusZoneRequest] = useState(null);
 
-  // ✅ estado reactivo (NO congelado)
   const [token, setToken] = useState(() => getAuthToken());
   const [farmId, setFarmId] = useState(() => getActiveFarmId());
 
-  // ✅ nueva fuente de verdad para ubicación real de la finca
   const [farmLocation, setFarmLocation] = useState({
     lat: null,
     lon: null,
@@ -64,7 +81,6 @@ export default function FarmShell({ user, onLogout }) {
     updatedAt: null,
   });
 
-  // ✅ si cambia localStorage (login/logout en otra parte), nos enteramos
   useEffect(() => {
     const sync = () => {
       const nextToken = getAuthToken();
@@ -79,15 +95,10 @@ export default function FarmShell({ user, onLogout }) {
       }));
     };
 
-    // evento nativo (entre tabs) + fallback (mismo tab) por seguridad
     window.addEventListener("storage", sync);
-
-    // “poll” ligero: evita quedarnos pegados si login/logout ocurre sin storage event
-    const t = setInterval(sync, 800);
 
     return () => {
       window.removeEventListener("storage", sync);
-      clearInterval(t);
     };
   }, []);
 
@@ -97,38 +108,35 @@ export default function FarmShell({ user, onLogout }) {
 
   const handleOpenZoneInMap = (zoneName) => {
     if (!zoneName) return;
+
     setFocusZoneRequest({
       name: zoneName,
       ts: Date.now(),
     });
+
     setActiveTab("mapa");
   };
 
-  // ✅ FarmMap nos empuja la ubicación real aquí
   const handleFarmLocationChange = (location) => {
     if (!location) return;
 
-    setFarmLocation((prev) => {
-      const next = {
-        lat:
-          typeof location.lat === "number" && !Number.isNaN(location.lat)
-            ? location.lat
-            : prev.lat,
-        lon:
-          typeof location.lon === "number" && !Number.isNaN(location.lon)
-            ? location.lon
-            : prev.lon,
-        zoom:
-          typeof location.zoom === "number" && !Number.isNaN(location.zoom)
-            ? location.zoom
-            : prev.zoom,
-        farmId: location.farmId || farmId || prev.farmId || null,
-        source: location.source || prev.source || null,
-        updatedAt: Date.now(),
-      };
-
-      return next;
-    });
+    setFarmLocation((prev) => ({
+      lat:
+        typeof location.lat === "number" && !Number.isNaN(location.lat)
+          ? location.lat
+          : prev.lat,
+      lon:
+        typeof location.lon === "number" && !Number.isNaN(location.lon)
+          ? location.lon
+          : prev.lon,
+      zoom:
+        typeof location.zoom === "number" && !Number.isNaN(location.zoom)
+          ? location.zoom
+          : prev.zoom,
+      farmId: location.farmId || farmId || prev.farmId || null,
+      source: location.source || prev.source || null,
+      updatedAt: Date.now(),
+    }));
   };
 
   const climaLocation = useMemo(() => {
@@ -142,13 +150,10 @@ export default function FarmShell({ user, onLogout }) {
     };
   }, [farmLocation, farmId]);
 
-  // ✅ Logout “a prueba de usuarios”
   const handleLogoutClick = () => {
-    // limpia token + finca activa (y cualquier rastro)
     clearLocalStorage(TOKEN_KEYS);
     clearLocalStorage(FARMID_KEYS);
 
-    // refresca estado local inmediato
     setToken("");
     setFarmId("");
     setFarmLocation({
@@ -160,11 +165,9 @@ export default function FarmShell({ user, onLogout }) {
       updatedAt: Date.now(),
     });
 
-    // vuelve a mapa por higiene visual
     setActiveTab("mapa");
     setFocusZoneRequest(null);
 
-    // delega flujo de logout real (backend/estado global)
     if (onLogout) onLogout();
   };
 
@@ -201,6 +204,8 @@ export default function FarmShell({ user, onLogout }) {
         </nav>
 
         <div className="farm-shell-right">
+          {user?.email && <span className="farm-user-email">{user.email}</span>}
+
           {onLogout && (
             <button
               type="button"
@@ -215,38 +220,42 @@ export default function FarmShell({ user, onLogout }) {
 
       <main className="farm-shell-main">
         <section className="farm-shell-map-card">
-          {activeTab === "mapa" && (
-            <FarmMap
-              focusZoneRequest={focusZoneRequest}
-              onFarmLocationChange={handleFarmLocationChange}
-            />
-          )}
+          <Suspense fallback={<ModuleLoader text="Cargando tu finca..." />}>
+            {activeTab === "mapa" && (
+              <FarmMap
+                focusZoneRequest={focusZoneRequest}
+                onFarmLocationChange={handleFarmLocationChange}
+              />
+            )}
 
-          {activeTab === "tareas" && (
-            <TareasPage
-              onOpenZoneInMap={handleOpenZoneInMap}
-              token={token}
-              farmId={farmId}
-            />
-          )}
+            {activeTab === "tareas" && (
+              <TareasPage
+                onOpenZoneInMap={handleOpenZoneInMap}
+                token={token}
+                farmId={farmId}
+              />
+            )}
 
-          {activeTab === "finanzas" && <FinanzasPage />}
+            {activeTab === "finanzas" && <FinanzasPage />}
 
-          {activeTab === "clima" && (
-            <ClimaPage
-              farmLocation={climaLocation}
-              token={token}
-              farmId={farmId}
-            />
-          )}
+            {activeTab === "clima" && (
+              <ClimaPage
+                farmLocation={climaLocation}
+                token={token}
+                farmId={farmId}
+              />
+            )}
 
-          {activeTab === "dispositivos" && <DispositivosPage />}
-          {activeTab === "investigador" && <InvestigadorPage />}
-          {activeTab === "productos" && <ProductosPage />}
+            {activeTab === "dispositivos" && <DispositivosPage />}
+            {activeTab === "investigador" && <InvestigadorPage />}
+            {activeTab === "productos" && <ProductosPage />}
+          </Suspense>
         </section>
       </main>
 
-      <Footer />
+      <Suspense fallback={null}>
+        <Footer />
+      </Suspense>
     </div>
   );
 }

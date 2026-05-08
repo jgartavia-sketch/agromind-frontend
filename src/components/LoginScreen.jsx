@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import "../styles/farm-auth.css";
 
 export default function LoginScreen({ onLogin }) {
-  const [mode, setMode] = useState("login"); // "login" | "signup"
+  const [mode, setMode] = useState("login");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [pass, setPass] = useState("");
@@ -15,19 +15,22 @@ export default function LoginScreen({ onLogin }) {
   const API_BASE = useMemo(() => {
     const raw =
       import.meta.env.VITE_API_URL || "https://agromind-backend-slem.onrender.com";
-    return raw.replace(/\/+$/, ""); // sin slash final
+    return raw.replace(/\/+$/, "");
   }, []);
 
   const canSubmit = useMemo(() => {
     const e = email.trim();
     const p = pass.trim();
-    if (!e || !p) return false;
+
+    if (!e || !p || loading) return false;
+
     if (mode === "signup") {
       if (p.length < 8) return false;
       if (p !== pass2.trim()) return false;
     }
+
     return true;
-  }, [mode, email, pass, pass2]);
+  }, [mode, email, pass, pass2, loading]);
 
   const friendlyError = (msg) => {
     if (!msg) return "Ocurrió un error. Intenta de nuevo.";
@@ -39,7 +42,23 @@ export default function LoginScreen({ onLogin }) {
       localStorage.setItem("agromind_token", token);
       localStorage.setItem("agromind_user", JSON.stringify(user));
     } catch {
-      // Si el navegador bloquea storage, igual dejamos continuar
+      // Si el navegador bloquea storage, igual dejamos continuar.
+    }
+  };
+
+  const fetchWithTimeout = async (url, options = {}, timeoutMs = 15000) => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+      const response = await fetch(url, {
+        ...options,
+        signal: controller.signal,
+      });
+
+      return response;
+    } finally {
+      clearTimeout(timeout);
     }
   };
 
@@ -59,10 +78,12 @@ export default function LoginScreen({ onLogin }) {
 
     if (mode === "signup") {
       const password2 = pass2.trim();
+
       if (password.length < 8) {
         setError("La contraseña debe tener al menos 8 caracteres.");
         return;
       }
+
       if (password !== password2) {
         setError("Las contraseñas no coinciden.");
         return;
@@ -70,10 +91,10 @@ export default function LoginScreen({ onLogin }) {
     }
 
     setLoading(true);
+
     try {
-      // 1) Si es signup, primero registramos
       if (mode === "signup") {
-        const resp = await fetch(`${API_BASE}/auth/register`, {
+        const registerResponse = await fetchWithTimeout(`${API_BASE}/auth/register`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -83,30 +104,34 @@ export default function LoginScreen({ onLogin }) {
           }),
         });
 
-        const data = await resp.json().catch(() => ({}));
-        if (!resp.ok) {
-          setError(friendlyError(data?.error));
+        const registerData = await registerResponse.json().catch(() => ({}));
+
+        if (!registerResponse.ok) {
+          setError(friendlyError(registerData?.error));
           setLoading(false);
           return;
         }
       }
 
-      // 2) Login siempre
-      const resp2 = await fetch(`${API_BASE}/auth/login`, {
+      const loginResponse = await fetchWithTimeout(`${API_BASE}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: cleanEmail, password }),
+        body: JSON.stringify({
+          email: cleanEmail,
+          password,
+        }),
       });
 
-      const data2 = await resp2.json().catch(() => ({}));
-      if (!resp2.ok) {
-        setError(friendlyError(data2?.error));
+      const loginData = await loginResponse.json().catch(() => ({}));
+
+      if (!loginResponse.ok) {
+        setError(friendlyError(loginData?.error));
         setLoading(false);
         return;
       }
 
-      const token = data2?.token;
-      const user = data2?.user;
+      const token = loginData?.token;
+      const user = loginData?.user;
 
       if (!token || !user) {
         setError("Respuesta inválida del servidor.");
@@ -116,15 +141,17 @@ export default function LoginScreen({ onLogin }) {
 
       persistAuth(token, user);
 
-      // ✅ Le pasamos al App la sesión en el formato correcto: { token, user }
-      onLogin?.({ token, user });
-
-      // Limpieza visual
       setPass("");
       setPass2("");
+
+      onLogin?.({ token, user });
     } catch (err) {
-      setError("No se pudo conectar con el servidor.");
-    } finally {
+      if (err?.name === "AbortError") {
+        setError("El servidor tardó demasiado en responder. Intenta de nuevo.");
+      } else {
+        setError("No se pudo conectar con el servidor.");
+      }
+
       setLoading(false);
     }
   };
@@ -134,6 +161,7 @@ export default function LoginScreen({ onLogin }) {
       <div className="agromind-auth-card">
         <div className="agromind-auth-logo">
           <div className="auth-logo-mark">AG</div>
+
           <div className="auth-logo-text">
             <span className="auth-brand-name">AgroMind CR</span>
             <span className="auth-brand-tagline">La finca que piensa</span>
@@ -142,7 +170,11 @@ export default function LoginScreen({ onLogin }) {
 
         <div className="agromind-auth-header">
           <h1>{mode === "login" ? "Iniciar sesión" : "Crear cuenta"}</h1>
-          <p>Accede a tu panel de finca inteligente.</p>
+          <p>
+            {loading
+              ? "Conectando con tu finca..."
+              : "Accede a tu panel de finca inteligente."}
+          </p>
         </div>
 
         <form className="agromind-auth-form" onSubmit={handleSubmit}>
@@ -155,6 +187,7 @@ export default function LoginScreen({ onLogin }) {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 autoComplete="name"
+                disabled={loading}
               />
             </div>
           )}
@@ -168,6 +201,7 @@ export default function LoginScreen({ onLogin }) {
               onChange={(e) => setEmail(e.target.value)}
               autoComplete="email"
               inputMode="email"
+              disabled={loading}
             />
           </div>
 
@@ -179,6 +213,7 @@ export default function LoginScreen({ onLogin }) {
               value={pass}
               onChange={(e) => setPass(e.target.value)}
               autoComplete={mode === "signup" ? "new-password" : "current-password"}
+              disabled={loading}
             />
           </div>
 
@@ -191,6 +226,7 @@ export default function LoginScreen({ onLogin }) {
                 value={pass2}
                 onChange={(e) => setPass2(e.target.value)}
                 autoComplete="new-password"
+                disabled={loading}
               />
             </div>
           )}
@@ -204,10 +240,12 @@ export default function LoginScreen({ onLogin }) {
           <button
             type="submit"
             className="auth-primary-btn"
-            disabled={!canSubmit || loading}
+            disabled={!canSubmit}
           >
             {loading
-              ? "Procesando..."
+              ? mode === "login"
+                ? "Entrando..."
+                : "Creando cuenta..."
               : mode === "login"
               ? "Entrar"
               : "Crear cuenta y entrar"}
@@ -220,6 +258,7 @@ export default function LoginScreen({ onLogin }) {
               <span>¿Aún no tienes cuenta?</span>
               <button
                 type="button"
+                disabled={loading}
                 onClick={() => {
                   setError("");
                   setMode("signup");
@@ -233,6 +272,7 @@ export default function LoginScreen({ onLogin }) {
               <span>¿Ya tienes cuenta?</span>
               <button
                 type="button"
+                disabled={loading}
                 onClick={() => {
                   setError("");
                   setMode("login");
