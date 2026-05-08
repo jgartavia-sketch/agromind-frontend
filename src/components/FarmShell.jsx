@@ -204,7 +204,7 @@ export default function FarmShell({ user, onLogout }) {
         </nav>
 
         <div className="farm-shell-right">
-          {user?.email && <span className="farm-user-email">{user.email}</span>}
+          
 
           {onLogout && (
             <button
