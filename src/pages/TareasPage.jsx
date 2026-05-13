@@ -911,14 +911,6 @@ export default function TareasPage({
 
   return (
     <div className="page">
-      <header className="page-header">
-        <h1>Tareas de la finca</h1>
-        <p className="page-subtitle">
-          Operación diaria, con datos reales desde backend. Si el mapa es el
-          territorio, las tareas son la estrategia.
-        </p>
-      </header>
-
       {(errorMsg || loading) && (
         <section className="card" style={{ marginBottom: "1rem" }}>
           {loading ? (
@@ -929,74 +921,23 @@ export default function TareasPage({
         </section>
       )}
 
-      <section className="card ia-placeholder">
-        <h3>Recomendaciones IA</h3>
+      <section className="card tasks-calendar">
+        <h3>Calendario de tareas</h3>
 
-        {(loadingSuggestions || weatherLoading) ? (
-          <p style={{ margin: 0, opacity: 0.85 }}>Analizando tu operación y contexto climático…</p>
-        ) : combinedSuggestions.length === 0 ? (
-          <p style={{ margin: 0, opacity: 0.85 }}>
-            No hay sugerencias por ahora. (Eso también es una victoria: tu finca
-            está en control.)
-          </p>
-        ) : (
-          <div className="ai-suggestions-list ai-suggestions-row">
-            {combinedSuggestions.map((s) => {
-              const id = String(s?.id || s?._id || Math.random());
-              const level = s?.level || "info";
-              const title = s?.title || "Sugerencia";
-              const message = s?.message || "";
-              const canAdd = !!s?.actionPayload;
-              const zone = s?.zone ? String(s.zone) : "";
-
-              return (
-                <div
-                  key={id}
-                  className={`ai-suggestion-card ai-suggestion-card-h ${getSuggestionClass(
-                    level
-                  )}`}
-                >
-                  <div className="ai-suggestion-head">
-                    <div className="ai-suggestion-title">{title}</div>
-                    {zone ? (
-                      <div className="ai-suggestion-chip">{zone}</div>
-                    ) : null}
-                  </div>
-
-                  {message ? (
-                    <div className="ai-suggestion-message">{message}</div>
-                  ) : null}
-
-                  <div className="ai-suggestion-actions">
-                    <button
-                      type="button"
-                      className="ai-suggestion-btn-primary"
-                      disabled={!canAdd || saving}
-                      onClick={() => applySuggestionToForm(s)}
-                      title={
-                        canAdd
-                          ? "Precarga el formulario para que lo edites y lo guardes como tarea real"
-                          : "Esta sugerencia es informativa (no genera tarea)"
-                      }
-                    >
-                      + Agregar a tareas
-                    </button>
-
-                    <button
-                      type="button"
-                      className="ai-suggestion-btn-ghost"
-                      disabled={saving}
-                      onClick={() => ignoreSuggestion(s)}
-                    >
-                      Ignorar
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
+        <FullCalendar
+          plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin, listPlugin]}
+          initialView="dayGridMonth"
+          headerToolbar={{
+            left: "prev,next today",
+            center: "title",
+            right: "dayGridMonth,timeGridWeek,timeGridDay,listYear",
+          }}
+          locale="es"
+          height="auto"
+          events={calendarEvents}
+        />
       </section>
+
 
       <section className="tasks-summary">
         <div className="summary-card">
@@ -1311,22 +1252,75 @@ export default function TareasPage({
         </table>
       </section>
 
-      <section className="card tasks-calendar">
-        <h3>Calendario de tareas</h3>
+      <section className="card ia-placeholder">
+        <h3>Recomendaciones IA</h3>
 
-        <FullCalendar
-          plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin, listPlugin]}
-          initialView="dayGridMonth"
-          headerToolbar={{
-            left: "prev,next today",
-            center: "title",
-            right: "dayGridMonth,timeGridWeek,timeGridDay,listYear",
-          }}
-          locale="es"
-          height="auto"
-          events={calendarEvents}
-        />
+        {(loadingSuggestions || weatherLoading) ? (
+          <p style={{ margin: 0, opacity: 0.85 }}>Analizando tu operación y contexto climático…</p>
+        ) : combinedSuggestions.length === 0 ? (
+          <p style={{ margin: 0, opacity: 0.85 }}>
+            No hay sugerencias por ahora. (Eso también es una victoria: tu finca
+            está en control.)
+          </p>
+        ) : (
+          <div className="ai-suggestions-list ai-suggestions-row">
+            {combinedSuggestions.map((s) => {
+              const id = String(s?.id || s?._id || Math.random());
+              const level = s?.level || "info";
+              const title = s?.title || "Sugerencia";
+              const message = s?.message || "";
+              const canAdd = !!s?.actionPayload;
+              const zone = s?.zone ? String(s.zone) : "";
+
+              return (
+                <div
+                  key={id}
+                  className={`ai-suggestion-card ai-suggestion-card-h ${getSuggestionClass(
+                    level
+                  )}`}
+                >
+                  <div className="ai-suggestion-head">
+                    <div className="ai-suggestion-title">{title}</div>
+                    {zone ? (
+                      <div className="ai-suggestion-chip">{zone}</div>
+                    ) : null}
+                  </div>
+
+                  {message ? (
+                    <div className="ai-suggestion-message">{message}</div>
+                  ) : null}
+
+                  <div className="ai-suggestion-actions">
+                    <button
+                      type="button"
+                      className="ai-suggestion-btn-primary"
+                      disabled={!canAdd || saving}
+                      onClick={() => applySuggestionToForm(s)}
+                      title={
+                        canAdd
+                          ? "Precarga el formulario para que lo edites y lo guardes como tarea real"
+                          : "Esta sugerencia es informativa (no genera tarea)"
+                      }
+                    >
+                      + Agregar a tareas
+                    </button>
+
+                    <button
+                      type="button"
+                      className="ai-suggestion-btn-ghost"
+                      disabled={saving}
+                      onClick={() => ignoreSuggestion(s)}
+                    >
+                      Ignorar
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </section>
+
     </div>
   );
 }
