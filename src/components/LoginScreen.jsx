@@ -215,6 +215,37 @@ export default function LoginScreen({ onLogin }) {
             />
           </div>
 
+          {mode === "login" && (
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "flex-end",
+                marginTop: "-0.3rem",
+                marginBottom: "0.8rem",
+              }}
+            >
+              <button
+                type="button"
+                disabled={loading}
+                onClick={() => {
+                  alert(
+                    "La recuperación de contraseña estará disponible próximamente."
+                  );
+                }}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: "#7ccf7c",
+                  cursor: "pointer",
+                  fontSize: "0.9rem",
+                  fontWeight: 500,
+                }}
+              >
+                ¿Olvidó su contraseña?
+              </button>
+            </div>
+          )}
+
           {mode === "signup" && (
             <div className="auth-field">
               <label>Confirmar contraseña</label>
