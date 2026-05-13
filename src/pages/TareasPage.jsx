@@ -269,19 +269,6 @@ function buildWeatherRisk(weather) {
   };
 }
 
-function getWeatherBannerClass(level) {
-  switch (level) {
-    case "alert":
-      return "weather-banner-alert";
-    case "warning":
-      return "weather-banner-warning";
-    case "info":
-      return "weather-banner-info";
-    default:
-      return "weather-banner-neutral";
-  }
-}
-
 async function reverseGeocodeName(latitude, longitude) {
   try {
     const url = `https://geocoding-api.open-meteo.com/v1/reverse?latitude=${latitude}&longitude=${longitude}&language=es&format=json`;
@@ -665,6 +652,58 @@ export default function TareasPage({
     });
   }, [filteredTasks, weatherRisk]);
 
+  const weatherContextSuggestions = useMemo(() => {
+    if (weatherError) {
+      return [
+        {
+          id: "weather-unavailable",
+          level: "info",
+          title: "Clima no disponible para cruzar con tareas",
+          zone: "Clima",
+          message: "Las tareas siguen funcionando normal. Revisa la sección Clima o actualiza la ubicación de la finca cuando esté disponible.",
+          actionPayload: null,
+          source: "weather",
+        },
+      ];
+    }
+
+    if (!weatherRisk || !weatherData) return [];
+
+    const level = weatherRisk.level === "alert" ? "alert" : weatherRisk.level === "warning" ? "warning" : "info";
+
+    const matched = weatherTaskMatches.slice(0, 4).map((task) => ({
+      id: `weather-${task.id}`,
+      level,
+      title: `Clima puede afectar: ${task.title}`,
+      zone: task.zone || "",
+      message: `${weatherRisk.summary}. ${weatherRisk.recommendations?.[0] || "Revisa si conviene ajustar la fecha o preparar condiciones de protección."}`,
+      actionPayload: null,
+      source: "weather",
+    }));
+
+    if (matched.length > 0) return matched;
+
+    if (weatherRisk.level === "alert" || weatherRisk.level === "warning") {
+      return [
+        {
+          id: `weather-general-${weatherRisk.level}`,
+          level,
+          title: "Clima con impacto operativo",
+          zone: weatherData.locationName || "Finca",
+          message: `${weatherRisk.summary}. ${weatherRisk.recommendations?.[0] || "Antes de ejecutar labores sensibles, revisa la sección Clima."}`,
+          actionPayload: null,
+          source: "weather",
+        },
+      ];
+    }
+
+    return [];
+  }, [weatherRisk, weatherData, weatherTaskMatches, weatherError]);
+
+  const combinedSuggestions = useMemo(() => {
+    return [...weatherContextSuggestions, ...visibleSuggestions];
+  }, [weatherContextSuggestions, visibleSuggestions]);
+
   const handleFormChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
@@ -890,101 +929,19 @@ export default function TareasPage({
         </section>
       )}
 
-      <section
-        className={`card tasks-weather-card ${
-          weatherRisk ? getWeatherBannerClass(weatherRisk.level) : "weather-banner-neutral"
-        }`}
-      >
-        <div className="weather-operational-header">
-          <div className="weather-operational-main">
-            <h3 className="weather-operational-title">Clima operativo para tareas</h3>
-
-            {weatherLoading ? (
-              <p className="weather-operational-summary">
-                Leyendo clima actual para afinar la operación…
-              </p>
-            ) : weatherError ? (
-              <p className="weather-operational-summary">{weatherError}</p>
-            ) : weatherData && weatherRisk ? (
-              <>
-                <p className="weather-operational-state">{weatherRisk.title}</p>
-
-                <p className="weather-operational-summary">
-                  {weatherRisk.summary}
-                </p>
-
-                <p className="weather-operational-location">
-                  {weatherData.locationName} · {weatherData.weatherLabel}
-                </p>
-
-                <div className="weather-metrics">
-                  <span className="status-badge">Temp: {weatherData.temperature}°C</span>
-                  <span className="status-badge">Humedad: {weatherData.humidity}%</span>
-                  <span className="status-badge">Viento: {weatherData.windSpeed} km/h</span>
-                  <span className="status-badge">Lluvia: {weatherData.precipitation} mm</span>
-                  <span className="status-badge">
-                    Prob. lluvia: {weatherData.precipitationProbability}%
-                  </span>
-                  <span className="status-badge">UV: {weatherData.uvIndex}</span>
-                </div>
-
-                <div className="weather-tips">
-                  {weatherRisk.recommendations.map((tip, idx) => (
-                    <p key={idx} className="weather-tip">
-                      • {tip}
-                    </p>
-                  ))}
-                </div>
-
-                {weatherTaskMatches.length > 0 && (
-                  <div className="weather-task-impact">
-                    <p className="weather-task-impact-title">
-                      Tareas potencialmente afectadas ahora: {weatherTaskMatches.length}
-                    </p>
-
-                    <div className="weather-task-tags">
-                      {weatherTaskMatches.slice(0, 6).map((task) => (
-                        <span key={task.id} className="priority-badge priority-medium">
-                          {task.title}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </>
-            ) : (
-              <p className="weather-operational-summary">
-                Sin lectura climática disponible todavía.
-              </p>
-            )}
-          </div>
-
-          <div className="weather-refresh-box">
-            <button
-              type="button"
-              className="secondary-btn"
-              onClick={fetchWeather}
-              disabled={weatherLoading}
-            >
-              {weatherLoading ? "Actualizando clima…" : "Actualizar clima"}
-            </button>
-          </div>
-        </div>
-      </section>
-
       <section className="card ia-placeholder">
         <h3>Recomendaciones IA</h3>
 
-        {loadingSuggestions ? (
-          <p style={{ margin: 0, opacity: 0.85 }}>Analizando tu operación…</p>
-        ) : visibleSuggestions.length === 0 ? (
+        {(loadingSuggestions || weatherLoading) ? (
+          <p style={{ margin: 0, opacity: 0.85 }}>Analizando tu operación y contexto climático…</p>
+        ) : combinedSuggestions.length === 0 ? (
           <p style={{ margin: 0, opacity: 0.85 }}>
             No hay sugerencias por ahora. (Eso también es una victoria: tu finca
             está en control.)
           </p>
         ) : (
           <div className="ai-suggestions-list ai-suggestions-row">
-            {visibleSuggestions.map((s) => {
+            {combinedSuggestions.map((s) => {
               const id = String(s?.id || s?._id || Math.random());
               const level = s?.level || "info";
               const title = s?.title || "Sugerencia";
