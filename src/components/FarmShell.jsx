@@ -5,9 +5,6 @@ import "../styles/farm-shell.css";
 const FarmMap = lazy(() => import("./map/FarmMap"));
 const TareasPage = lazy(() => import("../pages/TareasPage"));
 const FinanzasPage = lazy(() => import("../pages/FinanzasPage"));
-const DispositivosPage = lazy(() => import("../pages/DispositivosPage"));
-const InvestigadorPage = lazy(() => import("../pages/InvestigadorPage"));
-const ProductosPage = lazy(() => import("../pages/ProductosPage"));
 const ClimaPage = lazy(() => import("../pages/ClimaPage"));
 const Footer = lazy(() => import("./Footer"));
 
@@ -80,6 +77,13 @@ export default function FarmShell({ user, onLogout }) {
     source: null,
     updatedAt: null,
   });
+
+  const visibleTabs = [
+    ["mapa", "Mapa de la finca"],
+    ["tareas", "Tareas"],
+    ["finanzas", "Finanzas"],
+    ["clima", "Clima"],
+  ];
 
   useEffect(() => {
     const sync = () => {
@@ -183,15 +187,7 @@ export default function FarmShell({ user, onLogout }) {
         </div>
 
         <nav className="farm-shell-nav">
-          {[
-            ["mapa", "Mapa de la finca"],
-            ["tareas", "Tareas"],
-            ["finanzas", "Finanzas"],
-            ["clima", "Clima"],
-            ["dispositivos", "Dispositivos"],
-            ["investigador", "Investigador IA"],
-            ["productos", "Productos de interés"],
-          ].map(([key, label]) => (
+          {visibleTabs.map(([key, label]) => (
             <button
               key={key}
               type="button"
@@ -204,8 +200,6 @@ export default function FarmShell({ user, onLogout }) {
         </nav>
 
         <div className="farm-shell-right">
-          
-
           {onLogout && (
             <button
               type="button"
@@ -245,10 +239,6 @@ export default function FarmShell({ user, onLogout }) {
                 farmId={farmId}
               />
             )}
-
-            {activeTab === "dispositivos" && <DispositivosPage />}
-            {activeTab === "investigador" && <InvestigadorPage />}
-            {activeTab === "productos" && <ProductosPage />}
           </Suspense>
         </section>
       </main>
