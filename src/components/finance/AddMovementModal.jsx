@@ -73,13 +73,12 @@ export default function AddMovementModal({
     }
 
     if (type !== "Ingreso" && type !== "Gasto") {
-      alert('Tipo inválido.');
+      alert("Tipo inválido.");
       return;
     }
 
-    const amountNum = Number(
-      String(form.amount || "").replaceAll(",", "").trim()
-    );
+    const amountNum = Number(String(form.amount || "").replaceAll(",", "").trim());
+
     if (!Number.isFinite(amountNum) || amountNum < 0) {
       alert("Monto inválido.");
       return;
@@ -107,11 +106,14 @@ export default function AddMovementModal({
       style={{
         position: "fixed",
         inset: 0,
-        background: "rgba(0,0,0,0.55)",
-        display: "grid",
-        placeItems: "center",
+        background: "rgba(0,0,0,0.62)",
+        display: "flex",
+        alignItems: "flex-start",
+        justifyContent: "center",
         zIndex: 9999,
-        padding: "1rem",
+        padding: "calc(1rem + env(safe-area-inset-top, 0px)) 1rem calc(1rem + env(safe-area-inset-bottom, 0px))",
+        overflowY: "auto",
+        boxSizing: "border-box",
       }}
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
@@ -121,14 +123,30 @@ export default function AddMovementModal({
         className="modal-card"
         style={{
           width: "min(720px, 100%)",
+          maxHeight: "calc(100dvh - 2rem)",
+          overflowY: "auto",
           background: "rgba(2, 6, 23, 0.98)",
           border: "1px solid #1e293b",
           borderRadius: "18px",
           padding: "1.25rem",
           boxShadow: "0 20px 60px rgba(0,0,0,0.45)",
+          boxSizing: "border-box",
         }}
+        onMouseDown={(e) => e.stopPropagation()}
       >
-        <div style={{ display: "flex", justifyContent: "space-between", gap: "1rem" }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            gap: "1rem",
+            alignItems: "flex-start",
+            position: "sticky",
+            top: 0,
+            background: "rgba(2, 6, 23, 0.98)",
+            paddingBottom: "0.75rem",
+            zIndex: 2,
+          }}
+        >
           <div>
             <h3 style={{ margin: 0 }}>
               {isEdit ? "Editar movimiento" : "Agregar movimiento"}
@@ -145,7 +163,7 @@ export default function AddMovementModal({
             className="secondary-btn"
             onClick={onClose}
             disabled={saving}
-            style={{ height: "fit-content" }}
+            style={{ height: "fit-content", flex: "0 0 auto" }}
           >
             Cerrar
           </button>
@@ -155,7 +173,7 @@ export default function AddMovementModal({
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+              gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
               gap: "0.9rem",
             }}
           >
@@ -235,10 +253,20 @@ export default function AddMovementModal({
             </div>
           </div>
 
-          <div style={{ display: "flex", gap: "0.75rem", marginTop: "1rem" }}>
+          <div
+            style={{
+              display: "flex",
+              gap: "0.75rem",
+              marginTop: "1rem",
+              paddingTop: "1rem",
+              paddingBottom: "0.25rem",
+              flexWrap: "wrap",
+            }}
+          >
             <button type="submit" className="primary-btn" disabled={saving}>
               {saving ? "Guardando…" : isEdit ? "Guardar cambios" : "Guardar"}
             </button>
+
             <button
               type="button"
               className="secondary-btn"
