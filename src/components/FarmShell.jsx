@@ -6,6 +6,7 @@ const FarmMap = lazy(() => import("./map/FarmMap"));
 const TareasPage = lazy(() => import("../pages/TareasPage"));
 const FinanzasPage = lazy(() => import("../pages/FinanzasPage"));
 const ClimaPage = lazy(() => import("../pages/ClimaPage"));
+const BitacoraPage = lazy(() => import("../pages/BitacoraPage"));
 const Footer = lazy(() => import("./Footer"));
 
 function pickLocalStorage(keys) {
@@ -83,6 +84,7 @@ export default function FarmShell({ user, onLogout }) {
     ["tareas", "Tareas"],
     ["finanzas", "Finanzas"],
     ["clima", "Clima"],
+    ["bitacora", "Bitácora"],
   ];
 
   useEffect(() => {
@@ -230,7 +232,9 @@ export default function FarmShell({ user, onLogout }) {
               />
             )}
 
-            {activeTab === "finanzas" && <FinanzasPage />}
+            {activeTab === "finanzas" && (
+              <FinanzasPage token={token} farmId={farmId} />
+            )}
 
             {activeTab === "clima" && (
               <ClimaPage
@@ -238,6 +242,10 @@ export default function FarmShell({ user, onLogout }) {
                 token={token}
                 farmId={farmId}
               />
+            )}
+
+            {activeTab === "bitacora" && (
+              <BitacoraPage token={token} farmId={farmId} />
             )}
           </Suspense>
         </section>
