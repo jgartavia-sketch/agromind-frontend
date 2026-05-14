@@ -56,7 +56,6 @@ function getActiveFarmId() {
 function toYYYYMMDD(value) {
   if (!value) return "—";
   if (typeof value === "string") {
-    // ISO o YYYY-MM-DD
     if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
     const d = new Date(value);
     if (!Number.isNaN(d.getTime())) return d.toISOString().slice(0, 10);
@@ -68,11 +67,10 @@ function toYYYYMMDD(value) {
 }
 
 function buildMonthlyChartData(movements) {
-  // Devuelve [{ month: "2026-02", ingresos: 150000, gastos: 25000, balance: 125000 }, ...]
   const map = new Map();
 
   for (const m of movements) {
-    const month = toYYYYMMDD(m.date).slice(0, 7); // YYYY-MM
+    const month = toYYYYMMDD(m.date).slice(0, 7);
     if (!month || month.includes("—")) continue;
 
     const prev = map.get(month) || { month, ingresos: 0, gastos: 0, balance: 0 };
@@ -85,19 +83,14 @@ function buildMonthlyChartData(movements) {
     map.set(month, prev);
   }
 
-  // Orden ascendente por mes
   return Array.from(map.values()).sort((a, b) => a.month.localeCompare(b.month));
 }
 
-// -------------------------
-// Helpers Activos (UI <-> Backend)
-// -------------------------
 function withQtyInName(name, qty) {
   const base = String(name || "").trim();
   const q = Number(qty || 1);
   if (!base) return "";
   if (!Number.isFinite(q) || q <= 1) return base;
-  // Evita duplicar si ya trae (xN)
   if (/\(x\d+\)\s*$/.test(base)) return base;
   return `${base} (x${Math.trunc(q)})`;
 }
@@ -119,21 +112,17 @@ export default function FinanzasPage({ farmId: farmIdProp, token: tokenProp }) {
   const [showModal, setShowModal] = useState(false);
   const [editingMovement, setEditingMovement] = useState(null);
 
-  // UI state
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
-  // =========================
-  // ACTIVOS (PERSISTENTES)
-  // =========================
   const [assets, setAssets] = useState([]);
   const [assetsLoading, setAssetsLoading] = useState(false);
   const [assetsSaving, setAssetsSaving] = useState(false);
   const [assetsError, setAssetsError] = useState("");
 
   const [assetName, setAssetName] = useState("");
-  const [assetType, setAssetType] = useState("Equipo"); // mapea a category en backend
+  const [assetType, setAssetType] = useState("Equipo");
   const [assetQty, setAssetQty] = useState(1);
   const [assetUnitValue, setAssetUnitValue] = useState("");
 
@@ -141,11 +130,10 @@ export default function FinanzasPage({ farmId: farmIdProp, token: tokenProp }) {
     return assets.reduce((acc, a) => acc + Number(a.totalValue || 0), 0);
   }, [assets]);
 
-  // Config API
   const API_BASE =
     import.meta.env.VITE_API_URL ||
     import.meta.env.VITE_API_BASE_URL ||
-    ""; // si está vacío, usa mismo origen
+    "";
 
   const token = tokenProp || getAuthToken();
   const farmId = farmIdProp || getActiveFarmId();
@@ -169,9 +157,7 @@ export default function FinanzasPage({ farmId: farmIdProp, token: tokenProp }) {
     let data = null;
     try {
       data = await res.json();
-    } catch {
-      // no-op
-    }
+    } catch {}
 
     if (!res.ok) {
       const msg = data?.error || `Error HTTP ${res.status}`;
@@ -180,9 +166,6 @@ export default function FinanzasPage({ farmId: farmIdProp, token: tokenProp }) {
     return data;
   }
 
-  // =========================
-  // LOAD MOVEMENTS (REAL) AL ENTRAR
-  // =========================
   useEffect(() => {
     let cancelled = false;
 
@@ -191,9 +174,7 @@ export default function FinanzasPage({ farmId: farmIdProp, token: tokenProp }) {
 
       if (!farmId) {
         setMovements([]);
-        setErrorMsg(
-          "No se detectó una finca activa. Selecciona/crea una finca primero."
-        );
+        setErrorMsg("No se detectó una finca activa. Selecciona/crea una finca primero.");
         return;
       }
       if (!token) {
@@ -208,8 +189,6 @@ export default function FinanzasPage({ farmId: farmIdProp, token: tokenProp }) {
         if (cancelled) return;
 
         const list = Array.isArray(data?.movements) ? data.movements : [];
-
-        // Normalizamos la fecha + invoiceNumber para el UI
         const normalized = list.map((m) => ({
           ...m,
           date: toYYYYMMDD(m.date),
@@ -233,12 +212,8 @@ export default function FinanzasPage({ farmId: farmIdProp, token: tokenProp }) {
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [farmId, token, API_BASE]);
+  }, [farmId, token, API_BASE]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // =========================
-  // LOAD ASSETS (REAL) AL ENTRAR
-  // =========================
   useEffect(() => {
     let cancelled = false;
 
@@ -262,8 +237,6 @@ export default function FinanzasPage({ farmId: farmIdProp, token: tokenProp }) {
         if (cancelled) return;
 
         const list = Array.isArray(data?.assets) ? data.assets : [];
-
-        // Mapeo backend -> UI
         const normalized = list.map((a) => {
           const { cleanName, qty } = extractQtyFromName(a?.name);
           const unit = Number(a?.purchaseValue || 0);
@@ -276,7 +249,6 @@ export default function FinanzasPage({ farmId: farmIdProp, token: tokenProp }) {
             qty,
             unitValue: unit,
             totalValue: total,
-            // extras por si luego hacemos edición avanzada:
             purchaseDate: a?.purchaseDate,
             usefulLifeYears: a?.usefulLifeYears,
             residualValue: a?.residualValue,
@@ -297,10 +269,8 @@ export default function FinanzasPage({ farmId: farmIdProp, token: tokenProp }) {
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [farmId, token, API_BASE]);
+  }, [farmId, token, API_BASE]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Resumen (para tarjetas superiores)
   const resumenZona = useMemo(() => summarizeMovements(movements), [movements]);
 
   const summary = useMemo(() => {
@@ -318,7 +288,6 @@ export default function FinanzasPage({ farmId: farmIdProp, token: tokenProp }) {
     return { ingresos, gastos, balance, margin };
   }, [movements]);
 
-  // Chart real
   const monthlyChartData = useMemo(
     () => buildMonthlyChartData(movements),
     [movements]
@@ -350,9 +319,11 @@ export default function FinanzasPage({ farmId: farmIdProp, token: tokenProp }) {
           },
         ];
 
-  // =========================
-  // CREATE / UPDATE MOVEMENT (REAL)
-  // =========================
+  const handleOpenNewMovement = () => {
+    setEditingMovement(null);
+    setShowModal(true);
+  };
+
   const handleSaveMovement = async (mov) => {
     setErrorMsg("");
 
@@ -368,7 +339,6 @@ export default function FinanzasPage({ farmId: farmIdProp, token: tokenProp }) {
     try {
       setSaving(true);
 
-      // Si viene id => edit (PUT). Si no => create (POST)
       if (mov?.id) {
         const data = await apiFetch(
           `/api/farms/${farmId}/finance/movements/${mov.id}`,
@@ -383,8 +353,7 @@ export default function FinanzasPage({ farmId: farmIdProp, token: tokenProp }) {
         if (updated) {
           updated.date = toYYYYMMDD(updated.date);
           updated.invoiceNumber =
-            typeof updated.invoiceNumber === "string" &&
-            updated.invoiceNumber.trim()
+            typeof updated.invoiceNumber === "string" && updated.invoiceNumber.trim()
               ? updated.invoiceNumber.trim()
               : "";
 
@@ -402,8 +371,7 @@ export default function FinanzasPage({ farmId: farmIdProp, token: tokenProp }) {
         if (created) {
           created.date = toYYYYMMDD(created.date);
           created.invoiceNumber =
-            typeof created.invoiceNumber === "string" &&
-            created.invoiceNumber.trim()
+            typeof created.invoiceNumber === "string" && created.invoiceNumber.trim()
               ? created.invoiceNumber.trim()
               : "";
 
@@ -420,9 +388,6 @@ export default function FinanzasPage({ farmId: farmIdProp, token: tokenProp }) {
     }
   };
 
-  // =========================
-  // DELETE MOVEMENT (REAL) DESDE LA TABLA
-  // =========================
   const handleDeleteMovement = async (movementId) => {
     const ok = window.confirm("¿Eliminar este movimiento?");
     if (!ok) return;
@@ -440,7 +405,6 @@ export default function FinanzasPage({ farmId: farmIdProp, token: tokenProp }) {
 
     try {
       setSaving(true);
-
       await apiFetch(`/api/farms/${farmId}/finance/movements/${movementId}`, {
         method: "DELETE",
       });
@@ -454,7 +418,6 @@ export default function FinanzasPage({ farmId: farmIdProp, token: tokenProp }) {
   };
 
   const handleEditMovement = (mov) => {
-    // no editar placeholders
     if (mov?.id?.toString().includes("placeholder")) return;
 
     setEditingMovement({
@@ -468,9 +431,6 @@ export default function FinanzasPage({ farmId: farmIdProp, token: tokenProp }) {
     setShowModal(true);
   };
 
-  // =========================
-  // CREATE ASSET (REAL)
-  // =========================
   const handleAddAsset = async () => {
     setAssetsError("");
 
@@ -499,7 +459,6 @@ export default function FinanzasPage({ farmId: farmIdProp, token: tokenProp }) {
       name: withQtyInName(name, safeQty),
       category: assetType || "Equipo",
       purchaseValue: Math.trunc(safeUnit),
-      // Mantenerlo simple por ahora:
       purchaseDate: new Date().toISOString(),
       usefulLifeYears: 5,
       residualValue: 0,
@@ -530,7 +489,6 @@ export default function FinanzasPage({ farmId: farmIdProp, token: tokenProp }) {
         };
 
         setAssets((prev) => [uiAsset, ...prev]);
-
         setAssetName("");
         setAssetType("Equipo");
         setAssetQty(1);
@@ -543,9 +501,6 @@ export default function FinanzasPage({ farmId: farmIdProp, token: tokenProp }) {
     }
   };
 
-  // =========================
-  // DELETE ASSET (REAL)
-  // =========================
   const handleDeleteAsset = async (assetId) => {
     const ok = window.confirm("¿Eliminar este activo?");
     if (!ok) return;
@@ -578,7 +533,18 @@ export default function FinanzasPage({ farmId: farmIdProp, token: tokenProp }) {
   return (
     <div className="page finance-page">
       <div className="finance-container">
-        {/* Mensajes */}
+        <section className="finance-top-action card" style={{ marginBottom: "1rem" }}>
+          <button
+            className="btn-primary"
+            type="button"
+            onClick={handleOpenNewMovement}
+            disabled={saving}
+            style={{ width: "100%" }}
+          >
+            {saving ? "Procesando…" : "+ Agregar movimiento"}
+          </button>
+        </section>
+
         {(errorMsg || loading) && (
           <section className="card" style={{ marginBottom: "1rem" }}>
             {loading ? (
@@ -589,22 +555,6 @@ export default function FinanzasPage({ farmId: farmIdProp, token: tokenProp }) {
           </section>
         )}
 
-        {/* IA */}
-        <section className="finance-ia-section">
-          <FinanceSummaryIA
-            movements={movements}
-            assets={assets}
-            summary={summary}
-            resumenZona={resumenZona}
-            loading={loading}
-            errorMsg={errorMsg}
-            farmId={farmId}
-            token={token}
-            apiBase={API_BASE}
-          />
-        </section>
-
-        {/* RESUMEN FINANCIERO */}
         <section className="finance-real-section">
           <section className="finance-summary">
             <FinanceCard
@@ -624,32 +574,10 @@ export default function FinanzasPage({ farmId: farmIdProp, token: tokenProp }) {
             />
           </section>
 
-          {/* Chart real */}
           <ZoneMonthlyChart data={monthlyChartData} />
         </section>
 
-        {/* FINANZAS REALES */}
         <section className="finance-real-section">
-          <header className="page-header page-header-actions">
-            <div>
-              <h2>Finanzas reales</h2>
-              <p className="page-subtitle">
-                Movimientos financieros ingresados manualmente
-              </p>
-            </div>
-
-            <button
-              className="btn-primary"
-              onClick={() => {
-                setEditingMovement(null);
-                setShowModal(true);
-              }}
-              disabled={saving}
-            >
-              + Agregar movimiento
-            </button>
-          </header>
-
           <section className="finance-summary">
             <FinanceCard
               label="Ingresos"
@@ -685,21 +613,15 @@ export default function FinanzasPage({ farmId: farmIdProp, token: tokenProp }) {
               </thead>
               <tbody>
                 {rowsToRender.map((mov) => {
-                  const isPlaceholder =
-                    mov.id?.toString().includes("placeholder");
+                  const isPlaceholder = mov.id?.toString().includes("placeholder");
 
                   return (
-                    <tr
-                      key={mov.id}
-                      className={isPlaceholder ? "row-placeholder" : ""}
-                    >
+                    <tr key={mov.id} className={isPlaceholder ? "row-placeholder" : ""}>
                       <td>{toYYYYMMDD(mov.date)}</td>
                       <td>{mov.concept}</td>
                       <td>{mov.category}</td>
                       <td>
-                        <span className={getTypePillClass(mov.type)}>
-                          {mov.type}
-                        </span>
+                        <span className={getTypePillClass(mov.type)}>{mov.type}</span>
                       </td>
                       <td style={{ textAlign: "right" }}>
                         {formatMoneyCRC(mov.amount)}
@@ -733,9 +655,6 @@ export default function FinanzasPage({ farmId: farmIdProp, token: tokenProp }) {
             </table>
           </section>
 
-          {/* =========================
-              ACTIVOS (ABAJO DE FINANZAS) - PERSISTENTES
-             ========================= */}
           <section className="finance-assets card" style={{ marginTop: "1rem" }}>
             <header className="page-header page-header-actions">
               <div>
@@ -883,6 +802,20 @@ export default function FinanzasPage({ farmId: farmIdProp, token: tokenProp }) {
               </table>
             </div>
           </section>
+        </section>
+
+        <section className="finance-ia-section" style={{ marginTop: "1rem" }}>
+          <FinanceSummaryIA
+            movements={movements}
+            assets={assets}
+            summary={summary}
+            resumenZona={resumenZona}
+            loading={loading}
+            errorMsg={errorMsg}
+            farmId={farmId}
+            token={token}
+            apiBase={API_BASE}
+          />
         </section>
 
         {showModal && (
