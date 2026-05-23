@@ -39,8 +39,8 @@ export default function BitacoraPage() {
         <h2>Bitácora inteligente de la finca</h2>
 
         <p style={{ opacity: 0.8 }}>
-          Escribe lo que ocurrió en la finca. AgroMind analiza acciones,
-          costos, cultivos, zonas, riesgos, tareas y procesos.
+          Escribe lo que ocurrió en la finca. AgroMind analiza acciones, costos,
+          cultivos, zonas, riesgos, tareas y procesos.
         </p>
 
         <textarea
@@ -51,7 +51,10 @@ export default function BitacoraPage() {
         />
 
         {liveAnalysis && (
-          <AnalysisPanel analysis={liveAnalysis} title="Interpretación inteligente" />
+          <AnalysisPanel
+            analysis={liveAnalysis}
+            title="Interpretación inteligente"
+          />
         )}
 
         <button
@@ -100,9 +103,18 @@ function AnalysisPanel({ analysis, title, compact = false }) {
 
       <div style={summaryGridStyle}>
         <SummaryChip label="Severidad" value={summary.highestSeverity || "baja"} />
-        <SummaryChip label="Cultivos" value={summary.crops?.join(", ") || "No detectado"} />
-        <SummaryChip label="Zonas" value={summary.zones?.join(", ") || "No detectado"} />
-        <SummaryChip label="Módulos" value={summary.modules?.join(", ") || "Bitácora"} />
+        <SummaryChip
+          label="Cultivos"
+          value={summary.crops?.join(", ") || "No detectado"}
+        />
+        <SummaryChip
+          label="Zonas"
+          value={summary.zones?.join(", ") || "No detectado"}
+        />
+        <SummaryChip
+          label="Módulos"
+          value={summary.modules?.join(", ") || "Bitácora"}
+        />
       </div>
 
       {costEstimate?.hasEstimate && (
@@ -123,23 +135,111 @@ function AnalysisPanel({ analysis, title, compact = false }) {
         </div>
       )}
 
-      {Array.isArray(analysis.smartQuestions) && analysis.smartQuestions.length > 0 && (
-        <div style={questionBoxStyle}>
-          <strong>Preguntas inteligentes sugeridas</strong>
-
-          <ul style={listStyle}>
-            {analysis.smartQuestions.map((question, index) => (
-              <li key={`smart-question-${index}`}>{question}</li>
-            ))}
-          </ul>
-        </div>
-      )}
+      <SmartQuestionFlow questions={analysis.smartQuestions || []} />
 
       <div style={{ display: "grid", gap: "0.75rem", marginTop: "0.75rem" }}>
         {insights.map((item, index) => (
           <InsightCard key={`${item.type}-${item.title}-${index}`} item={item} />
         ))}
       </div>
+    </div>
+  );
+}
+
+function SmartQuestionFlow({ questions }) {
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [answer, setAnswer] = useState("");
+  const [answered, setAnswered] = useState([]);
+  const [ignored, setIgnored] = useState([]);
+
+  if (!Array.isArray(questions) || questions.length === 0) return null;
+
+  const currentQuestion = questions[currentIndex];
+  const isDone = currentIndex >= questions.length;
+
+  const handleAnswer = () => {
+    const clean = answer.trim();
+    if (!clean) return;
+
+    setAnswered((prev) => [
+      ...prev,
+      {
+        question: currentQuestion,
+        answer: clean,
+      },
+    ]);
+
+    setAnswer("");
+    setCurrentIndex((prev) => prev + 1);
+  };
+
+  const handleIgnore = () => {
+    setIgnored((prev) => [...prev, currentQuestion]);
+    setAnswer("");
+    setCurrentIndex((prev) => prev + 1);
+  };
+
+  return (
+    <div style={questionBoxStyle}>
+      <strong>Preguntas inteligentes</strong>
+
+      {!isDone ? (
+        <div style={{ marginTop: "0.75rem" }}>
+          <p style={{ margin: "0 0 0.7rem", fontSize: "1.05rem" }}>
+            {currentIndex + 1}. {currentQuestion}
+          </p>
+
+          <textarea
+            value={answer}
+            onChange={(e) => setAnswer(e.target.value)}
+            placeholder="Escriba la respuesta aquí..."
+            style={answerTextareaStyle}
+          />
+
+          <div style={questionActionsStyle}>
+            <button
+              type="button"
+              className="primary-btn"
+              onClick={handleAnswer}
+              disabled={!answer.trim()}
+            >
+              Responder
+            </button>
+
+            <button type="button" onClick={handleIgnore} style={secondaryButtonStyle}>
+              Ignorar
+            </button>
+          </div>
+
+          <p style={{ marginTop: "0.6rem", opacity: 0.6, fontSize: "0.9rem" }}>
+            Pregunta {currentIndex + 1} de {questions.length}
+          </p>
+        </div>
+      ) : (
+        <p style={{ margin: "0.75rem 0 0", opacity: 0.82 }}>
+          Flujo de preguntas completado.
+        </p>
+      )}
+
+      {(answered.length > 0 || ignored.length > 0) && (
+        <div style={{ marginTop: "0.9rem", display: "grid", gap: "0.5rem" }}>
+          {answered.map((item, index) => (
+            <div key={`answered-${index}`} style={answerCardStyle}>
+              <strong>{item.question}</strong>
+              <p style={{ margin: "0.35rem 0 0", opacity: 0.82 }}>
+                {item.answer}
+              </p>
+            </div>
+          ))}
+
+          {ignored.map((item, index) => (
+            <div key={`ignored-${index}`} style={ignoredCardStyle}>
+              <strong>Pregunta ignorada</strong>
+              <p style={{ margin: "0.35rem 0 0", opacity: 0.75 }}>{item}</p>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -151,9 +251,7 @@ function InsightCard({ item }) {
         {getSeverityIcon(item.severity)} {item.type} · {item.title}
       </strong>
 
-      <p style={{ margin: "0.4rem 0 0", opacity: 0.82 }}>
-        {item.message}
-      </p>
+      <p style={{ margin: "0.4rem 0 0", opacity: 0.82 }}>{item.message}</p>
 
       {Array.isArray(item.matchedKeywords) && item.matchedKeywords.length > 0 && (
         <p style={{ margin: "0.45rem 0 0", opacity: 0.65, fontSize: "0.9rem" }}>
@@ -199,6 +297,19 @@ const textareaStyle = {
   lineHeight: 1.5,
 };
 
+const answerTextareaStyle = {
+  width: "100%",
+  minHeight: "90px",
+  padding: "0.85rem",
+  borderRadius: "14px",
+  border: "1px solid #334155",
+  background: "#020617",
+  color: "#e5e7eb",
+  resize: "vertical",
+  boxSizing: "border-box",
+  lineHeight: 1.45,
+};
+
 const historyItemStyle = {
   borderTop: "1px solid #1e293b",
   padding: "1rem 0",
@@ -236,15 +347,39 @@ const questionBoxStyle = {
   marginBottom: "0.75rem",
 };
 
+const questionActionsStyle = {
+  display: "flex",
+  flexWrap: "wrap",
+  gap: "0.65rem",
+  marginTop: "0.75rem",
+};
+
+const secondaryButtonStyle = {
+  border: "1px solid #334155",
+  borderRadius: "999px",
+  padding: "0.65rem 1rem",
+  background: "rgba(15, 23, 42, 0.88)",
+  color: "#e5e7eb",
+  cursor: "pointer",
+};
+
+const answerCardStyle = {
+  border: "1px solid rgba(34, 197, 94, 0.28)",
+  borderRadius: "12px",
+  padding: "0.75rem",
+  background: "rgba(20, 83, 45, 0.14)",
+};
+
+const ignoredCardStyle = {
+  border: "1px solid rgba(148, 163, 184, 0.25)",
+  borderRadius: "12px",
+  padding: "0.75rem",
+  background: "rgba(15, 23, 42, 0.5)",
+};
+
 const insightCardStyle = {
   border: "1px solid #1e293b",
   borderRadius: "14px",
   padding: "0.9rem",
   background: "rgba(15, 23, 42, 0.72)",
-};
-
-const listStyle = {
-  margin: "0.5rem 0 0",
-  paddingLeft: "1.2rem",
-  opacity: 0.84,
 };
