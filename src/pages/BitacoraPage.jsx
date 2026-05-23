@@ -2,6 +2,12 @@
 import { useMemo, useState } from "react";
 import { analyzeEntry } from "../lib/bitacora/analyzer";
 import { formatCRC } from "../lib/bitacora/costEngine";
+import {
+  analyzeAnswer,
+  buildDetectedActivities,
+  buildFinalActions,
+  getExtraQuestionsFromAnswer,
+} from "../lib/bitacora/conversationEngine";
 
 export default function BitacoraPage() {
   const [entry, setEntry] = useState("");
@@ -12,11 +18,9 @@ export default function BitacoraPage() {
     return analyzeEntry(entry);
   }, [entry]);
 
-  const handleSave = () => {
+  const handleFinalSave = (conversationResult) => {
     const clean = entry.trim();
     if (!clean) return;
-
-    const analysis = analyzeEntry(clean);
 
     const newEntry = {
       id: Date.now(),
@@ -26,7 +30,7 @@ export default function BitacoraPage() {
         minute: "2-digit",
       }),
       text: clean,
-      analysis,
+      conversationResult,
     };
 
     setEntries((prev) => [newEntry, ...prev]);
@@ -39,32 +43,25 @@ export default function BitacoraPage() {
         <h2>Bitácora inteligente de la finca</h2>
 
         <p style={{ opacity: 0.8 }}>
-          Escribe lo que ocurrió en la finca. AgroMind analiza acciones, costos,
-          cultivos, zonas, riesgos, tareas y procesos.
+          Escribe lo que ocurrió. AgroMind detecta actividades, pregunta solo lo
+          necesario y al final sugiere acciones.
         </p>
 
         <textarea
           value={entry}
           onChange={(e) => setEntry(e.target.value)}
-          placeholder="Ej: Hoy chapié dos horas en el vivero, usé un litro de gasolina y revisé la germinación de pitanga. Salieron 28 plántulas."
+          placeholder="Ej: Hoy sembré pitanga en el vivero. Salieron 28 plántulas y quedó pendiente revisar riego."
           style={textareaStyle}
         />
 
         {liveAnalysis && (
-          <AnalysisPanel
+          <ConversationPanel
+            key={entry}
+            entry={entry}
             analysis={liveAnalysis}
-            title="Interpretación inteligente"
+            onFinalSave={handleFinalSave}
           />
         )}
-
-        <button
-          type="button"
-          className="primary-btn"
-          onClick={handleSave}
-          style={{ marginTop: "1rem" }}
-        >
-          Guardar entrada
-        </button>
       </section>
 
       <section className="card" style={{ marginTop: "1rem" }}>
@@ -78,10 +75,11 @@ export default function BitacoraPage() {
               <strong>
                 {item.date} · {item.time}
               </strong>
-
               <p style={{ whiteSpace: "pre-wrap" }}>{item.text}</p>
-
-              <AnalysisPanel analysis={item.analysis} compact />
+              <p style={{ opacity: 0.75 }}>
+                Actividades confirmadas:{" "}
+                {item.conversationResult?.confirmedActivities?.length || 0}
+              </p>
             </div>
           ))
         )}
@@ -90,189 +88,304 @@ export default function BitacoraPage() {
   );
 }
 
-function AnalysisPanel({ analysis, title, compact = false }) {
-  if (!analysis) return null;
-
-  const insights = analysis.insights || [];
-  const summary = analysis.summary || {};
-  const costEstimate = analysis.costEstimate;
-
-  return (
-    <div style={{ marginTop: compact ? "0.75rem" : "1rem" }}>
-      {!compact && <h3 style={{ marginBottom: "0.75rem" }}>{title}</h3>}
-
-      <div style={summaryGridStyle}>
-        <SummaryChip label="Severidad" value={summary.highestSeverity || "baja"} />
-        <SummaryChip
-          label="Cultivos"
-          value={summary.crops?.join(", ") || "No detectado"}
-        />
-        <SummaryChip
-          label="Zonas"
-          value={summary.zones?.join(", ") || "No detectado"}
-        />
-        <SummaryChip
-          label="Módulos"
-          value={summary.modules?.join(", ") || "Bitácora"}
-        />
-      </div>
-
-      {costEstimate?.hasEstimate && (
-        <div style={costBoxStyle}>
-          <strong>Estimación financiera</strong>
-
-          <p style={{ margin: "0.4rem 0", opacity: 0.85 }}>
-            Total estimado: <strong>{formatCRC(costEstimate.total)}</strong>
-          </p>
-
-          <div style={{ display: "grid", gap: "0.35rem" }}>
-            {costEstimate.lines.map((line, index) => (
-              <div key={`${line.label}-${index}`} style={{ opacity: 0.82 }}>
-                {line.label}: {formatCRC(line.amount)} · {line.detail}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      <SmartQuestionFlow questions={analysis.smartQuestions || []} />
-
-      <div style={{ display: "grid", gap: "0.75rem", marginTop: "0.75rem" }}>
-        {insights.map((item, index) => (
-          <InsightCard key={`${item.type}-${item.title}-${index}`} item={item} />
-        ))}
-      </div>
-    </div>
+function ConversationPanel({ entry, analysis, onFinalSave }) {
+  const detectedActivities = useMemo(
+    () => buildDetectedActivities(analysis),
+    [analysis]
   );
-}
 
-function SmartQuestionFlow({ questions }) {
-  const [currentIndex, setCurrentIndex] = useState(0);
+  const [activityIndex, setActivityIndex] = useState(0);
+  const [confirmedActivities, setConfirmedActivities] = useState([]);
+  const [ignoredActivities, setIgnoredActivities] = useState([]);
+  const [questions, setQuestions] = useState([]);
+  const [questionIndex, setQuestionIndex] = useState(0);
   const [answer, setAnswer] = useState("");
-  const [answered, setAnswered] = useState([]);
-  const [ignored, setIgnored] = useState([]);
+  const [answers, setAnswers] = useState([]);
+  const [phase, setPhase] = useState("confirming");
 
-  if (!Array.isArray(questions) || questions.length === 0) return null;
+  const currentActivity = detectedActivities[activityIndex];
+  const currentQuestion = questions[questionIndex];
 
-  const currentQuestion = questions[currentIndex];
-  const isDone = currentIndex >= questions.length;
+  const handleConfirmActivity = () => {
+    const nextConfirmed = [...confirmedActivities, currentActivity];
+    const newQuestions = [
+      ...questions,
+      ...(currentActivity.questions || []),
+    ].filter((question, index, array) => array.indexOf(question) === index);
 
-  const handleAnswer = () => {
+    setConfirmedActivities(nextConfirmed);
+    setQuestions(newQuestions);
+    moveToNextActivity();
+  };
+
+  const handleIgnoreActivity = () => {
+    setIgnoredActivities((prev) => [...prev, currentActivity]);
+    moveToNextActivity();
+  };
+
+  const moveToNextActivity = () => {
+    const nextIndex = activityIndex + 1;
+
+    if (nextIndex < detectedActivities.length) {
+      setActivityIndex(nextIndex);
+      return;
+    }
+
+    setPhase("questions");
+  };
+
+  const handleAnswerQuestion = () => {
     const clean = answer.trim();
     if (!clean) return;
 
-    setAnswered((prev) => [
+    const answerAnalysis = analyzeAnswer(clean);
+    const extraQuestions = getExtraQuestionsFromAnswer(answerAnalysis, questions);
+
+    setAnswers((prev) => [
       ...prev,
       {
         question: currentQuestion,
         answer: clean,
+        analysis: answerAnalysis,
       },
     ]);
 
+    setQuestions((prev) => [...prev, ...extraQuestions]);
     setAnswer("");
-    setCurrentIndex((prev) => prev + 1);
+
+    const nextIndex = questionIndex + 1;
+    if (nextIndex < questions.length + extraQuestions.length) {
+      setQuestionIndex(nextIndex);
+    } else {
+      setPhase("final");
+    }
   };
 
-  const handleIgnore = () => {
-    setIgnored((prev) => [...prev, currentQuestion]);
+  const handleIgnoreQuestion = () => {
+    const nextIndex = questionIndex + 1;
     setAnswer("");
-    setCurrentIndex((prev) => prev + 1);
+
+    if (nextIndex < questions.length) {
+      setQuestionIndex(nextIndex);
+    } else {
+      setPhase("final");
+    }
   };
+
+  const finalActions = buildFinalActions({
+    baseAnalysis: analysis,
+    confirmedActivities,
+    answers,
+  });
+
+  if (!detectedActivities.length) {
+    return (
+      <div style={questionBoxStyle}>
+        <strong>Entrada lista para guardar</strong>
+        <p style={{ opacity: 0.8 }}>
+          No se detectaron actividades claras. Puede guardar la entrada como
+          registro general.
+        </p>
+
+        <button
+          type="button"
+          className="primary-btn"
+          onClick={() =>
+            onFinalSave({
+              entry,
+              analysis,
+              confirmedActivities: [],
+              ignoredActivities: [],
+              answers: [],
+              finalActions: {},
+            })
+          }
+        >
+          Guardar en Bitácora
+        </button>
+      </div>
+    );
+  }
 
   return (
-    <div style={questionBoxStyle}>
-      <strong>Preguntas inteligentes</strong>
+    <div style={{ marginTop: "1rem" }}>
+      {phase === "confirming" && currentActivity && (
+        <div style={activityBoxStyle}>
+          <strong>
+            {getSeverityIcon(currentActivity.severity)} Actividad detectada
+          </strong>
 
-      {!isDone ? (
-        <div style={{ marginTop: "0.75rem" }}>
-          <p style={{ margin: "0 0 0.7rem", fontSize: "1.05rem" }}>
-            {currentIndex + 1}. {currentQuestion}
+          <h3 style={{ margin: "0.5rem 0" }}>{currentActivity.title}</h3>
+
+          <p style={{ opacity: 0.78 }}>
+            ¿Esta actividad realmente ocurrió en la finca?
           </p>
-
-          <textarea
-            value={answer}
-            onChange={(e) => setAnswer(e.target.value)}
-            placeholder="Escriba la respuesta aquí..."
-            style={answerTextareaStyle}
-          />
 
           <div style={questionActionsStyle}>
             <button
               type="button"
               className="primary-btn"
-              onClick={handleAnswer}
-              disabled={!answer.trim()}
+              onClick={handleConfirmActivity}
             >
-              Responder
+              Confirmar actividad
             </button>
 
-            <button type="button" onClick={handleIgnore} style={secondaryButtonStyle}>
+            <button
+              type="button"
+              style={secondaryButtonStyle}
+              onClick={handleIgnoreActivity}
+            >
               Ignorar
             </button>
           </div>
 
-          <p style={{ marginTop: "0.6rem", opacity: 0.6, fontSize: "0.9rem" }}>
-            Pregunta {currentIndex + 1} de {questions.length}
+          <p style={{ opacity: 0.55, fontSize: "0.9rem" }}>
+            Actividad {activityIndex + 1} de {detectedActivities.length}
           </p>
         </div>
-      ) : (
-        <p style={{ margin: "0.75rem 0 0", opacity: 0.82 }}>
-          Flujo de preguntas completado.
-        </p>
       )}
 
-      {(answered.length > 0 || ignored.length > 0) && (
-        <div style={{ marginTop: "0.9rem", display: "grid", gap: "0.5rem" }}>
-          {answered.map((item, index) => (
-            <div key={`answered-${index}`} style={answerCardStyle}>
+      {phase === "questions" && (
+        <div style={questionBoxStyle}>
+          {currentQuestion ? (
+            <>
+              <strong>Pregunta inteligente</strong>
+
+              <p style={{ fontSize: "1.05rem" }}>{currentQuestion}</p>
+
+              <textarea
+                value={answer}
+                onChange={(e) => setAnswer(e.target.value)}
+                placeholder="Responda aquí..."
+                style={answerTextareaStyle}
+              />
+
+              <div style={questionActionsStyle}>
+                <button
+                  type="button"
+                  className="primary-btn"
+                  disabled={!answer.trim()}
+                  onClick={handleAnswerQuestion}
+                >
+                  Responder
+                </button>
+
+                <button
+                  type="button"
+                  style={secondaryButtonStyle}
+                  onClick={handleIgnoreQuestion}
+                >
+                  Ignorar pregunta
+                </button>
+              </div>
+
+              <p style={{ opacity: 0.55, fontSize: "0.9rem" }}>
+                Pregunta {questionIndex + 1} de {questions.length}
+              </p>
+            </>
+          ) : (
+            <FinalActions
+              analysis={analysis}
+              confirmedActivities={confirmedActivities}
+              ignoredActivities={ignoredActivities}
+              answers={answers}
+              finalActions={finalActions}
+              onFinalSave={onFinalSave}
+            />
+          )}
+        </div>
+      )}
+
+      {phase === "final" && (
+        <FinalActions
+          analysis={analysis}
+          confirmedActivities={confirmedActivities}
+          ignoredActivities={ignoredActivities}
+          answers={answers}
+          finalActions={finalActions}
+          onFinalSave={onFinalSave}
+        />
+      )}
+
+      {answers.length > 0 && (
+        <div style={answersBoxStyle}>
+          <strong>Respuestas registradas</strong>
+
+          {answers.map((item, index) => (
+            <div key={`${item.question}-${index}`} style={answerCardStyle}>
               <strong>{item.question}</strong>
               <p style={{ margin: "0.35rem 0 0", opacity: 0.82 }}>
                 {item.answer}
               </p>
             </div>
           ))}
-
-          {ignored.map((item, index) => (
-            <div key={`ignored-${index}`} style={ignoredCardStyle}>
-              <strong>Pregunta ignorada</strong>
-              <p style={{ margin: "0.35rem 0 0", opacity: 0.75 }}>{item}</p>
-            </div>
-          ))}
         </div>
       )}
     </div>
   );
 }
 
-function InsightCard({ item }) {
+function FinalActions({
+  analysis,
+  confirmedActivities,
+  ignoredActivities,
+  answers,
+  finalActions,
+  onFinalSave,
+}) {
   return (
-    <div style={insightCardStyle}>
-      <strong>
-        {getSeverityIcon(item.severity)} {item.type} · {item.title}
-      </strong>
+    <div style={finalBoxStyle}>
+      <strong>Resumen final</strong>
 
-      <p style={{ margin: "0.4rem 0 0", opacity: 0.82 }}>{item.message}</p>
+      <p style={{ opacity: 0.82 }}>
+        Actividades confirmadas: {confirmedActivities.length}. Actividades
+        ignoradas: {ignoredActivities.length}. Respuestas: {answers.length}.
+      </p>
 
-      {Array.isArray(item.matchedKeywords) && item.matchedKeywords.length > 0 && (
-        <p style={{ margin: "0.45rem 0 0", opacity: 0.65, fontSize: "0.9rem" }}>
-          Señales: {item.matchedKeywords.join(", ")}
-        </p>
+      {analysis?.costEstimate?.hasEstimate && (
+        <div style={costBoxStyle}>
+          <strong>Estimación financiera inicial</strong>
+          <p style={{ margin: "0.35rem 0 0" }}>
+            {formatCRC(analysis.costEstimate.total)}
+          </p>
+        </div>
       )}
 
-      {Array.isArray(item.modules) && item.modules.length > 0 && (
-        <p style={{ margin: "0.35rem 0 0", opacity: 0.65, fontSize: "0.9rem" }}>
-          Módulos sugeridos: {item.modules.join(", ")}
-        </p>
-      )}
-    </div>
-  );
-}
+      <div style={questionActionsStyle}>
+        <button
+          type="button"
+          className="primary-btn"
+          onClick={() =>
+            onFinalSave({
+              analysis,
+              confirmedActivities,
+              ignoredActivities,
+              answers,
+              finalActions,
+            })
+          }
+        >
+          Guardar en Bitácora
+        </button>
 
-function SummaryChip({ label, value }) {
-  return (
-    <div style={summaryChipStyle}>
-      <span style={{ opacity: 0.65, fontSize: "0.78rem" }}>{label}</span>
-      <strong style={{ fontSize: "0.9rem" }}>{value}</strong>
+        {finalActions.hasFinance && (
+          <button type="button" style={actionButtonStyle}>
+            Registrar en Finanzas
+          </button>
+        )}
+
+        {finalActions.hasTasks && (
+          <button type="button" style={actionButtonStyle}>
+            Crear tarea
+          </button>
+        )}
+
+        {finalActions.hasProcesses && (
+          <button type="button" style={actionButtonStyle}>
+            Actualizar proceso
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -315,20 +428,25 @@ const historyItemStyle = {
   padding: "1rem 0",
 };
 
-const summaryGridStyle = {
-  display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
-  gap: "0.65rem",
-  marginBottom: "0.85rem",
+const activityBoxStyle = {
+  border: "1px solid rgba(34, 197, 94, 0.35)",
+  borderRadius: "16px",
+  padding: "1rem",
+  background: "rgba(20, 83, 45, 0.16)",
 };
 
-const summaryChipStyle = {
-  border: "1px solid #1e293b",
-  borderRadius: "14px",
-  padding: "0.75rem",
-  background: "rgba(2, 6, 23, 0.45)",
-  display: "grid",
-  gap: "0.25rem",
+const questionBoxStyle = {
+  border: "1px solid rgba(59, 130, 246, 0.35)",
+  borderRadius: "16px",
+  padding: "1rem",
+  background: "rgba(30, 64, 175, 0.14)",
+};
+
+const finalBoxStyle = {
+  border: "1px solid rgba(34, 197, 94, 0.35)",
+  borderRadius: "16px",
+  padding: "1rem",
+  background: "rgba(20, 83, 45, 0.18)",
 };
 
 const costBoxStyle = {
@@ -336,15 +454,7 @@ const costBoxStyle = {
   borderRadius: "14px",
   padding: "0.9rem",
   background: "rgba(20, 83, 45, 0.18)",
-  marginBottom: "0.75rem",
-};
-
-const questionBoxStyle = {
-  border: "1px solid rgba(59, 130, 246, 0.35)",
-  borderRadius: "14px",
-  padding: "0.9rem",
-  background: "rgba(30, 64, 175, 0.14)",
-  marginBottom: "0.75rem",
+  margin: "0.75rem 0",
 };
 
 const questionActionsStyle = {
@@ -363,23 +473,24 @@ const secondaryButtonStyle = {
   cursor: "pointer",
 };
 
+const actionButtonStyle = {
+  border: "1px solid rgba(34, 197, 94, 0.45)",
+  borderRadius: "999px",
+  padding: "0.65rem 1rem",
+  background: "rgba(22, 163, 74, 0.18)",
+  color: "#e5e7eb",
+  cursor: "pointer",
+};
+
+const answersBoxStyle = {
+  marginTop: "0.9rem",
+  display: "grid",
+  gap: "0.5rem",
+};
+
 const answerCardStyle = {
   border: "1px solid rgba(34, 197, 94, 0.28)",
   borderRadius: "12px",
   padding: "0.75rem",
   background: "rgba(20, 83, 45, 0.14)",
-};
-
-const ignoredCardStyle = {
-  border: "1px solid rgba(148, 163, 184, 0.25)",
-  borderRadius: "12px",
-  padding: "0.75rem",
-  background: "rgba(15, 23, 42, 0.5)",
-};
-
-const insightCardStyle = {
-  border: "1px solid #1e293b",
-  borderRadius: "14px",
-  padding: "0.9rem",
-  background: "rgba(15, 23, 42, 0.72)",
 };
