@@ -11,6 +11,7 @@ export default function LoginScreen({ onLogin }) {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
   const API_BASE = useMemo(() => {
     const raw =
@@ -22,7 +23,13 @@ export default function LoginScreen({ onLogin }) {
     const e = email.trim();
     const p = pass.trim();
 
-    if (!e || !p || loading) return false;
+    if (loading) return false;
+
+    if (mode === "forgot") {
+      return !!e;
+    }
+
+    if (!e || !p) return false;
 
     if (mode === "signup") {
       if (p.length < 8) return false;
@@ -60,9 +67,63 @@ export default function LoginScreen({ onLogin }) {
     }
   };
 
+  const handleForgotPassword = async () => {
+    setError("");
+    setSuccess("");
+
+    if (!API_BASE) {
+      setError("Falta configurar la conexión con el servidor.");
+      return;
+    }
+
+    const cleanEmail = email.trim().toLowerCase();
+
+    if (!cleanEmail) {
+      setError("Ingresa tu correo para recuperar la contraseña.");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const response = await fetchWithTimeout(`${API_BASE}/auth/forgot-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: cleanEmail }),
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        setError(friendlyError(data?.error));
+        setLoading(false);
+        return;
+      }
+
+      setSuccess(
+        "Si el correo está registrado, recibirás instrucciones para recuperar tu contraseña."
+      );
+      setLoading(false);
+    } catch (err) {
+      if (err?.name === "AbortError") {
+        setError("El servidor tardó demasiado en responder. Intenta de nuevo.");
+      } else {
+        setError("No se pudo conectar con el servidor.");
+      }
+
+      setLoading(false);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+    setSuccess("");
+
+    if (mode === "forgot") {
+      await handleForgotPassword();
+      return;
+    }
 
     if (!API_BASE) {
       setError("Falta configurar la conexión con el servidor.");
@@ -154,6 +215,14 @@ export default function LoginScreen({ onLogin }) {
     }
   };
 
+  const changeMode = (nextMode) => {
+    setError("");
+    setSuccess("");
+    setPass("");
+    setPass2("");
+    setMode(nextMode);
+  };
+
   return (
     <div className="agromind-auth-shell">
       <div className="agromind-auth-card">
@@ -167,10 +236,18 @@ export default function LoginScreen({ onLogin }) {
         </div>
 
         <div className="agromind-auth-header">
-          <h1>{mode === "login" ? "Iniciar sesión" : "Crear cuenta"}</h1>
+          <h1>
+            {mode === "login"
+              ? "Iniciar sesión"
+              : mode === "signup"
+              ? "Crear cuenta"
+              : "Recuperar contraseña"}
+          </h1>
           <p>
             {loading
               ? "Conectando con tu finca..."
+              : mode === "forgot"
+              ? "Ingresa tu correo y te enviaremos las instrucciones."
               : "Accede a tu panel de finca inteligente."}
           </p>
         </div>
@@ -203,17 +280,21 @@ export default function LoginScreen({ onLogin }) {
             />
           </div>
 
-          <div className="auth-field">
-            <label>Contraseña</label>
-            <input
-              type="password"
-              placeholder={mode === "signup" ? "Mínimo 8 caracteres" : "Tu contraseña"}
-              value={pass}
-              onChange={(e) => setPass(e.target.value)}
-              autoComplete={mode === "signup" ? "new-password" : "current-password"}
-              disabled={loading}
-            />
-          </div>
+          {mode !== "forgot" && (
+            <div className="auth-field">
+              <label>Contraseña</label>
+              <input
+                type="password"
+                placeholder={
+                  mode === "signup" ? "Mínimo 8 caracteres" : "Tu contraseña"
+                }
+                value={pass}
+                onChange={(e) => setPass(e.target.value)}
+                autoComplete={mode === "signup" ? "new-password" : "current-password"}
+                disabled={loading}
+              />
+            </div>
+          )}
 
           {mode === "login" && (
             <div
@@ -227,16 +308,12 @@ export default function LoginScreen({ onLogin }) {
               <button
                 type="button"
                 disabled={loading}
-                onClick={() => {
-                  alert(
-                    "La recuperación de contraseña estará disponible próximamente."
-                  );
-                }}
+                onClick={() => changeMode("forgot")}
                 style={{
                   background: "none",
                   border: "none",
                   color: "#7ccf7c",
-                  cursor: "pointer",
+                  cursor: loading ? "not-allowed" : "pointer",
                   fontSize: "0.9rem",
                   fontWeight: 500,
                 }}
@@ -266,18 +343,32 @@ export default function LoginScreen({ onLogin }) {
             </div>
           )}
 
-          <button
-            type="submit"
-            className="auth-primary-btn"
-            disabled={!canSubmit}
-          >
+          {success && (
+            <div
+              className="auth-error"
+              style={{
+                marginTop: "0.5rem",
+                borderColor: "rgba(124, 207, 124, 0.35)",
+                background: "rgba(124, 207, 124, 0.12)",
+                color: "#b8f5b8",
+              }}
+            >
+              {success}
+            </div>
+          )}
+
+          <button type="submit" className="auth-primary-btn" disabled={!canSubmit}>
             {loading
               ? mode === "login"
                 ? "Entrando..."
-                : "Creando cuenta..."
+                : mode === "signup"
+                ? "Creando cuenta..."
+                : "Enviando..."
               : mode === "login"
               ? "Entrar"
-              : "Crear cuenta y entrar"}
+              : mode === "signup"
+              ? "Crear cuenta y entrar"
+              : "Enviar instrucciones"}
           </button>
         </form>
 
@@ -288,26 +379,31 @@ export default function LoginScreen({ onLogin }) {
               <button
                 type="button"
                 disabled={loading}
-                onClick={() => {
-                  setError("");
-                  setMode("signup");
-                }}
+                onClick={() => changeMode("signup")}
               >
                 Crear cuenta
               </button>
             </>
-          ) : (
+          ) : mode === "signup" ? (
             <>
               <span>¿Ya tienes cuenta?</span>
               <button
                 type="button"
                 disabled={loading}
-                onClick={() => {
-                  setError("");
-                  setMode("login");
-                }}
+                onClick={() => changeMode("login")}
               >
                 Iniciar sesión
+              </button>
+            </>
+          ) : (
+            <>
+              <span>¿Recordaste tu contraseña?</span>
+              <button
+                type="button"
+                disabled={loading}
+                onClick={() => changeMode("login")}
+              >
+                Volver al login
               </button>
             </>
           )}

@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import FarmShell from "./components/FarmShell";
 import LoginScreen from "./components/LoginScreen";
+import ResetPasswordScreen from "./components/ResetPasswordScreen";
 
 const RAW_API_BASE =
   import.meta.env.VITE_API_URL || "https://agromind-backend-slem.onrender.com";
@@ -59,6 +60,10 @@ async function fetchWithTimeout(url, options = {}, timeoutMs = 8000) {
 }
 
 export default function AgroMindApp() {
+  const isResetPasswordRoute =
+    window.location.pathname === "/reset-password" &&
+    new URLSearchParams(window.location.search).has("token");
+
   const initialSession = useMemo(() => {
     const token = getStoredToken();
     const storedUser = getStoredUser();
@@ -70,9 +75,16 @@ export default function AgroMindApp() {
   }, []);
 
   const [user, setUser] = useState(initialSession.user);
-  const [booting, setBooting] = useState(!initialSession.user && !!initialSession.token);
+  const [booting, setBooting] = useState(
+    !isResetPasswordRoute && !initialSession.user && !!initialSession.token
+  );
 
   useEffect(() => {
+    if (isResetPasswordRoute) {
+      setBooting(false);
+      return;
+    }
+
     const token = initialSession.token;
 
     if (!token) {
@@ -125,7 +137,7 @@ export default function AgroMindApp() {
     return () => {
       alive = false;
     };
-  }, [initialSession.token, initialSession.user]);
+  }, [initialSession.token, initialSession.user, isResetPasswordRoute]);
 
   const handleLogin = (payload) => {
     const token = payload?.token || null;
@@ -147,6 +159,10 @@ export default function AgroMindApp() {
     clearStoredSession();
     setUser(null);
   };
+
+  if (isResetPasswordRoute) {
+    return <ResetPasswordScreen apiBase={API_BASE} />;
+  }
 
   if (booting) {
     return (
