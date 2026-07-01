@@ -1,4 +1,4 @@
-0e// src/components/map/useFarmMapController.js
+// src/components/map/useFarmMapController.js
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import "ol/ol.css";
@@ -48,6 +48,16 @@ function withComponentTimestamps(c = {}, fallbackId) {
   };
 }
 
+
+function normalizeFarmName(value, fallback = "Finca #1") {
+  const text = String(value || "").trim();
+  return text.length > 0 ? text : fallback;
+}
+
+function getFarmNumber(farms = []) {
+  return Array.isArray(farms) ? farms.length + 1 : 1;
+}
+
 export default function useFarmMapController({ focusZoneRequest }) {
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
@@ -74,7 +84,12 @@ export default function useFarmMapController({ focusZoneRequest }) {
 
   // Backend state
   const [mapReady, setMapReady] = useState(false);
+  const [farms, setFarms] = useState([]);
   const [activeFarmId, setActiveFarmId] = useState(null);
+  const [activeFarm, setActiveFarm] = useState(null);
+  const [farmsLoading, setFarmsLoading] = useState(false);
+  const [farmActionLoading, setFarmActionLoading] = useState(false);
+  const [farmsError, setFarmsError] = useState("");
   const [backendOnline, setBackendOnline] = useState(true);
 
   // Debounce autosave
@@ -507,6 +522,84 @@ export default function useFarmMapController({ focusZoneRequest }) {
     dirtyRef.current = false;
   };
 
+  const getCurrentViewPayload = () => {
+    const map = mapInstanceRef.current;
+    if (!map) return null;
+
+    const view = map.getView();
+    const center = view.getCenter();
+    const zoom = view.getZoom();
+    if (!center || typeof zoom !== "number") return null;
+
+    const [lon, lat] = toLonLat(center);
+    return { center: [lon, lat], zoom };
+  };
+
+  const saveMapNow = async (farmId, list = latestFeaturesListRef.current || [], options = {}) => {
+    if (!farmId) return false;
+    const token = getAuthToken();
+    if (!token) return false;
+
+    const payload = buildBackendPayloadFromList(list, options);
+    if (!payload) return false;
+
+    await apiFetch(`/api/farms/${farmId}/map`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    });
+
+    setBackendOnline(true);
+    dirtyRef.current = false;
+    return true;
+  };
+
+  const updateFarmInState = (farm) => {
+    if (!farm?.id) return;
+
+    setFarms((prev) => {
+      const current = Array.isArray(prev) ? prev : [];
+      const exists = current.some((item) => item.id === farm.id);
+      const next = exists
+        ? current.map((item) => (item.id === farm.id ? { ...item, ...farm } : item))
+        : [...current, farm];
+      return next;
+    });
+
+    setActiveFarm((prev) => (prev?.id === farm.id || activeFarmId === farm.id ? { ...(prev || {}), ...farm } : prev));
+  };
+
+  const setActiveFarmFromList = (farmId, list = farms) => {
+    const safeList = Array.isArray(list) ? list : [];
+    const farm = safeList.find((item) => item.id === farmId) || null;
+    setActiveFarm(farm);
+  };
+
+  const loadFarmMap = async (farmId, list = farms) => {
+    if (!farmId) return false;
+
+    if (autosaveTimerRef.current) {
+      clearTimeout(autosaveTimerRef.current);
+      autosaveTimerRef.current = null;
+    }
+
+    const mapRes = await apiFetch(`/api/farms/${farmId}/map`, { method: "GET" });
+
+    setActiveFarmId(farmId);
+    localStorage.setItem(ACTIVE_FARM_KEY, farmId);
+    setActiveFarmFromList(farmId, list);
+
+    applyBackendMapToUI(mapRes);
+    setBackendOnline(true);
+    return true;
+  };
+
+  const refreshFarms = async () => {
+    const farmsRes = await apiFetch("/api/farms", { method: "GET" });
+    const nextFarms = Array.isArray(farmsRes?.farms) ? farmsRes.farms : [];
+    setFarms(nextFarms);
+    return nextFarms;
+  };
+
   // =========================
   // BACKEND LOAD / SAVE
   // =========================
@@ -577,16 +670,7 @@ export default function useFarmMapController({ focusZoneRequest }) {
 
     autosaveTimerRef.current = setTimeout(async () => {
       try {
-        const payload = buildBackendPayloadFromList(list, options);
-        if (!payload) return;
-
-        await apiFetch(`/api/farms/${activeFarmId}/map`, {
-          method: "PUT",
-          body: JSON.stringify(payload),
-        });
-
-        setBackendOnline(true);
-        dirtyRef.current = false;
+        await saveMapNow(activeFarmId, list, options);
       } catch (err) {
         console.warn("Autosave backend falló:", err?.message || err);
         setBackendOnline(false);
@@ -595,38 +679,51 @@ export default function useFarmMapController({ focusZoneRequest }) {
   };
 
   const ensureFarmAndLoad = async () => {
+    setFarmsLoading(true);
+    setFarmsError("");
+
     try {
       const token = getAuthToken();
       if (!token) {
         setBackendOnline(false);
+        setFarms([]);
+        setActiveFarmId(null);
+        setActiveFarm(null);
         return;
       }
 
-      const farmsRes = await apiFetch("/api/farms", { method: "GET" });
-      const farms = farmsRes?.farms || [];
-
+      let nextFarms = await refreshFarms();
       const savedActive = localStorage.getItem(ACTIVE_FARM_KEY);
-      const picked = (savedActive && farms.find((f) => f.id === savedActive)) || farms[0];
+      const picked =
+        (savedActive && nextFarms.find((f) => f.id === savedActive)) ||
+        nextFarms.find((f) => f.isPrimary) ||
+        nextFarms[0];
 
       let farmId = picked?.id || null;
 
       if (!farmId) {
         const created = await apiFetch("/api/farms", {
           method: "POST",
-          body: JSON.stringify({ name: "Mi finca", view: null }),
+          body: JSON.stringify({ name: "Finca #1", view: null }),
         });
-        farmId = created?.farm?.id || null;
+
+        const createdFarm = created?.farm || null;
+        farmId = createdFarm?.id || null;
+        nextFarms = createdFarm ? [createdFarm] : await refreshFarms();
+        setFarms(nextFarms);
       }
 
       if (!farmId) {
         setBackendOnline(false);
+        setFarmsError("No se pudo cargar o crear la finca inicial.");
         return;
       }
 
+      const mapRes = await apiFetch(`/api/farms/${farmId}/map`, { method: "GET" });
+
       setActiveFarmId(farmId);
       localStorage.setItem(ACTIVE_FARM_KEY, farmId);
-
-      const mapRes = await apiFetch(`/api/farms/${farmId}/map`, { method: "GET" });
+      setActiveFarmFromList(farmId, nextFarms);
 
       const serverHasData =
         (Array.isArray(mapRes?.points) && mapRes.points.length > 0) ||
@@ -688,8 +785,124 @@ export default function useFarmMapController({ focusZoneRequest }) {
     } catch (err) {
       console.warn("Backend load falló:", err?.message || err);
       setBackendOnline(false);
+      setFarmsError(err?.message || "No se pudieron cargar las fincas.");
+    } finally {
+      setFarmsLoading(false);
     }
   };
+
+  const handleSwitchFarm = async (farmId) => {
+    if (!farmId || farmId === activeFarmId) return;
+
+    setFarmActionLoading(true);
+    setFarmsError("");
+
+    try {
+      const previousFarmId = activeFarmId;
+      const latest = latestFeaturesListRef.current || [];
+
+      if (previousFarmId && dirtyRef.current === true) {
+        await saveMapNow(previousFarmId, latest, { view: getCurrentViewPayload() });
+      }
+
+      await loadFarmMap(farmId, farms);
+    } catch (err) {
+      console.warn("Cambio de finca falló:", err?.message || err);
+      setBackendOnline(false);
+      setFarmsError(err?.message || "No se pudo cambiar de finca.");
+    } finally {
+      setFarmActionLoading(false);
+    }
+  };
+
+  const handleCreateFarmFromCurrentView = async (name) => {
+    setFarmActionLoading(true);
+    setFarmsError("");
+
+    try {
+      const currentView = getCurrentViewPayload();
+      const nextName = normalizeFarmName(name, `Finca #${getFarmNumber(farms)}`);
+
+      if (activeFarmId && dirtyRef.current === true) {
+        await saveMapNow(activeFarmId, latestFeaturesListRef.current || [], { view: currentView });
+      }
+
+      const created = await apiFetch("/api/farms", {
+        method: "POST",
+        body: JSON.stringify({ name: nextName, view: currentView }),
+      });
+
+      const createdFarm = created?.farm || null;
+      if (!createdFarm?.id) throw new Error("No se pudo crear la nueva finca.");
+
+      const nextFarms = [...(Array.isArray(farms) ? farms : []), createdFarm];
+      setFarms(nextFarms);
+
+      setActiveFarmId(createdFarm.id);
+      setActiveFarm(createdFarm);
+      localStorage.setItem(ACTIVE_FARM_KEY, createdFarm.id);
+
+      const vectorSource = vectorSourceRef.current;
+      if (vectorSource) vectorSource.clear();
+      featuresMapRef.current = {};
+      countersRef.current = { point: 0, line: 0, polygon: 0 };
+      setFeaturesList([]);
+      setSelectedId(null);
+      setHoveredId(null);
+      loadedOnceRef.current = true;
+      dirtyRef.current = false;
+
+      return createdFarm;
+    } catch (err) {
+      console.warn("Crear finca falló:", err?.message || err);
+      setBackendOnline(false);
+      setFarmsError(err?.message || "No se pudo crear la finca.");
+      return null;
+    } finally {
+      setFarmActionLoading(false);
+    }
+  };
+
+  const handleRenameFarm = async (farmId, name) => {
+    const nextName = normalizeFarmName(name, "Finca sin nombre");
+    if (!farmId || !nextName) return null;
+
+    setFarmActionLoading(true);
+    setFarmsError("");
+
+    try {
+      let updated = null;
+
+      try {
+        const res = await apiFetch(`/api/farms/${farmId}`, {
+          method: "PATCH",
+          body: JSON.stringify({ name: nextName }),
+        });
+        updated = res?.farm || null;
+      } catch (patchErr) {
+        const res = await apiFetch(`/api/farms/${farmId}`, {
+          method: "PUT",
+          body: JSON.stringify({ name: nextName }),
+        });
+        updated = res?.farm || null;
+      }
+
+      const finalFarm = updated || { id: farmId, name: nextName };
+      updateFarmInState(finalFarm);
+      if (farmId === activeFarmId) setActiveFarm((prev) => ({ ...(prev || {}), ...finalFarm }));
+      return finalFarm;
+    } catch (err) {
+      console.warn("Renombrar finca falló:", err?.message || err);
+      setBackendOnline(false);
+      setFarmsError(err?.message || "No se pudo renombrar la finca.");
+      return null;
+    } finally {
+      setFarmActionLoading(false);
+    }
+  };
+
+  const handleRenameActiveFarm = async (name) => handleRenameFarm(activeFarmId, name);
+
 
   // =========================
   // 🔎 Geocoding (MapTiler)
@@ -754,15 +967,17 @@ export default function useFarmMapController({ focusZoneRequest }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedQuery, apiKey]);
 
-  const goToLocation = (lon, lat, zoom = 16) => {
+  const goToLocation = (lon, lat, zoom = 16, options = {}) => {
     const map = mapInstanceRef.current;
     if (!map) return;
 
     map.getView().setCenter(fromLonLat([lon, lat]));
     map.getView().setZoom(zoom);
 
-    markDirty();
-    scheduleAutosave(latestFeaturesListRef.current || [], { view: { center: [lon, lat], zoom } });
+    if (options?.saveView === true) {
+      markDirty();
+      scheduleAutosave(latestFeaturesListRef.current || [], { view: { center: [lon, lat], zoom } });
+    }
   };
 
   const handlePickSearchResult = (item) => {
@@ -1275,6 +1490,17 @@ export default function useFarmMapController({ focusZoneRequest }) {
     handleSearchSubmit,
 
     backendOnline,
+    farms,
+    activeFarmId,
+    activeFarm,
+    farmsLoading,
+    farmActionLoading,
+    farmsError,
+    refreshFarms,
+    handleSwitchFarm,
+    handleCreateFarmFromCurrentView,
+    handleRenameFarm,
+    handleRenameActiveFarm,
 
     pointCount,
     lineCount,
