@@ -1,4 +1,4 @@
-// src/components/map/useFarmMapController.js
+0e// src/components/map/useFarmMapController.js
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import "ol/ol.css";
@@ -235,64 +235,6 @@ export default function useFarmMapController({ focusZoneRequest }) {
   };
 
   // =========================
-  // ✅ MODAL REPORTE
-  // =========================
-  const [reportModalOpen, setReportModalOpen] = useState(false);
-  const [reportZoneId, setReportZoneId] = useState(null);
-
-  const reportZone = reportZoneId && zonesOnly.find((z) => z.id === reportZoneId);
-
-  const openReportModal = (zoneId) => {
-    const zone = zonesOnly.find((z) => z.id === zoneId);
-    if (!zone) return;
-
-    setReportZoneId(zoneId);
-    setReportModalOpen(true);
-    setTimeout(() => forceMapResize(), 0);
-  };
-
-  const closeReportModal = () => {
-    setReportModalOpen(false);
-    setTimeout(() => setReportZoneId(null), 0);
-  };
-
-  const reportComponents = useMemo(() => {
-    if (!reportZone) return [];
-    const comps = Array.isArray(reportZone.components) ? reportZone.components : [];
-    return comps.map((c, idx) => {
-      const id = c.id || `comp-${idx}`;
-      const createdAt = c.createdAt || null;
-      const updatedAt = c.updatedAt || createdAt || null;
-
-      return {
-        id,
-        name: c.name || "(Sin nombre)",
-        type: c.type || "Otro",
-        note: c.note || "",
-        createdAt,
-        updatedAt,
-        lastTouchedAt: updatedAt || createdAt || null, // ✅ para “última actualización”
-      };
-    });
-  }, [reportZone]);
-
-  const reportStats = useMemo(() => {
-    if (!reportZone) return null;
-    const comps = Array.isArray(reportZone.components) ? reportZone.components : [];
-    const countByType = {};
-    comps.forEach((c) => {
-      const t = (c?.type || "Otro").trim() || "Otro";
-      countByType[t] = (countByType[t] || 0) + 1;
-    });
-
-    const topTypes = Object.entries(countByType)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 4);
-
-    return { total: comps.length, topTypes };
-  }, [reportZone]);
-
-  // =========================
   // ✅ MODAL CREAR TAREA (premium)
   // =========================
   const [createTaskModalOpen, setCreateTaskModalOpen] = useState(false);
@@ -335,13 +277,12 @@ export default function useFarmMapController({ focusZoneRequest }) {
     const onKey = (e) => {
       if (e.key !== "Escape") return;
       if (componentsModalOpen) closeComponentsModal();
-      if (reportModalOpen) closeReportModal();
       if (createTaskModalOpen) closeCreateTaskModal();
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [componentsModalOpen, reportModalOpen, createTaskModalOpen]);
+  }, [componentsModalOpen, createTaskModalOpen]);
 
   // =========================
   // SERIALIZE / DESERIALIZE
@@ -1255,7 +1196,6 @@ export default function useFarmMapController({ focusZoneRequest }) {
     if (hoveredId === id) setHoveredId(null);
 
     if (componentsModalZoneId === id) closeComponentsModal();
-    if (reportZoneId === id) closeReportModal();
 
     forceMapResize();
   };
@@ -1353,13 +1293,6 @@ export default function useFarmMapController({ focusZoneRequest }) {
     draftDeleteComponent,
     draftUpdate,
     toggleEditNote,
-
-    reportModalOpen,
-    reportZone,
-    reportStats,
-    reportComponents,
-    openReportModal,
-    closeReportModal,
 
     createTaskModalOpen,
     createTaskDraft,
