@@ -365,6 +365,10 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
   const [farmActionLoading, setFarmActionLoading] = useState(false);
   const [farmMenuOpen, setFarmMenuOpen] = useState(false);
   const [farmError, setFarmError] = useState("");
+  const [farmSavedNotice, setFarmSavedNotice] = useState("");
+  const [farmViewPinned, setFarmViewPinned] = useState(false);
+  const [editingFarmId, setEditingFarmId] = useState(null);
+  const [editingFarmName, setEditingFarmName] = useState("");
 
   const autosaveTimerRef = useRef(null);
   const loadedOnceRef = useRef(false);
@@ -1494,6 +1498,10 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
       setActiveFarmId(farmId);
       localStorage.setItem(ACTIVE_FARM_KEY, farmId);
       setFarmMenuOpen(false);
+      setFarmViewPinned(false);
+      setFarmSavedNotice("");
+      setEditingFarmId(null);
+      setEditingFarmName("");
       setListFilter({ kind: "all", status: null });
       setZoneProcessesMap({});
       closeComponentsModal();
@@ -1539,6 +1547,11 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
       setActiveFarmId(newFarm.id);
       localStorage.setItem(ACTIVE_FARM_KEY, newFarm.id);
       setFarmMenuOpen(false);
+      setFarmViewPinned(true);
+      setFarmSavedNotice(`✓ Vista establecida para ${newFarm.name || name}`);
+      setTimeout(() => setFarmSavedNotice(""), 4500);
+      setEditingFarmId(newFarm.id);
+      setEditingFarmName(newFarm.name || name);
       setListFilter({ kind: "all", status: null });
       setZoneProcessesMap({});
       closeComponentsModal();
@@ -1551,6 +1564,66 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
       console.warn("CREATE_FARM_ERROR:", err?.message || err);
       setBackendOnline(false);
       setFarmError(err?.message || "No se pudo crear la nueva finca.");
+    } finally {
+      setFarmActionLoading(false);
+    }
+  };
+
+
+  const startRenameFarm = (event, farm) => {
+    event.stopPropagation();
+    if (!farm?.id || farmActionLoading) return;
+    setFarmError("");
+    setFarmSavedNotice("");
+    setEditingFarmId(farm.id);
+    setEditingFarmName(farm.name || "");
+  };
+
+  const cancelRenameFarm = (event) => {
+    event.stopPropagation();
+    setEditingFarmId(null);
+    setEditingFarmName("");
+  };
+
+  const saveFarmName = async (event, farm) => {
+    event.stopPropagation();
+    if (!farm?.id || farmActionLoading) return;
+
+    const nextName = editingFarmName.trim();
+    if (!nextName) {
+      setFarmError("Escribe un nombre para la finca.");
+      return;
+    }
+
+    if (nextName === farm.name) {
+      setEditingFarmId(null);
+      setEditingFarmName("");
+      return;
+    }
+
+    try {
+      setFarmActionLoading(true);
+      setFarmError("");
+      setFarmSavedNotice("");
+
+      const updated = await apiFetch(`/api/farms/${farm.id}`, {
+        method: "PUT",
+        body: JSON.stringify({ name: nextName }),
+      });
+
+      const updatedFarm = updated?.farm || { ...farm, name: nextName, updatedAt: nowIso() };
+
+      setFarms((prev) =>
+        prev.map((item) => (item.id === farm.id ? { ...item, ...updatedFarm } : item))
+      );
+      setEditingFarmId(null);
+      setEditingFarmName("");
+      setFarmSavedNotice(`✓ Nombre actualizado: ${updatedFarm.name || nextName}`);
+      setTimeout(() => setFarmSavedNotice(""), 3500);
+    } catch (err) {
+      console.warn("RENAME_FARM_ERROR:", err?.message || err);
+      setBackendOnline(false);
+      setFarmError(err?.message || "No se pudo renombrar la finca.");
     } finally {
       setFarmActionLoading(false);
     }
@@ -2224,24 +2297,44 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
     forceMapResize();
   };
 
-  const handleSaveViewClick = () => {
-    const map = mapInstanceRef.current;
-    if (!map) return;
+  const handleSaveViewClick = async () => {
+    const currentView = getCurrentMapView();
+    if (!currentView || !activeFarmId || farmActionLoading) return;
 
-    const view = map.getView();
-    const center = view.getCenter();
-    const zoom = view.getZoom();
+    try {
+      setFarmActionLoading(true);
+      setFarmError("");
+      setFarmSavedNotice("");
+      markDirty();
 
-    if (!center || typeof zoom !== "number") return;
+      await saveMapNow(latestFeaturesListRef.current || [], {
+        view: currentView,
+      });
 
-    markDirty();
+      setFarms((prev) =>
+        prev.map((farm) =>
+          farm.id === activeFarmId
+            ? {
+                ...farm,
+                view: currentView,
+                preferredCenter: currentView.center,
+                updatedAt: nowIso(),
+              }
+            : farm
+        )
+      );
 
-    const [lon, lat] = toLonLat(center);
-    scheduleAutosave(latestFeaturesListRef.current || [], {
-      view: { center: [lon, lat], zoom },
-    });
-
-    emitFarmLocationChange("save-view");
+      setFarmViewPinned(true);
+      setFarmSavedNotice(`✓ Vista establecida para ${activeFarmName}`);
+      setTimeout(() => setFarmSavedNotice(""), 4500);
+      emitFarmLocationChange("save-view");
+    } catch (err) {
+      console.warn("SAVE_FARM_VIEW_ERROR:", err?.message || err);
+      setBackendOnline(false);
+      setFarmError(err?.message || "No se pudo actualizar la vista de la finca.");
+    } finally {
+      setFarmActionLoading(false);
+    }
   };
 
   const pointCount = featuresList.filter((f) => f.kind === "point").length;
@@ -2494,12 +2587,23 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
                 ) : (
                   farms.map((farm, index) => {
                     const isActiveFarm = farm.id === activeFarmId;
+                    const isEditing = editingFarmId === farm.id;
+                    const displayName = farm.name || `Finca #${index + 1}`;
+
                     return (
-                      <button
+                      <div
                         key={farm.id}
-                        type="button"
-                        onClick={() => handleSelectFarm(farm.id)}
-                        disabled={farmActionLoading}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => {
+                          if (!isEditing) handleSelectFarm(farm.id);
+                        }}
+                        onKeyDown={(e) => {
+                          if ((e.key === "Enter" || e.key === " ") && !isEditing) {
+                            e.preventDefault();
+                            handleSelectFarm(farm.id);
+                          }
+                        }}
                         style={{
                           width: "100%",
                           display: "flex",
@@ -2511,40 +2615,121 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
                             ? "rgba(34,197,94,0.14)"
                             : "transparent",
                           color: "#e5e7eb",
-                          border: "none",
                           borderBottom: "1px solid rgba(148,163,184,0.10)",
-                          cursor: farmActionLoading ? "not-allowed" : "pointer",
+                          cursor: farmActionLoading || isEditing ? "default" : "pointer",
                           textAlign: "left",
                         }}
-                        title={`Abrir ${farm.name || `Finca #${index + 1}`}`}
+                        title={`Abrir ${displayName}`}
                       >
-                        <span style={{ minWidth: 0 }}>
+                        <span style={{ minWidth: 0, flex: 1 }}>
+                          {isEditing ? (
+                            <span
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "0.35rem",
+                              }}
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <input
+                                value={editingFarmName}
+                                onChange={(e) => setEditingFarmName(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") saveFarmName(e, farm);
+                                  if (e.key === "Escape") cancelRenameFarm(e);
+                                }}
+                                autoFocus
+                                style={{
+                                  width: "100%",
+                                  minWidth: 0,
+                                  padding: "0.45rem 0.55rem",
+                                  borderRadius: "10px",
+                                  border: "1px solid rgba(34,197,94,0.38)",
+                                  background: "rgba(2,6,23,0.72)",
+                                  color: "#e5e7eb",
+                                  outline: "none",
+                                  fontWeight: 700,
+                                }}
+                                placeholder="Nombre de la finca"
+                              />
+                              <button
+                                type="button"
+                                className="secondary-btn"
+                                onClick={(e) => saveFarmName(e, farm)}
+                                disabled={farmActionLoading}
+                                style={{ padding: "0.35rem 0.5rem" }}
+                                title="Guardar nombre"
+                              >
+                                ✓
+                              </button>
+                              <button
+                                type="button"
+                                className="danger-link"
+                                onClick={cancelRenameFarm}
+                                disabled={farmActionLoading}
+                                style={{ padding: "0.35rem 0.25rem" }}
+                                title="Cancelar"
+                              >
+                                ✕
+                              </button>
+                            </span>
+                          ) : (
+                            <>
+                              <span
+                                style={{
+                                  display: "block",
+                                  fontWeight: isActiveFarm ? 800 : 650,
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  whiteSpace: "nowrap",
+                                }}
+                              >
+                                {displayName}
+                              </span>
+                              <span
+                                style={{
+                                  display: "block",
+                                  marginTop: "0.12rem",
+                                  color: "rgba(226,232,240,0.52)",
+                                  fontSize: "0.72rem",
+                                }}
+                              >
+                                {isActiveFarm
+                                  ? farmViewPinned
+                                    ? "Finca activa · vista establecida"
+                                    : "Finca activa"
+                                  : "Clic para abrir"}
+                              </span>
+                            </>
+                          )}
+                        </span>
+
+                        {!isEditing && (
                           <span
                             style={{
-                              display: "block",
-                              fontWeight: isActiveFarm ? 800 : 650,
-                              overflow: "hidden",
-                              textOverflow: "ellipsis",
-                              whiteSpace: "nowrap",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "0.45rem",
+                              color: isActiveFarm ? "#86efac" : "#94a3b8",
                             }}
                           >
-                            {farm.name || `Finca #${index + 1}`}
+                            {isActiveFarm && farmViewPinned ? (
+                              <span title="Vista establecida">✅</span>
+                            ) : null}
+                            <button
+                              type="button"
+                              className="secondary-btn"
+                              onClick={(e) => startRenameFarm(e, farm)}
+                              disabled={farmActionLoading}
+                              style={{ padding: "0.28rem 0.45rem" }}
+                              title="Renombrar finca"
+                            >
+                              ✏️
+                            </button>
+                            <span>{isActiveFarm ? "✓" : "›"}</span>
                           </span>
-                          <span
-                            style={{
-                              display: "block",
-                              marginTop: "0.12rem",
-                              color: "rgba(226,232,240,0.52)",
-                              fontSize: "0.72rem",
-                            }}
-                          >
-                            {isActiveFarm ? "Finca activa" : "Clic para abrir"}
-                          </span>
-                        </span>
-                        <span style={{ color: isActiveFarm ? "#86efac" : "#94a3b8" }}>
-                          {isActiveFarm ? "✓" : "›"}
-                        </span>
-                      </button>
+                        )}
+                      </div>
                     );
                   })
                 )}
@@ -2578,13 +2763,30 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
                   style={{ flex: "1 1 130px", justifyContent: "center" }}
                   title="Actualizar la ubicación base de la finca activa"
                 >
-                  📌 Actualizar vista
+                  {farmViewPinned ? "✅ Vista establecida" : "📌 Establecer vista"}
                 </button>
               </div>
             </div>
           )}
         </div>
       </div>
+
+      {farmSavedNotice ? (
+        <div
+          style={{
+            margin: "0.75rem 0",
+            padding: "0.7rem 0.9rem",
+            borderRadius: "12px",
+            border: "1px solid rgba(34,197,94,0.26)",
+            background: "rgba(34,197,94,0.10)",
+            color: "#bbf7d0",
+            fontSize: "0.9rem",
+            fontWeight: 700,
+          }}
+        >
+          {farmSavedNotice}
+        </div>
+      ) : null}
 
       {farmError ? (
         <div
