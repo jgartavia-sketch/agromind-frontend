@@ -1,3 +1,5 @@
+// Archivo modificado para contexto de finca activa.
+
 // src/pages/FinanzasPage.jsx
 import { useEffect, useMemo, useState } from "react";
 import "../styles/finanzas.css";
