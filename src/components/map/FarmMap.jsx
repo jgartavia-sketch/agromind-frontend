@@ -23,8 +23,6 @@ import Point from "ol/geom/Point";
 import LineString from "ol/geom/LineString";
 import Polygon from "ol/geom/Polygon";
 
-import ZoneReportModal from "./ZoneReportModal";
-
 const VIEW_KEY = "agromind_farm_view";
 const DRAWINGS_KEY = "agromind_farm_drawings";
 const ACTIVE_FARM_KEY = "agromind_active_farm_id";
@@ -931,137 +929,14 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
     setEditingNotesMap((prev) => ({ ...(prev || {}), [compId]: !prev?.[compId] }));
   };
 
-  const [reportModalOpen, setReportModalOpen] = useState(false);
-  const [reportZoneId, setReportZoneId] = useState(null);
-
-  const reportZone = reportZoneId && zonesOnly.find((z) => z.id === reportZoneId);
-
-  const openReportModal = (zoneId) => {
-    const zone = zonesOnly.find((z) => z.id === zoneId);
-    if (!zone) return;
-
-    setReportZoneId(zoneId);
-    setReportModalOpen(true);
-    setTimeout(() => forceMapResize(), 0);
-  };
-
-  const closeReportModal = () => {
-    setReportModalOpen(false);
-    setTimeout(() => setReportZoneId(null), 0);
-  };
-
-  const reportComponents = useMemo(() => {
-    if (!reportZone) return [];
-    const comps = Array.isArray(reportZone.components) ? reportZone.components : [];
-    return comps.map((c, idx) => ({
-      id: c.id || `comp-${idx}`,
-      name: c.name || "(Sin nombre)",
-      type: c.type || "Otro",
-      note: c.note || "",
-      createdAt: c.createdAt || null,
-      updatedAt: c.updatedAt || null,
-    }));
-  }, [reportZone]);
-
-  const reportStats = useMemo(() => {
-    if (!reportZone) return null;
-    const comps = Array.isArray(reportZone.components) ? reportZone.components : [];
-    const countByType = {};
-    comps.forEach((c) => {
-      const t = (c?.type || "Otro").trim() || "Otro";
-      countByType[t] = (countByType[t] || 0) + 1;
-    });
-
-    const topTypes = Object.entries(countByType)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 4);
-
-    return {
-      total: comps.length,
-      topTypes,
-    };
-  }, [reportZone]);
-
-  const fireTasksRefresh = () => {
-    try {
-      window.dispatchEvent(
-        new CustomEvent("agromind:tasks:refresh", { detail: { farmId: activeFarmId } })
-      );
-      localStorage.setItem("agromind_tasks_refresh", String(Date.now()));
-    } catch {
-      // no-op
-    }
-  };
-
-  const createTaskFromComponent = async (zone, comp) => {
-    try {
-      const farmId = activeFarmId || localStorage.getItem(ACTIVE_FARM_KEY);
-      const token = getAuthToken();
-
-      if (!farmId) {
-        window.alert("No hay finca activa. Recargá la app e iniciá sesión otra vez.");
-        return;
-      }
-      if (!token) {
-        window.alert("No hay token. Iniciá sesión nuevamente.");
-        return;
-      }
-
-      const zoneName = (zone?.name || "").trim();
-      const compName = (comp?.name || "Componente").trim();
-      const compType = (comp?.type || "Otro").trim();
-
-      const today = toYYYYMMDD(new Date());
-
-      const title = zoneName
-        ? `Revisión: ${compName} (${zoneName})`
-        : `Revisión: ${compName}`;
-
-      const typeGuess =
-        compType.toLowerCase().includes("bebedero") ||
-        compType.toLowerCase().includes("comedero")
-          ? "Alimentación"
-          : "Mantenimiento";
-
-      const payload = {
-        title,
-        zone: zoneName || "",
-        type: typeGuess,
-        priority: "Media",
-        start: today,
-        due: today,
-        status: "Pendiente",
-        owner: "",
-      };
-
-      const data = await apiFetch(`/api/farms/${farmId}/tasks`, {
-        method: "POST",
-        body: JSON.stringify(payload),
-      });
-
-      if (!data?.task?.id) {
-        window.alert("La tarea no se pudo crear (respuesta inesperada).");
-        return;
-      }
-
-      closeReportModal();
-      fireTasksRefresh();
-
-      window.alert(`Tarea creada ✅\n\n"${data.task.title}"`);
-    } catch (err) {
-      window.alert(err?.message || "Error creando la tarea.");
-    }
-  };
-
   useEffect(() => {
     const onKey = (e) => {
       if (e.key !== "Escape") return;
       if (componentsModalOpen) closeComponentsModal();
-      if (reportModalOpen) closeReportModal();
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [componentsModalOpen, reportModalOpen]);
+  }, [componentsModalOpen]);
 
   const buildBackendPayloadFromList = (list, options = {}) => {
     const map = mapInstanceRef.current;
@@ -2181,7 +2056,6 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
     if (hoveredId === id) setHoveredId(null);
 
     if (componentsModalZoneId === id) closeComponentsModal();
-    if (reportZoneId === id) closeReportModal();
 
     forceMapResize();
   };
@@ -2605,17 +2479,6 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
                         }}
                       >
                         Procesos
-                      </button>
-
-                      <button
-                        type="button"
-                        className="secondary-btn"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openReportModal(item.id);
-                        }}
-                      >
-                        Reporte
                       </button>
                     </>
                   )}
@@ -3734,25 +3597,6 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
           </div>
         </div>
       )}
-
-      <ZoneReportModal
-        open={reportModalOpen && !!reportZone}
-        zone={reportZone}
-        reportStats={reportStats}
-        reportComponents={reportComponents}
-        onClose={closeReportModal}
-        onEditComponents={() => {
-          if (!reportZone) return;
-          closeReportModal();
-          openComponentsModal(reportZone.id, "components");
-        }}
-        onDeleteZone={() => {
-          if (!reportZone) return;
-          closeReportModal();
-          handleDeleteFeature(reportZone.id);
-        }}
-        onCreateTask={(zone, comp) => createTaskFromComponent(zone, comp)}
-      />
     </div>
   );
 }
