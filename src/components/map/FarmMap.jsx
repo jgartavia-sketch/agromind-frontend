@@ -2263,79 +2263,6 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
 
   return (
     <div className="farm-map-shell">
-      <div className="farm-map-summary">
-        <button
-          type="button"
-          className={`summary-chip summary-btn${
-            isActiveFilter("point") ? " active" : ""
-          }`}
-          aria-pressed={isActiveFilter("point")}
-          onClick={() => handleSummaryFilter("point")}
-        >
-          <span className="summary-dot dot-point" />
-          <span className="summary-label">
-            {pointCount} {pointCount === 1 ? "punto" : "puntos"}
-          </span>
-        </button>
-
-        <button
-          type="button"
-          className={`summary-chip summary-btn${
-            isActiveFilter("line") ? " active" : ""
-          }`}
-          aria-pressed={isActiveFilter("line")}
-          onClick={() => handleSummaryFilter("line")}
-        >
-          <span className="summary-dot dot-line" />
-          <span className="summary-label">
-            {lineCount} {lineCount === 1 ? "línea" : "líneas"}
-          </span>
-        </button>
-
-        <button
-          type="button"
-          className={`summary-chip summary-btn${
-            isActiveFilter("polygon") ? " active" : ""
-          }`}
-          aria-pressed={isActiveFilter("polygon")}
-          onClick={() => handleSummaryFilter("polygon")}
-        >
-          <span className="summary-dot dot-zone" />
-          <span className="summary-label">
-            {zoneCount} {zoneCount === 1 ? "zona" : "zonas"}
-          </span>
-        </button>
-
-        <button
-          type="button"
-          className={`summary-chip summary-btn summary-chip-status${
-            isActiveFilter("polygon", "Operativa") ? " active" : ""
-          }`}
-          aria-pressed={isActiveFilter("polygon", "Operativa")}
-          onClick={() => handleSummaryFilter("operative")}
-        >
-          <span className="status-pill status-ok" />
-          <span className="summary-label">
-            {statusCounts["Operativa"]} operativa
-            {statusCounts["Operativa"] === 1 ? "" : "s"}
-          </span>
-        </button>
-
-        <button
-          type="button"
-          className={`summary-chip summary-btn summary-chip-status${
-            isActiveFilter("polygon", "Prioridad alta") ? " active" : ""
-          }`}
-          aria-pressed={isActiveFilter("polygon", "Prioridad alta")}
-          onClick={() => handleSummaryFilter("priority")}
-        >
-          <span className="status-pill status-warning" />
-          <span className="summary-label">
-            {statusCounts["Prioridad alta"]} con prioridad
-          </span>
-        </button>
-      </div>
-
       <div className="farm-map-toolbar" style={{ gap: "0.75rem" }}>
         <div
           className="agromind-search-wrap"
@@ -2466,6 +2393,79 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
 
       <div className="farm-map-layout">
         <div ref={mapRef} className="farm-map" />
+      </div>
+
+      <div className="farm-map-summary">
+        <button
+          type="button"
+          className={`summary-chip summary-btn${
+            isActiveFilter("point") ? " active" : ""
+          }`}
+          aria-pressed={isActiveFilter("point")}
+          onClick={() => handleSummaryFilter("point")}
+        >
+          <span className="summary-dot dot-point" />
+          <span className="summary-label">
+            {pointCount} {pointCount === 1 ? "punto" : "puntos"}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          className={`summary-chip summary-btn${
+            isActiveFilter("line") ? " active" : ""
+          }`}
+          aria-pressed={isActiveFilter("line")}
+          onClick={() => handleSummaryFilter("line")}
+        >
+          <span className="summary-dot dot-line" />
+          <span className="summary-label">
+            {lineCount} {lineCount === 1 ? "línea" : "líneas"}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          className={`summary-chip summary-btn${
+            isActiveFilter("polygon") ? " active" : ""
+          }`}
+          aria-pressed={isActiveFilter("polygon")}
+          onClick={() => handleSummaryFilter("polygon")}
+        >
+          <span className="summary-dot dot-zone" />
+          <span className="summary-label">
+            {zoneCount} {zoneCount === 1 ? "zona" : "zonas"}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          className={`summary-chip summary-btn summary-chip-status${
+            isActiveFilter("polygon", "Operativa") ? " active" : ""
+          }`}
+          aria-pressed={isActiveFilter("polygon", "Operativa")}
+          onClick={() => handleSummaryFilter("operative")}
+        >
+          <span className="status-pill status-ok" />
+          <span className="summary-label">
+            {statusCounts["Operativa"]} operativa
+            {statusCounts["Operativa"] === 1 ? "" : "s"}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          className={`summary-chip summary-btn summary-chip-status${
+            isActiveFilter("polygon", "Prioridad alta") ? " active" : ""
+          }`}
+          aria-pressed={isActiveFilter("polygon", "Prioridad alta")}
+          onClick={() => handleSummaryFilter("priority")}
+        >
+          <span className="status-pill status-warning" />
+          <span className="summary-label">
+            {statusCounts["Prioridad alta"]} con prioridad
+          </span>
+        </button>
       </div>
 
       {filteredList.length > 0 && (
