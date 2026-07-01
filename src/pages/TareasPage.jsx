@@ -360,7 +360,22 @@ export default function TareasPage({
     import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || "";
 
   const token = tokenProp || getAuthToken();
-  const farmId = farmIdProp || getActiveFarmId();
+
+  const [localFarmId, setLocalFarmId] = useState(() =>
+    farmIdProp || getActiveFarmId()
+  );
+  const [farms, setFarms] = useState([]);
+  const [farmsLoading, setFarmsLoading] = useState(false);
+
+  const farmId = farmIdProp || localFarmId;
+
+  const activeFarm = useMemo(() => {
+    if (!farmId || !Array.isArray(farms)) return null;
+    return farms.find((farm) => String(farm.id) === String(farmId)) || null;
+  }, [farms, farmId]);
+
+  const activeFarmName =
+    activeFarm?.name || (farmId ? "Finca activa" : "Sin finca activa");
 
   function authHeaders() {
     return {
@@ -390,6 +405,106 @@ export default function TareasPage({
     }
     return data;
   }
+
+  const fetchFarms = useCallback(async () => {
+    if (!token) {
+      setFarms([]);
+      return;
+    }
+
+    setFarmsLoading(true);
+
+    try {
+      const ts = Date.now();
+      const data = await apiFetch(`/api/farms?ts=${ts}`);
+      const list = Array.isArray(data?.farms)
+        ? data.farms
+        : Array.isArray(data)
+        ? data
+        : [];
+
+      setFarms(list);
+
+      const savedFarmId = farmIdProp || getActiveFarmId();
+      const savedExists = savedFarmId
+        ? list.some((farm) => String(farm.id) === String(savedFarmId))
+        : false;
+
+      if (savedExists) {
+        setLocalFarmId(savedFarmId);
+      } else if (!farmIdProp && !localFarmId && list[0]?.id) {
+        setLocalFarmId(list[0].id);
+        try {
+          localStorage.setItem("agromind_active_farm_id", list[0].id);
+        } catch {
+          // no-op
+        }
+      }
+    } catch {
+      setFarms([]);
+    } finally {
+      setFarmsLoading(false);
+    }
+  }, [token, API_BASE, farmIdProp, localFarmId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (farmIdProp && String(farmIdProp) !== String(localFarmId || "")) {
+      setLocalFarmId(farmIdProp);
+    }
+  }, [farmIdProp, localFarmId]);
+
+  useEffect(() => {
+    fetchFarms();
+  }, [fetchFarms]);
+
+  useEffect(() => {
+    const syncActiveFarmFromStorage = () => {
+      if (farmIdProp) return;
+      const nextFarmId = getActiveFarmId();
+      if (nextFarmId && String(nextFarmId) !== String(localFarmId || "")) {
+        setLocalFarmId(nextFarmId);
+      }
+    };
+
+    const onStorage = (e) => {
+      if (
+        e?.key &&
+        ![
+          "agromind_active_farm_id",
+          "activeFarmId",
+          "farmId",
+          "agromind_farm_id",
+          "farmLocation",
+        ].includes(e.key)
+      ) {
+        return;
+      }
+
+      syncActiveFarmFromStorage();
+      fetchFarms();
+    };
+
+    const onFarmEvent = () => {
+      syncActiveFarmFromStorage();
+      fetchFarms();
+    };
+
+    const onFocus = () => {
+      syncActiveFarmFromStorage();
+    };
+
+    window.addEventListener("storage", onStorage);
+    window.addEventListener("focus", onFocus);
+    window.addEventListener("agromind:farm:changed", onFarmEvent);
+    window.addEventListener("agromind:farm-location:changed", onFarmEvent);
+
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("focus", onFocus);
+      window.removeEventListener("agromind:farm:changed", onFarmEvent);
+      window.removeEventListener("agromind:farm-location:changed", onFarmEvent);
+    };
+  }, [farmIdProp, localFarmId, fetchFarms]);
 
   const fetchWeather = useCallback(async () => {
     setWeatherLoading(true);
@@ -513,6 +628,8 @@ export default function TareasPage({
 
     async function loadAll() {
       if (cancelled) return;
+      await fetchFarms();
+      if (cancelled) return;
       await fetchTasks();
       if (cancelled) return;
       await fetchSuggestions();
@@ -525,7 +642,7 @@ export default function TareasPage({
     return () => {
       cancelled = true;
     };
-  }, [fetchTasks, fetchSuggestions, fetchWeather]);
+  }, [fetchFarms, fetchTasks, fetchSuggestions, fetchWeather]);
 
   useEffect(() => {
     function onRefreshEvent(e) {
@@ -921,6 +1038,50 @@ export default function TareasPage({
         </section>
       )}
 
+      <section
+        className="card"
+        style={{
+          marginBottom: "1rem",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: "1rem",
+          flexWrap: "wrap",
+          border: "1px solid rgba(34,197,94,0.18)",
+          background:
+            "linear-gradient(135deg, rgba(20,83,45,0.20), rgba(15,23,42,0.72))",
+        }}
+      >
+        <div>
+          <p
+            style={{
+              margin: "0 0 0.25rem",
+              color: "rgba(226,232,240,0.72)",
+              fontSize: "0.82rem",
+              letterSpacing: "0.04em",
+              textTransform: "uppercase",
+            }}
+          >
+            🌱 Finca activa
+          </p>
+          <h2 style={{ margin: 0, color: "#e5e7eb", fontSize: "1.15rem" }}>
+            {farmsLoading ? "Cargando finca…" : activeFarmName}
+          </h2>
+        </div>
+
+        <div
+          style={{
+            color: "rgba(226,232,240,0.72)",
+            fontSize: "0.9rem",
+            maxWidth: "420px",
+            lineHeight: 1.45,
+          }}
+        >
+          Las tareas que ves y las nuevas tareas que crees pertenecen a esta finca.
+          Para trabajar en otra, cambiá la finca activa desde el mapa.
+        </div>
+      </section>
+
       <section className="card tasks-calendar">
         <h3>Calendario de tareas</h3>
 
@@ -964,6 +1125,9 @@ export default function TareasPage({
 
       <section className="task-editor card">
         <h3>{editingId ? "Editar tarea" : "Nueva tarea"}</h3>
+        <p style={{ margin: "-0.35rem 0 1rem", opacity: 0.75 }}>
+          Se guardará en: <strong>{activeFarmName}</strong>
+        </p>
 
         <form onSubmit={handleSubmit}>
           <div className="task-editor-grid">
