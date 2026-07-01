@@ -152,6 +152,20 @@ function getAuthToken() {
 const API_BASE =
   import.meta.env.VITE_API_URL || "https://agromind-backend-slem.onrender.com";
 
+const FARM_MAP_DEBUG = true;
+
+function debugTimeStart(label) {
+  if (!FARM_MAP_DEBUG) return null;
+  const safeLabel = `[FarmMap] ${label}`;
+  console.time(safeLabel);
+  return safeLabel;
+}
+
+function debugTimeEnd(label) {
+  if (!FARM_MAP_DEBUG || !label) return;
+  console.timeEnd(label);
+}
+
 function looksLikeHtml(text) {
   return typeof text === "string" && /<(!doctype|html|body|pre)/i.test(text);
 }
@@ -194,6 +208,9 @@ async function apiFetch(path, options = {}) {
 
   if (token) headers.Authorization = `Bearer ${token}`;
 
+  const method = options.method || "GET";
+  const apiTimer = debugTimeStart(`API ${method} ${path}`);
+
   const res = await fetch(`${API_BASE}${path}`, {
     ...options,
     headers,
@@ -206,6 +223,8 @@ async function apiFetch(path, options = {}) {
   } catch {
     data = text;
   }
+
+  debugTimeEnd(apiTimer);
 
   if (!res.ok) {
     const err = new Error(normalizeApiErrorMessage(res.status, data));
@@ -1128,6 +1147,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
   };
 
   const applyBackendMapToUI = (data) => {
+    const applyTimer = debugTimeStart("applyBackendMapToUI / reconstruir features");
     const map = mapInstanceRef.current;
     const vectorSource = vectorSourceRef.current;
     if (!map || !vectorSource) return;
@@ -1292,6 +1312,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
     dirtyRef.current = false;
 
     setTimeout(() => emitFarmLocationChange("backend-load"), 0);
+    debugTimeEnd(applyTimer);
   };
 
   const scheduleAutosave = (list, options = {}) => {
@@ -1415,6 +1436,8 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
   };
 
   const ensureFarmAndLoad = async () => {
+    const totalTimer = debugTimeStart("ensureFarmAndLoad total");
+
     try {
       const token = getAuthToken();
       if (!token) {
@@ -1422,7 +1445,9 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
         return;
       }
 
+      const farmsTimer = debugTimeStart("ensureFarmAndLoad GET /api/farms");
       const farmsRes = await apiFetch("/api/farms", { method: "GET" });
+      debugTimeEnd(farmsTimer);
       const farms = farmsRes?.farms || [];
 
       const savedActive = localStorage.getItem(ACTIVE_FARM_KEY);
@@ -1432,10 +1457,12 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
       let farmId = picked?.id || null;
 
       if (!farmId) {
+        const createFarmTimer = debugTimeStart("ensureFarmAndLoad POST /api/farms");
         const created = await apiFetch("/api/farms", {
           method: "POST",
           body: JSON.stringify({ name: "Mi finca", view: null }),
         });
+        debugTimeEnd(createFarmTimer);
         farmId = created?.farm?.id || null;
       }
 
@@ -1447,7 +1474,9 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
       setActiveFarmId(farmId);
       localStorage.setItem(ACTIVE_FARM_KEY, farmId);
 
+      const mapTimer = debugTimeStart(`ensureFarmAndLoad GET /api/farms/${farmId}/map`);
       const mapRes = await apiFetch(`/api/farms/${farmId}/map`, { method: "GET" });
+      debugTimeEnd(mapTimer);
 
       const serverHasData =
         (Array.isArray(mapRes?.points) && mapRes.points.length > 0) ||
@@ -1476,12 +1505,16 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
         return;
       }
 
+      const applyTimer = debugTimeStart("ensureFarmAndLoad applyBackendMapToUI");
       applyBackendMapToUI(mapRes);
+      debugTimeEnd(applyTimer);
       setBackendOnline(true);
       setTimeout(() => emitFarmLocationChange("farm-load"), 0);
     } catch (err) {
       console.warn("Backend load falló:", err?.message || err);
       setBackendOnline(false);
+    } finally {
+      debugTimeEnd(totalTimer);
     }
   };
 
@@ -1601,6 +1634,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
     if (!apiKey || apiKey === "TU_API_KEY_AQUI") return;
 
     if (mapRef.current && !mapInstanceRef.current) {
+      const mapInitTimer = debugTimeStart("OpenLayers init total");
       let centerLonLat = [-84.433, 10.34];
       let zoom = 15;
 
@@ -1620,6 +1654,8 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
       } catch {
         // no-op
       }
+
+      const layersTimer = debugTimeStart("OpenLayers crear layers");
 
       const baseLayer = new TileLayer({
         source: new XYZ({
@@ -1700,6 +1736,10 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
 
       vectorLayerRef.current = vectorLayer;
 
+      debugTimeEnd(layersTimer);
+
+      const mapConstructorTimer = debugTimeStart("OpenLayers Map constructor");
+
       const map = new Map({
         target: mapRef.current,
         layers: [baseLayer, vectorLayer],
@@ -1710,7 +1750,10 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
       });
 
       mapInstanceRef.current = map;
+      debugTimeEnd(mapConstructorTimer);
       forceMapResize();
+
+      const localDrawingsTimer = debugTimeStart("Cargar dibujos desde localStorage");
 
       try {
         const savedDrawings = localStorage.getItem(DRAWINGS_KEY);
@@ -1835,7 +1878,11 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
         }
       } catch {
         // no-op
+      } finally {
+        debugTimeEnd(localDrawingsTimer);
       }
+
+      const eventsTimer = debugTimeStart("Registrar eventos OpenLayers");
 
       const handlePointerMove = (evt) => {
         const mapInstance = mapInstanceRef.current;
@@ -1891,8 +1938,11 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
       map.on("singleclick", handleSingleClick);
       map.on("moveend", handleMoveEnd);
 
+      debugTimeEnd(eventsTimer);
+
       setMapReady(true);
       setTimeout(() => emitFarmLocationChange("init"), 0);
+      debugTimeEnd(mapInitTimer);
 
       return () => {
         map.un("pointermove", handlePointerMove);
