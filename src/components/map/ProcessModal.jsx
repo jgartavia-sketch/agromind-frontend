@@ -241,6 +241,7 @@ export default function ProcessModal({
 }) {
   const [draftSteps, setDraftSteps] = useState([getEmptyStepDraft(1)]);
   const [searchText, setSearchText] = useState("");
+  const [expandedProcessById, setExpandedProcessById] = useState({});
 
   const shouldShowBuilder = showCreateProcessForm || modalZoneProcesses.length === 0;
 
@@ -274,6 +275,17 @@ export default function ProcessModal({
         .some((value) => String(value).toLowerCase().includes(query));
     });
   }, [modalZoneProcesses, searchText]);
+
+  useEffect(() => {
+    setExpandedProcessById({});
+  }, [modalZone?.id]);
+
+  const toggleProcessExpansion = (processId) => {
+    setExpandedProcessById((prev) => ({
+      ...prev,
+      [processId]: !prev[processId],
+    }));
+  };
 
   if (!modalZone) return null;
 
@@ -671,6 +683,8 @@ export default function ProcessModal({
           <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
             {filteredProcesses.map((process) => {
               const steps = Array.isArray(process.steps) ? process.steps : [];
+              const sortedSteps = getSortedSteps(steps);
+              const completedSteps = steps.filter((s) => s?.status === "Completada").length;
               const progress = getProgressFromSteps(steps);
               const nextStepNumber = getNextStepNumber(steps);
               const defaultStepDraft = getStepDraftForProcess(process);
@@ -683,240 +697,366 @@ export default function ProcessModal({
               const isProcessCompleted = process.status === "Completado";
               const nextProcessStatus = isProcessCompleted ? "Activo" : "Completado";
               const processActionLabel = isProcessCompleted ? "↺ Reabrir proceso" : "✓ Completar proceso";
+              const isExpanded = expandedProcessById[process.id] === true;
 
               return (
                 <div
                   key={process.id}
                   style={{
-                    borderRadius: "16px",
-                    border: "1px solid rgba(148,163,184,0.16)",
-                    background: "linear-gradient(180deg, rgba(15,23,42,0.86), rgba(5,10,22,0.96))",
-                    padding: "12px",
+                    borderRadius: "18px",
+                    border: isExpanded
+                      ? "1px solid rgba(34,197,94,0.28)"
+                      : "1px solid rgba(148,163,184,0.16)",
+                    background: isExpanded
+                      ? "linear-gradient(180deg, rgba(15,23,42,0.92), rgba(5,10,22,0.98))"
+                      : "linear-gradient(180deg, rgba(15,23,42,0.76), rgba(5,10,22,0.92))",
+                    overflow: "hidden",
+                    boxShadow: isExpanded ? "0 18px 36px rgba(0,0,0,0.22)" : "none",
                   }}
                 >
-                  <div style={{ minWidth: 0, flex: 1 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", marginBottom: "6px" }}>
-                      <strong style={{ color: "#e5e7eb", fontSize: "0.98rem" }}>
-                        {process.name}
-                      </strong>
-
-                      <span style={{ ...tinyPillStyle, ...getStatusPillStyle(process.status || "Activo") }}>
-                        {process.status || "Activo"}
-                      </span>
-
-                      <span style={{ ...tinyPillStyle, ...getPriorityPillStyle(process.priority || "Media") }}>
-                        Prioridad {process.priority || "Media"}
-                      </span>
-
-                      <span style={{ ...tinyPillStyle, border: "1px solid rgba(148,163,184,0.18)", background: "rgba(15,23,42,0.6)", color: "#cbd5e1" }}>
-                        {steps.length} etapa{steps.length === 1 ? "" : "s"}
-                      </span>
-                    </div>
-
-                    {process.description ? (
-                      <p style={{ margin: "0 0 8px", color: "rgba(226,232,240,0.78)", fontSize: "0.85rem" }}>
-                        {process.description}
-                      </p>
-                    ) : null}
-
-                    <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", color: "rgba(148,163,184,0.9)", fontSize: "0.76rem", marginBottom: "10px" }}>
-                      <span>Tipo: {process.type || "General"}</span>
-                      <span>Responsable: {process.owner || "—"}</span>
-                    </div>
-
-                    <div style={{ marginBottom: "12px" }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px", fontSize: "0.76rem", color: "#cbd5e1" }}>
-                        <span>Avance · {steps.filter((s) => s?.status === "Completada").length}/{steps.length} etapas</span>
-                        <span>{progress}%</span>
-                      </div>
-                      <div style={{ width: "100%", height: "8px", borderRadius: "999px", background: "rgba(148,163,184,0.18)", overflow: "hidden" }}>
+                  <button
+                    type="button"
+                    onClick={() => toggleProcessExpansion(process.id)}
+                    style={{
+                      width: "100%",
+                      border: "none",
+                      background: "transparent",
+                      padding: "14px",
+                      color: "inherit",
+                      cursor: "pointer",
+                      textAlign: "left",
+                    }}
+                    aria-expanded={isExpanded}
+                    title={isExpanded ? "Ocultar detalles del proceso" : "Ver detalles del proceso"}
+                  >
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "minmax(0, 1fr) auto",
+                        gap: "14px",
+                        alignItems: "center",
+                      }}
+                    >
+                      <div style={{ minWidth: 0 }}>
                         <div
                           style={{
-                            width: `${progress}%`,
-                            height: "100%",
-                            background: "linear-gradient(90deg, rgba(34,197,94,0.95), rgba(20,184,166,0.95))",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "9px",
+                            flexWrap: "wrap",
+                            marginBottom: "8px",
                           }}
-                        />
+                        >
+                          <span
+                            style={{
+                              width: "26px",
+                              height: "26px",
+                              borderRadius: "999px",
+                              border: "1px solid rgba(148,163,184,0.18)",
+                              background: isExpanded ? "rgba(34,197,94,0.15)" : "rgba(15,23,42,0.72)",
+                              color: isExpanded ? "#bbf7d0" : "#cbd5e1",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              fontSize: "0.82rem",
+                              fontWeight: 900,
+                              transform: isExpanded ? "rotate(90deg)" : "rotate(0deg)",
+                              transition: "transform 160ms ease, background 160ms ease",
+                            }}
+                          >
+                            ▶
+                          </span>
+
+                          <strong
+                            style={{
+                              color: "#e5e7eb",
+                              fontSize: "1rem",
+                              whiteSpace: "nowrap",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              maxWidth: "min(460px, 100%)",
+                            }}
+                          >
+                            {process.name}
+                          </strong>
+
+                          <span style={{ ...tinyPillStyle, ...getStatusPillStyle(process.status || "Activo") }}>
+                            {process.status || "Activo"}
+                          </span>
+
+                          <span style={{ ...tinyPillStyle, ...getPriorityPillStyle(process.priority || "Media") }}>
+                            Prioridad {process.priority || "Media"}
+                          </span>
+                        </div>
+
+                        <div
+                          style={{
+                            display: "flex",
+                            gap: "10px",
+                            flexWrap: "wrap",
+                            color: "rgba(148,163,184,0.9)",
+                            fontSize: "0.76rem",
+                          }}
+                        >
+                          <span>{completedSteps}/{steps.length} etapas</span>
+                          <span>Responsable: {process.owner || "—"}</span>
+                          <span>Tipo: {process.type || "General"}</span>
+                        </div>
                       </div>
-                    </div>
 
-                    <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center", marginBottom: "10px" }}>
-                      <button
-                        type="button"
-                        className="secondary-btn"
-                        disabled={processActionLoading}
-                        onClick={() => updateProcessStatus(process, nextProcessStatus)}
-                        title={isProcessCompleted ? "Quitar completado y volver a activo" : "Marcar proceso como completado"}
-                        style={
-                          isProcessCompleted
-                            ? {
-                                borderColor: "rgba(56,189,248,0.35)",
-                                background: "rgba(56,189,248,0.10)",
-                                color: "#bae6fd",
-                              }
-                            : undefined
-                        }
-                      >
-                        {processActionLoading ? "Actualizando..." : processActionLabel}
-                      </button>
-
-                      <button type="button" className="danger-link" onClick={() => deleteProcess(process)} disabled={processActionLoading}>
-                        Borrar proceso
-                      </button>
-                    </div>
-
-                    <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "10px" }}>
-                      <button
-                        type="button"
-                        className="secondary-btn"
-                        onClick={() => {
-                          const willOpen = !openStepFormByProcess[process.id];
-                          setOpenStepFormByProcess((prev) => ({ ...prev, [process.id]: willOpen }));
-
-                          if (willOpen) {
-                            const nextDraft = getStepDraftForProcess(process);
-                            updateStepDraftField(process.id, "name", nextDraft.name);
-                            updateStepDraftField(process.id, "startDate", nextDraft.startDate);
-                            updateStepDraftField(process.id, "durationDays", nextDraft.durationDays);
-                            updateStepDraftField(process.id, "notes", nextDraft.notes);
-                          }
-
-                          setProcessesError("");
-                        }}
-                        disabled={processActionLoading}
-                      >
-                        {isStepFormOpen ? "Cerrar etapa" : "Nueva etapa"}
-                      </button>
-                    </div>
-
-                    {steps.length > 0 && (
-                      <div style={{ marginTop: "4px", display: "flex", flexDirection: "column", gap: "8px" }}>
-                        {getSortedSteps(steps).map((step) => {
-                          const isCompleted = step.status === "Completada";
-
-                          return (
-                            <div key={step.id} style={{ padding: "10px", borderRadius: "12px", background: "rgba(2,6,23,0.4)", border: "1px solid rgba(148,163,184,0.12)" }}>
-                              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "10px", flexWrap: "wrap" }}>
-                                <div style={{ display: "flex", gap: "12px", alignItems: "flex-start", minWidth: 0, flex: 1 }}>
-                                  <button
-                                    type="button"
-                                    onClick={() => toggleStepCompletion(step)}
-                                    disabled={processActionLoading}
-                                    title={isCompleted ? "Reabrir etapa" : "Marcar como completada"}
-                                    style={{
-                                      width: "28px",
-                                      height: "28px",
-                                      minWidth: "28px",
-                                      borderRadius: "999px",
-                                      border: isCompleted ? "1px solid rgba(34,197,94,0.38)" : "1px solid rgba(148,163,184,0.28)",
-                                      background: isCompleted ? "rgba(34,197,94,0.16)" : "rgba(15,23,42,0.9)",
-                                      color: isCompleted ? "#bbf7d0" : "#94a3b8",
-                                      display: "inline-flex",
-                                      alignItems: "center",
-                                      justifyContent: "center",
-                                      cursor: processActionLoading ? "not-allowed" : "pointer",
-                                      fontSize: "0.95rem",
-                                      fontWeight: 700,
-                                      lineHeight: 1,
-                                      marginTop: "2px",
-                                    }}
-                                  >
-                                    {isCompleted ? "✓" : ""}
-                                  </button>
-
-                                  <div style={{ minWidth: 0, flex: 1 }}>
-                                    <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", marginBottom: "4px" }}>
-                                      <span style={{ minWidth: "24px", height: "24px", borderRadius: "999px", display: "inline-flex", alignItems: "center", justifyContent: "center", background: "rgba(34,197,94,0.14)", color: "#bbf7d0", fontSize: "0.72rem", fontWeight: 700 }}>
-                                        {step.stepOrder}
-                                      </span>
-
-                                      <div style={{ color: isCompleted ? "rgba(226,232,240,0.72)" : "#e5e7eb", fontSize: "0.84rem", fontWeight: 600, textDecoration: isCompleted ? "line-through" : "none" }}>
-                                        {step.name}
-                                      </div>
-
-                                      <span style={{ ...tinyPillStyle, ...getStatusPillStyle(step.status || "Pendiente") }}>
-                                        {step.status || "Pendiente"}
-                                      </span>
-                                    </div>
-
-                                    <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", color: "rgba(148,163,184,0.88)", fontSize: "0.74rem", marginBottom: step.notes ? "6px" : "0" }}>
-                                      <span>Responsable: {step.owner || "—"}</span>
-                                      <span>Inicio: {formatProcessDate(step.startDate)}</span>
-                                      <span>Días: {getDurationDays(step.startDate, step.dueDate)}</span>
-                                      <span>Final: {formatProcessDate(step.dueDate)}</span>
-                                      <span>Completada: {formatProcessDate(step.completedAt)}</span>
-                                    </div>
-
-                                    {step.notes ? (
-                                      <div style={{ marginTop: "6px", color: "rgba(226,232,240,0.78)", fontSize: "0.78rem", whiteSpace: "pre-wrap" }}>
-                                        {step.notes}
-                                      </div>
-                                    ) : null}
-                                  </div>
-                                </div>
-
-                                <button type="button" className="secondary-btn" onClick={() => toggleStepCompletion(step)} disabled={processActionLoading}>
-                                  {isCompleted ? "Reabrir" : "Completar"}
-                                </button>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-
-                    {isStepFormOpen && (
-                      <div
-                        style={{
-                          padding: "12px",
-                          borderRadius: "12px",
-                          border: "1px solid rgba(148,163,184,0.16)",
-                          background: "rgba(2,6,23,0.34)",
-                          display: "grid",
-                          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-                          gap: "10px",
-                          marginBottom: steps.length > 0 ? "12px" : "10px",
-                        }}
-                      >
-                        <div>
-                          <label style={labelStyle}>Etapa</label>
-                          <input
-                            className="farm-feature-input"
-                            value={draft.name || `Etapa ${nextStepNumber}`}
-                            onChange={(e) => updateStepDraftField(process.id, "name", e.target.value)}
-                            placeholder={`Etapa ${nextStepNumber}`}
+                      <div style={{ minWidth: "150px" }}>
+                        <div
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            gap: "10px",
+                            marginBottom: "6px",
+                            color: "#cbd5e1",
+                            fontSize: "0.76rem",
+                            fontWeight: 700,
+                          }}
+                        >
+                          <span>Avance</span>
+                          <span>{progress}%</span>
+                        </div>
+                        <div style={{ width: "100%", height: "8px", borderRadius: "999px", background: "rgba(148,163,184,0.18)", overflow: "hidden" }}>
+                          <div
+                            style={{
+                              width: `${progress}%`,
+                              height: "100%",
+                              background: "linear-gradient(90deg, rgba(34,197,94,0.95), rgba(20,184,166,0.95))",
+                            }}
                           />
                         </div>
-
-                        <div>
-                          <label style={labelStyle}>Fecha de inicio</label>
-                          <input className="farm-feature-input" type="date" value={draft.startDate} onChange={(e) => updateStepDraftField(process.id, "startDate", e.target.value)} />
-                        </div>
-
-                        <div>
-                          <label style={labelStyle}>Duración en días</label>
-                          <input className="farm-feature-input" type="number" min="0" step="1" value={draft.durationDays} onChange={(e) => updateStepDraftField(process.id, "durationDays", e.target.value)} placeholder="Ej: 7" />
-                        </div>
-
-                        <div>
-                          <label style={labelStyle}>Fecha final</label>
-                          <input className="farm-feature-input" value={draftDueDate || ""} readOnly placeholder="Se calcula automáticamente" />
-                        </div>
-
-                        <div style={{ gridColumn: "1 / -1" }}>
-                          <label style={labelStyle}>Notas</label>
-                          <textarea className="farm-feature-textarea" value={draft.notes} onChange={(e) => updateStepDraftField(process.id, "notes", e.target.value)} placeholder="Notas de la etapa, observaciones o instrucciones" rows={3} />
-                        </div>
-
-                        <div style={{ gridColumn: "1 / -1", display: "flex", justifyContent: "flex-end" }}>
-                          <button type="button" className="primary-btn" onClick={() => createStepForProcess(process)} disabled={processActionLoading}>
-                            {processActionLoading ? "Agregando..." : `Agregar etapa ${nextStepNumber}`}
-                          </button>
-                        </div>
                       </div>
-                    )}
+                    </div>
+                  </button>
 
-                  </div>
+                  {isExpanded && (
+                    <div
+                      style={{
+                        padding: "0 14px 14px",
+                        borderTop: "1px solid rgba(148,163,184,0.12)",
+                      }}
+                    >
+                      {process.description ? (
+                        <p style={{ margin: "12px 0 10px", color: "rgba(226,232,240,0.78)", fontSize: "0.85rem", lineHeight: 1.45 }}>
+                          {process.description}
+                        </p>
+                      ) : (
+                        <p style={{ margin: "12px 0 10px", color: "rgba(148,163,184,0.74)", fontSize: "0.82rem", lineHeight: 1.45 }}>
+                          Sin descripción. El campo está listo para cuando el proceso quiera contar su historia.
+                        </p>
+                      )}
+
+                      <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center", marginBottom: "12px" }}>
+                        <button
+                          type="button"
+                          className="secondary-btn"
+                          disabled={processActionLoading}
+                          onClick={() => updateProcessStatus(process, nextProcessStatus)}
+                          title={isProcessCompleted ? "Quitar completado y volver a activo" : "Marcar proceso como completado"}
+                          style={
+                            isProcessCompleted
+                              ? {
+                                  borderColor: "rgba(56,189,248,0.35)",
+                                  background: "rgba(56,189,248,0.10)",
+                                  color: "#bae6fd",
+                                }
+                              : undefined
+                          }
+                        >
+                          {processActionLoading ? "Actualizando..." : processActionLabel}
+                        </button>
+
+                        <button type="button" className="danger-link" onClick={() => deleteProcess(process)} disabled={processActionLoading}>
+                          Borrar proceso
+                        </button>
+                      </div>
+
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          gap: "10px",
+                          flexWrap: "wrap",
+                          marginBottom: "10px",
+                        }}
+                      >
+                        <strong style={{ color: "#e5e7eb", fontSize: "0.9rem" }}>Etapas del proceso</strong>
+                        <button
+                          type="button"
+                          className="secondary-btn"
+                          onClick={() => {
+                            const willOpen = !openStepFormByProcess[process.id];
+                            setOpenStepFormByProcess((prev) => ({ ...prev, [process.id]: willOpen }));
+
+                            if (willOpen) {
+                              const nextDraft = getStepDraftForProcess(process);
+                              updateStepDraftField(process.id, "name", nextDraft.name);
+                              updateStepDraftField(process.id, "startDate", nextDraft.startDate);
+                              updateStepDraftField(process.id, "durationDays", nextDraft.durationDays);
+                              updateStepDraftField(process.id, "notes", nextDraft.notes);
+                            }
+
+                            setProcessesError("");
+                          }}
+                          disabled={processActionLoading}
+                        >
+                          {isStepFormOpen ? "Cerrar etapa" : "+ Nueva etapa"}
+                        </button>
+                      </div>
+
+                      {sortedSteps.length > 0 ? (
+                        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                          {sortedSteps.map((step) => {
+                            const isCompleted = step.status === "Completada";
+
+                            return (
+                              <div
+                                key={step.id}
+                                style={{
+                                  padding: "10px",
+                                  borderRadius: "14px",
+                                  background: isCompleted ? "rgba(34,197,94,0.07)" : "rgba(2,6,23,0.44)",
+                                  border: isCompleted ? "1px solid rgba(34,197,94,0.14)" : "1px solid rgba(148,163,184,0.12)",
+                                }}
+                              >
+                                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "10px", flexWrap: "wrap" }}>
+                                  <div style={{ display: "flex", gap: "12px", alignItems: "flex-start", minWidth: 0, flex: 1 }}>
+                                    <button
+                                      type="button"
+                                      onClick={() => toggleStepCompletion(step)}
+                                      disabled={processActionLoading}
+                                      title={isCompleted ? "Reabrir etapa" : "Marcar como completada"}
+                                      style={{
+                                        width: "28px",
+                                        height: "28px",
+                                        minWidth: "28px",
+                                        borderRadius: "999px",
+                                        border: isCompleted ? "1px solid rgba(34,197,94,0.38)" : "1px solid rgba(148,163,184,0.28)",
+                                        background: isCompleted ? "rgba(34,197,94,0.16)" : "rgba(15,23,42,0.9)",
+                                        color: isCompleted ? "#bbf7d0" : "#94a3b8",
+                                        display: "inline-flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        cursor: processActionLoading ? "not-allowed" : "pointer",
+                                        fontSize: "0.95rem",
+                                        fontWeight: 700,
+                                        lineHeight: 1,
+                                        marginTop: "2px",
+                                      }}
+                                    >
+                                      {isCompleted ? "✓" : ""}
+                                    </button>
+
+                                    <div style={{ minWidth: 0, flex: 1 }}>
+                                      <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", marginBottom: "4px" }}>
+                                        <span style={{ minWidth: "24px", height: "24px", borderRadius: "999px", display: "inline-flex", alignItems: "center", justifyContent: "center", background: "rgba(34,197,94,0.14)", color: "#bbf7d0", fontSize: "0.72rem", fontWeight: 700 }}>
+                                          {step.stepOrder}
+                                        </span>
+
+                                        <div style={{ color: isCompleted ? "rgba(226,232,240,0.72)" : "#e5e7eb", fontSize: "0.84rem", fontWeight: 600, textDecoration: isCompleted ? "line-through" : "none" }}>
+                                          {step.name}
+                                        </div>
+
+                                        <span style={{ ...tinyPillStyle, ...getStatusPillStyle(step.status || "Pendiente") }}>
+                                          {step.status || "Pendiente"}
+                                        </span>
+                                      </div>
+
+                                      <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", color: "rgba(148,163,184,0.88)", fontSize: "0.74rem", marginBottom: step.notes ? "6px" : "0" }}>
+                                        <span>Responsable: {step.owner || "—"}</span>
+                                        <span>Inicio: {formatProcessDate(step.startDate)}</span>
+                                        <span>Días: {getDurationDays(step.startDate, step.dueDate)}</span>
+                                        <span>Final: {formatProcessDate(step.dueDate)}</span>
+                                        <span>Completada: {formatProcessDate(step.completedAt)}</span>
+                                      </div>
+
+                                      {step.notes ? (
+                                        <div style={{ marginTop: "6px", color: "rgba(226,232,240,0.78)", fontSize: "0.78rem", whiteSpace: "pre-wrap" }}>
+                                          {step.notes}
+                                        </div>
+                                      ) : null}
+                                    </div>
+                                  </div>
+
+                                  <button type="button" className="secondary-btn" onClick={() => toggleStepCompletion(step)} disabled={processActionLoading}>
+                                    {isCompleted ? "Reabrir" : "Completar"}
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div
+                          style={{
+                            padding: "12px",
+                            borderRadius: "14px",
+                            border: "1px dashed rgba(148,163,184,0.18)",
+                            color: "rgba(226,232,240,0.72)",
+                            fontSize: "0.84rem",
+                            background: "rgba(2,6,23,0.32)",
+                          }}
+                        >
+                          Este proceso aún no tiene etapas. Agregá la primera y el laboratorio empieza a respirar.
+                        </div>
+                      )}
+
+                      {isStepFormOpen && (
+                        <div
+                          style={{
+                            padding: "12px",
+                            borderRadius: "14px",
+                            border: "1px solid rgba(34,197,94,0.18)",
+                            background: "rgba(2,6,23,0.38)",
+                            display: "grid",
+                            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+                            gap: "10px",
+                            marginTop: "10px",
+                          }}
+                        >
+                          <div>
+                            <label style={labelStyle}>Etapa</label>
+                            <input
+                              className="farm-feature-input"
+                              value={draft.name || `Etapa ${nextStepNumber}`}
+                              onChange={(e) => updateStepDraftField(process.id, "name", e.target.value)}
+                              placeholder={`Etapa ${nextStepNumber}`}
+                            />
+                          </div>
+
+                          <div>
+                            <label style={labelStyle}>Fecha de inicio</label>
+                            <input className="farm-feature-input" type="date" value={draft.startDate} onChange={(e) => updateStepDraftField(process.id, "startDate", e.target.value)} />
+                          </div>
+
+                          <div>
+                            <label style={labelStyle}>Duración en días</label>
+                            <input className="farm-feature-input" type="number" min="0" step="1" value={draft.durationDays} onChange={(e) => updateStepDraftField(process.id, "durationDays", e.target.value)} placeholder="Ej: 7" />
+                          </div>
+
+                          <div>
+                            <label style={labelStyle}>Fecha final</label>
+                            <input className="farm-feature-input" value={draftDueDate || ""} readOnly placeholder="Se calcula automáticamente" />
+                          </div>
+
+                          <div style={{ gridColumn: "1 / -1" }}>
+                            <label style={labelStyle}>Notas</label>
+                            <textarea className="farm-feature-textarea" value={draft.notes} onChange={(e) => updateStepDraftField(process.id, "notes", e.target.value)} placeholder="Notas de la etapa, observaciones o instrucciones" rows={3} />
+                          </div>
+
+                          <div style={{ gridColumn: "1 / -1", display: "flex", justifyContent: "flex-end" }}>
+                            <button type="button" className="primary-btn" onClick={() => createStepForProcess(process)} disabled={processActionLoading}>
+                              {processActionLoading ? "Agregando..." : `Agregar etapa ${nextStepNumber}`}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })}
