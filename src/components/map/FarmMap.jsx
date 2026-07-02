@@ -803,21 +803,58 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
   const updateProcessStatus = async (process, status) => {
     if (!process?.id || !componentsModalZoneId) return;
 
+    const currentStatus = process.status === "Completado" ? "Completado" : "Activo";
+    const nextStatus =
+      status || (currentStatus === "Completado" ? "Activo" : "Completado");
+
     try {
       setProcessActionLoading(true);
       setProcessesError("");
 
+      const payload =
+        nextStatus === "Completado"
+          ? {
+              status: "Completado",
+              completedAt: nowIso(),
+            }
+          : {
+              status: "Activo",
+              completedAt: null,
+            };
+
       await apiFetch(`/api/processes/${process.id}`, {
         method: "PUT",
-        body: JSON.stringify({
-          status,
-          completedAt: status === "Completado" ? nowIso() : null,
-        }),
+        body: JSON.stringify(payload),
+      });
+
+      setZoneProcessesMap((prev) => {
+        const currentList = Array.isArray(prev[componentsModalZoneId])
+          ? prev[componentsModalZoneId]
+          : [];
+
+        return {
+          ...prev,
+          [componentsModalZoneId]: currentList.map((item) =>
+            item.id === process.id
+              ? {
+                  ...item,
+                  status: nextStatus,
+                  completedAt:
+                    nextStatus === "Completado" ? payload.completedAt : null,
+                }
+              : item
+          ),
+        };
       });
 
       await loadZoneProcesses(componentsModalZoneId);
     } catch (err) {
-      setProcessesError(err?.message || "No se pudo actualizar el proceso.");
+      setProcessesError(
+        err?.message ||
+          (nextStatus === "Completado"
+            ? "No se pudo completar el proceso."
+            : "No se pudo reabrir el proceso.")
+      );
     } finally {
       setProcessActionLoading(false);
     }
