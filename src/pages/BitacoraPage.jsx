@@ -1,5 +1,6 @@
 // src/pages/BitacoraPage.jsx
 import { useMemo, useState } from "react";
+import { useFarm } from "../context/FarmContext";
 import { analyzeEntry } from "../lib/bitacora/analyzer";
 import { formatCRC } from "../lib/bitacora/costEngine";
 import {
@@ -10,6 +11,7 @@ import {
 } from "../lib/bitacora/conversationEngine";
 
 export default function BitacoraPage() {
+  const { activeFarm, farmId, farmName } = useFarm();
   const [entry, setEntry] = useState("");
   const [entries, setEntries] = useState([]);
 
@@ -30,6 +32,8 @@ export default function BitacoraPage() {
         minute: "2-digit",
       }),
       text: clean,
+      farmId: farmId || null,
+      farmName: farmName || activeFarm?.name || "Finca activa",
       conversationResult,
     };
 
@@ -38,32 +42,21 @@ export default function BitacoraPage() {
   };
 
   return (
-
-
+    <div className="page">
       {/* ===================== CONTEXTO DE FINCA ACTIVA ===================== */}
-      <section
-        style={{
-          marginBottom: 20,
-          padding: "16px 18px",
-          borderRadius: 14,
-          background: "linear-gradient(135deg,#14532d,#166534)",
-          color: "#fff",
-          border: "1px solid rgba(255,255,255,.12)",
-        }}
-      >
-        <div style={{ fontSize: 12, opacity: .8, textTransform: "uppercase", letterSpacing: 1 }}>
-          🌱 Finca activa
+      <section style={activeFarmBannerStyle}>
+        <div style={activeFarmBannerLeftStyle}>
+          <div style={activeFarmLabelStyle}>🌱 Finca activa</div>
+          <div style={activeFarmNameStyle}>
+            {farmName || activeFarm?.name || "Finca activa"}
+          </div>
         </div>
-        <div style={{ fontSize: 22, fontWeight: 700, marginTop: 4 }}>
-          {activeFarm?.name || "Finca activa"}
-        </div>
-        <p style={{ marginTop: 10, opacity: .9 }}>
+
+        <p style={activeFarmTextStyle}>
           Todas las anotaciones, fotografías y observaciones pertenecen únicamente a esta finca.
           Para trabajar en otra, cambiá la finca activa desde el mapa.
         </p>
       </section>
-
-    <div className="page">
       <section className="card">
         <h2>Bitácora inteligente de la finca</h2>
 
@@ -100,6 +93,9 @@ export default function BitacoraPage() {
               <strong>
                 {item.date} · {item.time}
               </strong>
+              <p style={{ margin: "0.35rem 0", opacity: 0.75 }}>
+                Finca: {item.farmName || "Finca activa"}
+              </p>
               <p style={{ whiteSpace: "pre-wrap" }}>{item.text}</p>
               <p style={{ opacity: 0.75 }}>
                 Actividades confirmadas:{" "}
@@ -420,6 +416,49 @@ function getSeverityIcon(severity) {
   if (severity === "media") return "🟡";
   return "🟢";
 }
+
+
+const activeFarmBannerStyle = {
+  marginBottom: 20,
+  padding: "16px 18px",
+  borderRadius: 14,
+  background: "linear-gradient(135deg, rgba(2, 6, 23, 0.92), rgba(15, 23, 42, 0.86))",
+  color: "#fff",
+  border: "1px solid rgba(34, 197, 94, 0.35)",
+  display: "grid",
+  gridTemplateColumns: "minmax(180px, 1fr) minmax(260px, 1.4fr)",
+  gap: "1rem",
+  alignItems: "center",
+};
+
+const activeFarmBannerLeftStyle = {
+  minWidth: 0,
+};
+
+const activeFarmLabelStyle = {
+  fontSize: 12,
+  opacity: 0.8,
+  textTransform: "uppercase",
+  letterSpacing: 1,
+  color: "#86efac",
+  fontWeight: 800,
+};
+
+const activeFarmNameStyle = {
+  fontSize: 22,
+  fontWeight: 800,
+  marginTop: 4,
+  color: "#ffffff",
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+  whiteSpace: "nowrap",
+};
+
+const activeFarmTextStyle = {
+  margin: 0,
+  opacity: 0.9,
+  lineHeight: 1.5,
+};
 
 const textareaStyle = {
   width: "100%",
