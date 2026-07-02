@@ -29,6 +29,42 @@ function addDaysToYYYYMMDD(startDate, durationDays) {
   return date.toISOString().slice(0, 10);
 }
 
+function addOneDayYYYYMMDD(dateValue) {
+  if (!dateValue) return todayYYYYMMDD();
+
+  const date = new Date(`${dateValue}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return todayYYYYMMDD();
+
+  date.setDate(date.getDate() + 1);
+  return date.toISOString().slice(0, 10);
+}
+
+function getNextStepStartDate(steps = []) {
+  if (!Array.isArray(steps) || steps.length === 0) return todayYYYYMMDD();
+
+  const sortedSteps = [...steps].sort((a, b) => {
+    const ao = Number(a?.stepOrder || 0);
+    const bo = Number(b?.stepOrder || 0);
+    return ao - bo;
+  });
+  const lastStep = sortedSteps[sortedSteps.length - 1];
+
+  return addOneDayYYYYMMDD(lastStep?.dueDate || lastStep?.targetDate || lastStep?.endDate);
+}
+
+function getStepDraftForProcess(process) {
+  const steps = Array.isArray(process?.steps) ? process.steps : [];
+  const nextStepNumber = steps.length + 1;
+
+  return {
+    localId: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    name: `Etapa ${nextStepNumber}`,
+    startDate: getNextStepStartDate(steps),
+    durationDays: "7",
+    notes: "",
+  };
+}
+
 function getDurationDays(startDate, dueDate) {
   if (!startDate || !dueDate) return "—";
 
@@ -201,8 +237,8 @@ export default function ProcessModal({
     const total = modalZoneProcesses.length;
     const active = modalZoneProcesses.filter((p) => p.status === "Activo").length;
     const completed = modalZoneProcesses.filter((p) => p.status === "Completado").length;
-    const draft = modalZoneProcesses.filter((p) => !p.status || p.status === "Borrador").length;
-    return { total, active, completed, draft };
+    const pending = modalZoneProcesses.filter((p) => !p.status || p.status === "Pendiente").length;
+    return { total, active, completed, pending };
   }, [modalZoneProcesses]);
 
   const filteredProcesses = useMemo(() => {
@@ -230,20 +266,47 @@ export default function ProcessModal({
   };
 
   const addDraftStep = () => {
-    setDraftSteps((prev) => [...prev, getEmptyStepDraft(prev.length + 1)]);
+    setDraftSteps((prev) => {
+      const lastStep = prev[prev.length - 1];
+      const lastDueDate = addDaysToYYYYMMDD(lastStep?.startDate, lastStep?.durationDays);
+      return [
+        ...prev,
+        {
+          ...getEmptyStepDraft(prev.length + 1),
+          startDate: addOneDayYYYYMMDD(lastDueDate),
+        },
+      ];
+    });
   };
 
   const updateDraftStep = (localId, field, value) => {
-    setDraftSteps((prev) =>
-      prev.map((step) =>
+    setDraftSteps((prev) => {
+      const updated = prev.map((step) =>
         step.localId === localId
           ? {
               ...step,
               [field]: value,
             }
           : step
-      )
-    );
+      );
+
+      if (field !== "startDate" && field !== "durationDays") return updated;
+
+      return updated.map((step, index, allSteps) => {
+        if (index === 0) return step;
+
+        const previousStep = allSteps[index - 1];
+        const previousDueDate = addDaysToYYYYMMDD(
+          previousStep?.startDate,
+          previousStep?.durationDays
+        );
+
+        return {
+          ...step,
+          startDate: addOneDayYYYYMMDD(previousDueDate),
+        };
+      });
+    });
   };
 
   const removeDraftStep = (localId) => {
@@ -275,7 +338,7 @@ export default function ProcessModal({
         owner: newProcessOwner,
         priority: newProcessPriority,
         type: "General",
-        status: "Borrador",
+        status: "Activo",
       },
       cleanSteps
     );
@@ -347,7 +410,7 @@ export default function ProcessModal({
         {[
           ["Procesos", processStats.total],
           ["Activos", processStats.active],
-          ["Borrador", processStats.draft],
+          ["Pendientes", processStats.pending],
           ["Completados", processStats.completed],
         ].map(([label, value]) => (
           <div
@@ -585,11 +648,12 @@ export default function ProcessModal({
             {filteredProcesses.map((process) => {
               const steps = Array.isArray(process.steps) ? process.steps : [];
               const progress = getProgressFromSteps(steps);
+              const nextStepNumber = steps.length + 1;
+              const defaultStepDraft = getStepDraftForProcess(process);
               const draft = {
-                ...getEmptyStepDraft(),
+                ...defaultStepDraft,
                 ...(newStepByProcess[process.id] || {}),
               };
-              const nextStepNumber = steps.length + 1;
               const draftDueDate = addDaysToYYYYMMDD(draft.startDate, draft.durationDays);
               const isStepFormOpen = openStepFormByProcess[process.id] === true;
 
@@ -609,8 +673,8 @@ export default function ProcessModal({
                         {process.name}
                       </strong>
 
-                      <span style={{ ...tinyPillStyle, ...getStatusPillStyle(process.status || "Borrador") }}>
-                        {process.status || "Borrador"}
+                      <span style={{ ...tinyPillStyle, ...getStatusPillStyle(process.status || "Activo") }}>
+                        {process.status || "Activo"}
                       </span>
 
                       <span style={{ ...tinyPillStyle, ...getPriorityPillStyle(process.priority || "Media") }}>
@@ -650,10 +714,6 @@ export default function ProcessModal({
                     </div>
 
                     <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center", marginBottom: "10px" }}>
-                      <button type="button" className="secondary-btn" disabled={processActionLoading || process.status === "Activo"} onClick={() => updateProcessStatus(process, "Activo")}>
-                        Activar
-                      </button>
-
                       <button type="button" className="secondary-btn" disabled={processActionLoading || process.status === "Completado"} onClick={() => updateProcessStatus(process, "Completado")}>
                         Completar
                       </button>
@@ -668,7 +728,17 @@ export default function ProcessModal({
                         type="button"
                         className="secondary-btn"
                         onClick={() => {
-                          setOpenStepFormByProcess((prev) => ({ ...prev, [process.id]: !prev[process.id] }));
+                          const willOpen = !openStepFormByProcess[process.id];
+                          setOpenStepFormByProcess((prev) => ({ ...prev, [process.id]: willOpen }));
+
+                          if (willOpen) {
+                            const nextDraft = getStepDraftForProcess(process);
+                            updateStepDraftField(process.id, "name", nextDraft.name);
+                            updateStepDraftField(process.id, "startDate", nextDraft.startDate);
+                            updateStepDraftField(process.id, "durationDays", nextDraft.durationDays);
+                            updateStepDraftField(process.id, "notes", nextDraft.notes);
+                          }
+
                           setProcessesError("");
                         }}
                         disabled={processActionLoading}
@@ -730,7 +800,9 @@ export default function ProcessModal({
 
                     {steps.length > 0 && (
                       <div style={{ marginTop: "4px", display: "flex", flexDirection: "column", gap: "8px" }}>
-                        {steps.map((step) => {
+                        {[...steps]
+                          .sort((a, b) => Number(a?.stepOrder || 0) - Number(b?.stepOrder || 0))
+                          .map((step) => {
                           const isCompleted = step.status === "Completada";
 
                           return (
