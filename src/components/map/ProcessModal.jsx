@@ -39,22 +39,46 @@ function addOneDayYYYYMMDD(dateValue) {
   return date.toISOString().slice(0, 10);
 }
 
-function getNextStepStartDate(steps = []) {
-  if (!Array.isArray(steps) || steps.length === 0) return todayYYYYMMDD();
+function getStepDueDate(step) {
+  if (!step) return "";
+  if (step.dueDate || step.targetDate || step.endDate) {
+    return step.dueDate || step.targetDate || step.endDate;
+  }
+  return addDaysToYYYYMMDD(step.startDate, step.durationDays || step.days || step.duration || 0);
+}
 
-  const sortedSteps = [...steps].sort((a, b) => {
-    const ao = Number(a?.stepOrder || 0);
-    const bo = Number(b?.stepOrder || 0);
+function getSortedSteps(steps = []) {
+  if (!Array.isArray(steps)) return [];
+  return [...steps].sort((a, b) => {
+    const ao = Number(a?.stepOrder || a?.order || 0);
+    const bo = Number(b?.stepOrder || b?.order || 0);
     return ao - bo;
   });
-  const lastStep = sortedSteps[sortedSteps.length - 1];
+}
 
-  return addOneDayYYYYMMDD(lastStep?.dueDate || lastStep?.targetDate || lastStep?.endDate);
+function getNextStepStartDate(steps = []) {
+  const sortedSteps = getSortedSteps(steps);
+  if (sortedSteps.length === 0) return todayYYYYMMDD();
+
+  const lastStep = sortedSteps[sortedSteps.length - 1];
+  const lastDueDate = getStepDueDate(lastStep);
+
+  return addOneDayYYYYMMDD(lastDueDate);
+}
+
+function getNextStepNumber(steps = []) {
+  const sortedSteps = getSortedSteps(steps);
+  if (sortedSteps.length === 0) return 1;
+  const maxOrder = sortedSteps.reduce((max, step, index) => {
+    const order = Number(step?.stepOrder || step?.order || index + 1);
+    return Number.isFinite(order) && order > max ? order : max;
+  }, 0);
+  return maxOrder + 1;
 }
 
 function getStepDraftForProcess(process) {
   const steps = Array.isArray(process?.steps) ? process.steps : [];
-  const nextStepNumber = steps.length + 1;
+  const nextStepNumber = getNextStepNumber(steps);
 
   return {
     localId: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
@@ -648,7 +672,7 @@ export default function ProcessModal({
             {filteredProcesses.map((process) => {
               const steps = Array.isArray(process.steps) ? process.steps : [];
               const progress = getProgressFromSteps(steps);
-              const nextStepNumber = steps.length + 1;
+              const nextStepNumber = getNextStepNumber(steps);
               const defaultStepDraft = getStepDraftForProcess(process);
               const draft = {
                 ...defaultStepDraft,
@@ -747,62 +771,9 @@ export default function ProcessModal({
                       </button>
                     </div>
 
-                    {isStepFormOpen && (
-                      <div
-                        style={{
-                          padding: "12px",
-                          borderRadius: "12px",
-                          border: "1px solid rgba(148,163,184,0.16)",
-                          background: "rgba(2,6,23,0.34)",
-                          display: "grid",
-                          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-                          gap: "10px",
-                          marginBottom: steps.length > 0 ? "12px" : "10px",
-                        }}
-                      >
-                        <div>
-                          <label style={labelStyle}>Etapa</label>
-                          <input
-                            className="farm-feature-input"
-                            value={draft.name || `Etapa ${nextStepNumber}`}
-                            onChange={(e) => updateStepDraftField(process.id, "name", e.target.value)}
-                            placeholder={`Etapa ${nextStepNumber}`}
-                          />
-                        </div>
-
-                        <div>
-                          <label style={labelStyle}>Fecha de inicio</label>
-                          <input className="farm-feature-input" type="date" value={draft.startDate} onChange={(e) => updateStepDraftField(process.id, "startDate", e.target.value)} />
-                        </div>
-
-                        <div>
-                          <label style={labelStyle}>Duración en días</label>
-                          <input className="farm-feature-input" type="number" min="0" step="1" value={draft.durationDays} onChange={(e) => updateStepDraftField(process.id, "durationDays", e.target.value)} placeholder="Ej: 7" />
-                        </div>
-
-                        <div>
-                          <label style={labelStyle}>Fecha final</label>
-                          <input className="farm-feature-input" value={draftDueDate || ""} readOnly placeholder="Se calcula automáticamente" />
-                        </div>
-
-                        <div style={{ gridColumn: "1 / -1" }}>
-                          <label style={labelStyle}>Notas</label>
-                          <textarea className="farm-feature-textarea" value={draft.notes} onChange={(e) => updateStepDraftField(process.id, "notes", e.target.value)} placeholder="Notas de la etapa, observaciones o instrucciones" rows={3} />
-                        </div>
-
-                        <div style={{ gridColumn: "1 / -1", display: "flex", justifyContent: "flex-end" }}>
-                          <button type="button" className="primary-btn" onClick={() => createStepForProcess(process)} disabled={processActionLoading}>
-                            {processActionLoading ? "Agregando..." : `Agregar etapa ${nextStepNumber}`}
-                          </button>
-                        </div>
-                      </div>
-                    )}
-
                     {steps.length > 0 && (
                       <div style={{ marginTop: "4px", display: "flex", flexDirection: "column", gap: "8px" }}>
-                        {[...steps]
-                          .sort((a, b) => Number(a?.stepOrder || 0) - Number(b?.stepOrder || 0))
-                          .map((step) => {
+                        {getSortedSteps(steps).map((step) => {
                           const isCompleted = step.status === "Completada";
 
                           return (
@@ -875,6 +846,58 @@ export default function ProcessModal({
                         })}
                       </div>
                     )}
+
+                    {isStepFormOpen && (
+                      <div
+                        style={{
+                          padding: "12px",
+                          borderRadius: "12px",
+                          border: "1px solid rgba(148,163,184,0.16)",
+                          background: "rgba(2,6,23,0.34)",
+                          display: "grid",
+                          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+                          gap: "10px",
+                          marginBottom: steps.length > 0 ? "12px" : "10px",
+                        }}
+                      >
+                        <div>
+                          <label style={labelStyle}>Etapa</label>
+                          <input
+                            className="farm-feature-input"
+                            value={draft.name || `Etapa ${nextStepNumber}`}
+                            onChange={(e) => updateStepDraftField(process.id, "name", e.target.value)}
+                            placeholder={`Etapa ${nextStepNumber}`}
+                          />
+                        </div>
+
+                        <div>
+                          <label style={labelStyle}>Fecha de inicio</label>
+                          <input className="farm-feature-input" type="date" value={draft.startDate} onChange={(e) => updateStepDraftField(process.id, "startDate", e.target.value)} />
+                        </div>
+
+                        <div>
+                          <label style={labelStyle}>Duración en días</label>
+                          <input className="farm-feature-input" type="number" min="0" step="1" value={draft.durationDays} onChange={(e) => updateStepDraftField(process.id, "durationDays", e.target.value)} placeholder="Ej: 7" />
+                        </div>
+
+                        <div>
+                          <label style={labelStyle}>Fecha final</label>
+                          <input className="farm-feature-input" value={draftDueDate || ""} readOnly placeholder="Se calcula automáticamente" />
+                        </div>
+
+                        <div style={{ gridColumn: "1 / -1" }}>
+                          <label style={labelStyle}>Notas</label>
+                          <textarea className="farm-feature-textarea" value={draft.notes} onChange={(e) => updateStepDraftField(process.id, "notes", e.target.value)} placeholder="Notas de la etapa, observaciones o instrucciones" rows={3} />
+                        </div>
+
+                        <div style={{ gridColumn: "1 / -1", display: "flex", justifyContent: "flex-end" }}>
+                          <button type="button" className="primary-btn" onClick={() => createStepForProcess(process)} disabled={processActionLoading}>
+                            {processActionLoading ? "Agregando..." : `Agregar etapa ${nextStepNumber}`}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
                   </div>
                 </div>
               );
