@@ -38,6 +38,31 @@ export default function BitacoraPage() {
   };
 
   return (
+
+
+      {/* ===================== CONTEXTO DE FINCA ACTIVA ===================== */}
+      <section
+        style={{
+          marginBottom: 20,
+          padding: "16px 18px",
+          borderRadius: 14,
+          background: "linear-gradient(135deg,#14532d,#166534)",
+          color: "#fff",
+          border: "1px solid rgba(255,255,255,.12)",
+        }}
+      >
+        <div style={{ fontSize: 12, opacity: .8, textTransform: "uppercase", letterSpacing: 1 }}>
+          🌱 Finca activa
+        </div>
+        <div style={{ fontSize: 22, fontWeight: 700, marginTop: 4 }}>
+          {activeFarm?.name || "Finca activa"}
+        </div>
+        <p style={{ marginTop: 10, opacity: .9 }}>
+          Todas las anotaciones, fotografías y observaciones pertenecen únicamente a esta finca.
+          Para trabajar en otra, cambiá la finca activa desde el mapa.
+        </p>
+      </section>
+
     <div className="page">
       <section className="card">
         <h2>Bitácora inteligente de la finca</h2>
