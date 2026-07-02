@@ -26,7 +26,6 @@ import { useFarm } from "../../context/FarmContext";
 
 const VIEW_KEY = "agromind_farm_view";
 const DRAWINGS_KEY = "agromind_farm_drawings";
-const ACTIVE_FARM_KEY = "agromind_active_farm_id";
 
 const POINT_COLORS = ["#f97316", "#22c55e", "#38bdf8", "#eab308", "#ec4899"];
 const LINE_COLORS = ["#22c55e", "#38bdf8", "#f97316", "#a855f7", "#facc15"];
@@ -332,7 +331,12 @@ function getStatusPillStyle(status) {
 }
 
 export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
-  const { setActiveFarm: setGlobalActiveFarm } = useFarm();
+  const {
+    activeFarm: globalActiveFarm,
+    farmId: contextFarmId,
+    farmName: contextFarmName,
+    setActiveFarm,
+  } = useFarm();
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const vectorSourceRef = useRef(null);
@@ -359,7 +363,6 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
   const apiKey = import.meta.env.VITE_MAPTILER_KEY;
 
   const [mapReady, setMapReady] = useState(false);
-  const [activeFarmId, setActiveFarmId] = useState(null);
   const [backendOnline, setBackendOnline] = useState(true);
 
   const [farms, setFarms] = useState([]);
@@ -374,6 +377,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
 
   const autosaveTimerRef = useRef(null);
   const loadedOnceRef = useRef(false);
+  const loadedFarmIdRef = useRef(null);
   const dirtyRef = useRef(false);
 
   const markDirty = () => {
@@ -420,7 +424,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
       lat,
       lon,
       zoom,
-      farmId: activeFarmId || localStorage.getItem(ACTIVE_FARM_KEY) || null,
+      farmId: contextFarmId || null,
       source,
     };
 
@@ -443,11 +447,12 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
   };
 
   const activeFarm = useMemo(
-    () => farms.find((farm) => farm.id === activeFarmId) || null,
-    [farms, activeFarmId]
+    () =>
+      farms.find((farm) => farm.id === contextFarmId) || globalActiveFarm || null,
+    [farms, contextFarmId, globalActiveFarm]
   );
 
-  const activeFarmName = activeFarm?.name || "Finca #1";
+  const activeFarmName = contextFarmName || activeFarm?.name || "Finca #1";
 
   const zonesOnly = featuresList.filter((f) => f.kind === "polygon");
 
@@ -1266,7 +1271,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
             lat,
             lon,
             zoom,
-            farmId: activeFarmId || localStorage.getItem(ACTIVE_FARM_KEY) || null,
+            farmId: contextFarmId || null,
             source: "schedule-autosave",
           });
         }
@@ -1278,7 +1283,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
     if (!force && !loadedOnceRef.current) return;
     if (!force && dirtyRef.current !== true) return;
 
-    if (!activeFarmId) return;
+    if (!contextFarmId) return;
     const token = getAuthToken();
     if (!token) return;
 
@@ -1289,7 +1294,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
         const payload = buildBackendPayloadFromList(list, options);
         if (!payload) return;
 
-        await apiFetch(`/api/farms/${activeFarmId}/map`, {
+        await apiFetch(`/api/farms/${contextFarmId}/map`, {
           method: "PUT",
           body: JSON.stringify(payload),
         });
@@ -1305,7 +1310,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
   };
 
   const saveMapNow = async (list = latestFeaturesListRef.current || [], options = {}) => {
-    if (!activeFarmId) return false;
+    if (!contextFarmId) return false;
 
     const token = getAuthToken();
     if (!token) return false;
@@ -1318,7 +1323,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
       autosaveTimerRef.current = null;
     }
 
-    await apiFetch(`/api/farms/${activeFarmId}/map`, {
+    await apiFetch(`/api/farms/${contextFarmId}/map`, {
       method: "PUT",
       body: JSON.stringify(payload),
     });
@@ -1380,6 +1385,8 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
   const loadFarmMap = async (farmId, options = {}) => {
     if (!farmId) return;
 
+    loadedFarmIdRef.current = farmId;
+
     const { allowLocalFallback = false, farmsCount = 0 } = options;
 
     const mapTimer = debugTimeStart(`loadFarmMap GET /api/farms/${farmId}/map`);
@@ -1435,7 +1442,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
       let nextFarms = await loadFarmsList();
       debugTimeEnd(farmsTimer);
 
-      const savedActive = localStorage.getItem(ACTIVE_FARM_KEY);
+      const savedActive = contextFarmId;
       const picked =
         (savedActive && nextFarms.find((f) => f.id === savedActive)) || nextFarms[0];
 
@@ -1464,8 +1471,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
         picked ||
         (nextFarms.length > 0 ? nextFarms[0] : null);
 
-      setActiveFarmId(farmId);
-      setGlobalActiveFarm(farmForContext || { id: farmId, name: "Finca activa" });
+      setActiveFarm(farmForContext || { id: farmId, name: "Finca activa" });
 
       await loadFarmMap(farmId, {
         allowLocalFallback: true,
@@ -1482,7 +1488,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
   };
 
   const handleSelectFarm = async (farmId) => {
-    if (!farmId || farmId === activeFarmId || farmActionLoading) {
+    if (!farmId || farmId === contextFarmId || farmActionLoading) {
       setFarmMenuOpen(false);
       return;
     }
@@ -1507,8 +1513,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
         name: "Finca activa",
       };
 
-      setActiveFarmId(farmId);
-      setGlobalActiveFarm(selectedFarm);
+      setActiveFarm(selectedFarm);
       setFarmMenuOpen(false);
       setFarmViewPinned(false);
       setFarmSavedNotice("");
@@ -1556,8 +1561,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
 
       const nextFarms = [newFarm, ...farms.filter((farm) => farm.id !== newFarm.id)];
       setFarms(nextFarms);
-      setActiveFarmId(newFarm.id);
-      setGlobalActiveFarm(newFarm);
+      setActiveFarm(newFarm);
       setFarmMenuOpen(false);
       setFarmViewPinned(true);
       setFarmSavedNotice(`✓ Vista establecida para ${newFarm.name || name}`);
@@ -1629,8 +1633,8 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
         prev.map((item) => (item.id === farm.id ? { ...item, ...updatedFarm } : item))
       );
 
-      if (farm.id === activeFarmId) {
-        setGlobalActiveFarm({ ...farm, ...updatedFarm });
+      if (farm.id === contextFarmId) {
+        setActiveFarm({ ...farm, ...updatedFarm });
       }
 
       setEditingFarmId(null);
@@ -2094,9 +2098,33 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
   }, [mapReady]);
 
   useEffect(() => {
-    if (!mapReady) return;
-    emitFarmLocationChange("farm-id-change");
-  }, [activeFarmId, mapReady]);
+    if (!mapReady || !contextFarmId) return;
+
+    if (loadedFarmIdRef.current === contextFarmId) {
+      emitFarmLocationChange("farm-id-change");
+      return;
+    }
+
+    const syncMapWithActiveFarm = async () => {
+      try {
+        setFarmError("");
+        setListFilter({ kind: "all", status: null });
+        setZoneProcessesMap({});
+        closeComponentsModal();
+
+        await loadFarmMap(contextFarmId, {
+          allowLocalFallback: false,
+          farmsCount: farms.length,
+        });
+      } catch (err) {
+        console.warn("CONTEXT_FARM_SYNC_ERROR:", err?.message || err);
+        setBackendOnline(false);
+        setFarmError(err?.message || "No se pudo sincronizar el mapa con la finca activa.");
+      }
+    };
+
+    syncMapWithActiveFarm();
+  }, [contextFarmId, mapReady]);
 
   useEffect(() => {
     const featuresMap = featuresMapRef.current;
@@ -2316,7 +2344,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
 
   const handleSaveViewClick = async () => {
     const currentView = getCurrentMapView();
-    if (!currentView || !activeFarmId || farmActionLoading) return;
+    if (!currentView || !contextFarmId || farmActionLoading) return;
 
     try {
       setFarmActionLoading(true);
@@ -2339,7 +2367,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
 
       setFarms((prev) =>
         prev.map((farm) =>
-          farm.id === activeFarmId
+          farm.id === contextFarmId
             ? {
                 ...farm,
                 view: currentView,
@@ -2351,7 +2379,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
       );
 
       if (updatedActiveFarm) {
-        setGlobalActiveFarm(updatedActiveFarm);
+        setActiveFarm(updatedActiveFarm);
       }
 
       setFarmViewPinned(true);
@@ -2616,7 +2644,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
                   </div>
                 ) : (
                   farms.map((farm, index) => {
-                    const isActiveFarm = farm.id === activeFarmId;
+                    const isActiveFarm = farm.id === contextFarmId;
                     const isEditing = editingFarmId === farm.id;
                     const displayName = farm.name || `Finca #${index + 1}`;
 
@@ -2789,7 +2817,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
                   type="button"
                   className="secondary-btn"
                   onClick={handleSaveViewClick}
-                  disabled={farmActionLoading || !activeFarmId}
+                  disabled={farmActionLoading || !contextFarmId}
                   style={{ flex: "1 1 130px", justifyContent: "center" }}
                   title="Actualizar la ubicación base de la finca activa"
                 >

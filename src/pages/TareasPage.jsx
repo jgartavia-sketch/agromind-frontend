@@ -87,15 +87,6 @@ function getAuthToken() {
   ]);
 }
 
-function getActiveFarmId() {
-  return pickLocalStorage([
-    "agromind_active_farm_id",
-    "activeFarmId",
-    "farmId",
-    "agromind_farm_id",
-  ]);
-}
-
 function toYYYYMMDD(value) {
   if (!value) return "";
   if (typeof value === "string") {
@@ -329,7 +320,6 @@ async function resolveBrowserLocation() {
 export default function TareasPage({
   onOpenZoneInMap,
   zonesFromMap = [],
-  farmId: farmIdProp,
   token: tokenProp,
 }) {
   const [tasks, setTasks] = useState([]);
@@ -369,13 +359,10 @@ export default function TareasPage({
     setActiveFarm,
   } = useFarm();
 
-  const [localFarmId, setLocalFarmId] = useState(() =>
-    farmIdProp || contextFarmId || getActiveFarmId()
-  );
   const [farms, setFarms] = useState([]);
   const [farmsLoading, setFarmsLoading] = useState(false);
 
-  const farmId = farmIdProp || contextFarmId || localFarmId;
+  const farmId = contextFarmId || "";
 
   const activeFarm = useMemo(() => {
     if (contextActiveFarm?.id && String(contextActiveFarm.id) === String(farmId)) {
@@ -391,7 +378,7 @@ export default function TareasPage({
   }, [farms, farmId, contextActiveFarm]);
 
   const activeFarmName =
-    activeFarm?.name || contextFarmName || (farmId ? "Finca activa" : "Sin finca activa");
+    contextFarmName || activeFarm?.name || (farmId ? "Finca activa" : "Sin finca activa");
 
   function authHeaders() {
     return {
@@ -441,21 +428,8 @@ export default function TareasPage({
 
       setFarms(list);
 
-      const desiredFarmId = farmIdProp || contextFarmId || getActiveFarmId();
-      const desiredFarm = desiredFarmId
-        ? list.find((farm) => String(farm.id) === String(desiredFarmId))
-        : null;
-      const fallbackFarm = list[0] || null;
-      const nextFarm = desiredFarm || fallbackFarm;
-
-      if (nextFarm?.id) {
-        setLocalFarmId(nextFarm.id);
-
-        if (!farmIdProp && String(contextFarmId || "") !== String(nextFarm.id)) {
-          setActiveFarm(nextFarm);
-        }
-      } else {
-        setLocalFarmId("");
+      if (!contextFarmId && !contextActiveFarm?.id && list[0]?.id) {
+        setActiveFarm(list[0]);
       }
 
       return list;
@@ -465,67 +439,11 @@ export default function TareasPage({
     } finally {
       setFarmsLoading(false);
     }
-  }, [token, API_BASE, farmIdProp, contextFarmId]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    const nextFarmId = farmIdProp || contextFarmId || "";
-
-    if (nextFarmId && String(nextFarmId) !== String(localFarmId || "")) {
-      setLocalFarmId(nextFarmId);
-    }
-  }, [farmIdProp, contextFarmId, localFarmId]);
+  }, [token, API_BASE, contextFarmId, contextActiveFarm?.id, setActiveFarm]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     fetchFarms();
   }, [fetchFarms]);
-
-  useEffect(() => {
-    const onFarmEvent = (event) => {
-      const farm = event?.detail?.farm || null;
-      const nextFarmId = farm?.id || getActiveFarmId();
-
-      if (nextFarmId && String(nextFarmId) !== String(localFarmId || "")) {
-        setLocalFarmId(nextFarmId);
-      }
-
-      fetchFarms();
-    };
-
-    const onStorage = (event) => {
-      if (
-        event?.key &&
-        ![
-          "agromind_active_farm_id",
-          "agromind_active_farm_name",
-          "activeFarmId",
-          "farmId",
-          "agromind_farm_id",
-          "farmLocation",
-        ].includes(event.key)
-      ) {
-        return;
-      }
-
-      const nextFarmId = getActiveFarmId();
-      if (nextFarmId && String(nextFarmId) !== String(localFarmId || "")) {
-        setLocalFarmId(nextFarmId);
-      }
-
-      fetchFarms();
-    };
-
-    window.addEventListener("agromind:farm:change", onFarmEvent);
-    window.addEventListener("agromind:farm:changed", onFarmEvent);
-    window.addEventListener("agromind:farm-location:changed", onFarmEvent);
-    window.addEventListener("storage", onStorage);
-
-    return () => {
-      window.removeEventListener("agromind:farm:change", onFarmEvent);
-      window.removeEventListener("agromind:farm:changed", onFarmEvent);
-      window.removeEventListener("agromind:farm-location:changed", onFarmEvent);
-      window.removeEventListener("storage", onStorage);
-    };
-  }, [localFarmId, fetchFarms]);
 
   const fetchWeather = useCallback(async () => {
     setWeatherLoading(true);

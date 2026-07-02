@@ -1,9 +1,8 @@
 // src/pages/ClimaPage.jsx
 import { useCallback, useEffect, useMemo, useState } from "react";
 import "../styles/clima.css";
+import { useFarm } from "../context/FarmContext";
 
-
-const ACTIVE_FARM_KEY = "agromind_active_farm_id";
 const API_BASE =
   import.meta.env.VITE_API_URL || "https://agromind-backend-slem.onrender.com";
 
@@ -213,7 +212,7 @@ function buildAlerts(weather) {
   return alerts.slice(0, 3);
 }
 
-function parseFarmLocation() {
+function parseFarmLocation(expectedFarmId) {
   try {
     const raw = localStorage.getItem("farmLocation");
     if (!raw) return null;
@@ -222,15 +221,22 @@ function parseFarmLocation() {
     const lat = Number(parsed?.lat);
     const lon = Number(parsed?.lon);
     const zoom = Number(parsed?.zoom);
-    const farmId =
-      parsed?.farmId || localStorage.getItem(ACTIVE_FARM_KEY) || null;
+    const locationFarmId = parsed?.farmId || null;
+
+    if (expectedFarmId && locationFarmId && locationFarmId !== expectedFarmId) {
+      return null;
+    }
+
+    if (expectedFarmId && !locationFarmId) {
+      return null;
+    }
 
     if (Number.isFinite(lat) && Number.isFinite(lon)) {
       return {
         latitude: lat,
         longitude: lon,
         zoom: Number.isFinite(zoom) ? zoom : null,
-        farmId,
+        farmId: locationFarmId,
       };
     }
 
@@ -240,14 +246,27 @@ function parseFarmLocation() {
   }
 }
 
-function getSavedActiveFarmId() {
-  try {
-    const fromFarmLocation = JSON.parse(localStorage.getItem("farmLocation") || "null")
-      ?.farmId;
-    return fromFarmLocation || localStorage.getItem(ACTIVE_FARM_KEY) || null;
-  } catch {
-    return localStorage.getItem(ACTIVE_FARM_KEY) || null;
-  }
+function getCoordsFromFarmContext(activeFarm) {
+  const view = activeFarm?.view || null;
+  const center = Array.isArray(view?.center)
+    ? view.center
+    : Array.isArray(activeFarm?.preferredCenter)
+    ? activeFarm.preferredCenter
+    : null;
+
+  if (!Array.isArray(center) || center.length !== 2) return null;
+
+  const lon = Number(center[0]);
+  const lat = Number(center[1]);
+
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+
+  return {
+    latitude: lat,
+    longitude: lon,
+    zoom: typeof view?.zoom === "number" ? view.zoom : null,
+    farmId: activeFarm?.id || null,
+  };
 }
 
 export default function ClimaPage() {
@@ -259,41 +278,11 @@ export default function ClimaPage() {
   const [loadingWeather, setLoadingWeather] = useState(false);
   const [error, setError] = useState("");
   const [hasFarmLocation, setHasFarmLocation] = useState(false);
-  const [activeFarmId, setActiveFarmId] = useState(() => getSavedActiveFarmId());
-  const [activeFarmName, setActiveFarmName] = useState("");
-  const [farmContextLoading, setFarmContextLoading] = useState(false);
+  const { activeFarm, farmId, farmName } = useFarm();
 
   const timezone = weather?.timezone || "America/Costa_Rica";
   const activeFarmLabel =
-    activeFarmName || (activeFarmId ? "Finca activa" : "Sin finca activa");
-
-  const loadActiveFarmContext = useCallback(async () => {
-    const savedFarmId = getSavedActiveFarmId();
-    setActiveFarmId(savedFarmId);
-
-    if (!savedFarmId) {
-      setActiveFarmName("");
-      return;
-    }
-
-    const token = getAuthToken();
-    if (!token) {
-      setActiveFarmName("Finca activa");
-      return;
-    }
-
-    try {
-      setFarmContextLoading(true);
-      const data = await apiFetch("/api/farms", { method: "GET" });
-      const farms = Array.isArray(data?.farms) ? data.farms : [];
-      const active = farms.find((farm) => farm.id === savedFarmId);
-      setActiveFarmName(active?.name || "Finca activa");
-    } catch {
-      setActiveFarmName("Finca activa");
-    } finally {
-      setFarmContextLoading(false);
-    }
-  }, []);
+    farmName || activeFarm?.name || (farmId ? "Finca activa" : "Sin finca activa");
 
   const resolveLocationByName = useCallback(async (searchText) => {
     const clean = String(searchText || "").trim();
@@ -445,11 +434,18 @@ export default function ClimaPage() {
   useEffect(() => {
     let cancelled = false;
 
-    const syncFarmWeatherContext = async () => {
-      await loadActiveFarmContext();
-      if (cancelled) return;
+    const syncFarmWeatherContext = () => {
+      if (!farmId) {
+        setCoords(null);
+        setWeather(null);
+        setHasFarmLocation(false);
+        setLocationName("Ubicación de la finca no definida");
+        return;
+      }
 
-      const farmLocation = parseFarmLocation();
+      const farmLocation = parseFarmLocation(farmId) || getCoordsFromFarmContext(activeFarm);
+
+      if (cancelled) return;
 
       if (farmLocation) {
         setCoords({
@@ -470,19 +466,21 @@ export default function ClimaPage() {
 
     syncFarmWeatherContext();
 
-    const handleFarmContextChange = () => {
+    const handleFarmLocationChange = () => {
       syncFarmWeatherContext();
     };
 
-    window.addEventListener("agromind:farm:changed", handleFarmContextChange);
-    window.addEventListener("storage", handleFarmContextChange);
+    window.addEventListener("agromind:farm:changed", handleFarmLocationChange);
+    window.addEventListener("agromind:farm-location:changed", handleFarmLocationChange);
+    window.addEventListener("storage", handleFarmLocationChange);
 
     return () => {
       cancelled = true;
-      window.removeEventListener("agromind:farm:changed", handleFarmContextChange);
-      window.removeEventListener("storage", handleFarmContextChange);
+      window.removeEventListener("agromind:farm:changed", handleFarmLocationChange);
+      window.removeEventListener("agromind:farm-location:changed", handleFarmLocationChange);
+      window.removeEventListener("storage", handleFarmLocationChange);
     };
-  }, [loadActiveFarmContext, resolveLocationNameByCoords]);
+  }, [activeFarm, farmId, resolveLocationNameByCoords]);
 
   useEffect(() => {
     if (!coords) return;
@@ -573,7 +571,7 @@ export default function ClimaPage() {
                 lineHeight: 1.2,
               }}
             >
-              {farmContextLoading ? "Cargando finca..." : activeFarmLabel}
+              {activeFarmLabel}
             </strong>
           </div>
 

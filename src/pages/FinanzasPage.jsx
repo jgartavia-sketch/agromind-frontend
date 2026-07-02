@@ -11,6 +11,7 @@ import ZoneMonthlyChart from "../components/finance/ZoneMonthlyChart";
 import AddMovementModal from "../components/finance/AddMovementModal";
 
 import { summarizeMovements } from "../utils/financeUtils";
+import { useFarm } from "../context/FarmContext";
 
 /* ========================= */
 function formatMoneyCRC(value) {
@@ -46,14 +47,6 @@ function getAuthToken() {
   ]);
 }
 
-function getActiveFarmId() {
-  return pickLocalStorage([
-    "agromind_active_farm_id",
-    "activeFarmId",
-    "farmId",
-    "agromind_farm_id",
-  ]);
-}
 
 function toYYYYMMDD(value) {
   if (!value) return "—";
@@ -109,7 +102,7 @@ function extractQtyFromName(name) {
   };
 }
 
-export default function FinanzasPage({ farmId: farmIdProp, token: tokenProp }) {
+export default function FinanzasPage({ token: tokenProp } = {}) {
   const [movements, setMovements] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [editingMovement, setEditingMovement] = useState(null);
@@ -137,11 +130,11 @@ export default function FinanzasPage({ farmId: farmIdProp, token: tokenProp }) {
     import.meta.env.VITE_API_BASE_URL ||
     "";
 
-  const token = tokenProp || getAuthToken();
-  const farmId = farmIdProp || getActiveFarmId();
+  const { activeFarm, farmId, farmName } = useFarm();
 
-  const [activeFarmName, setActiveFarmName] = useState("");
-  const activeFarmLabel = activeFarmName || (farmId ? "Finca activa" : "Sin finca activa");
+  const token = tokenProp || getAuthToken();
+  const activeFarmLabel =
+    farmName || activeFarm?.name || (farmId ? "Finca activa" : "Sin finca activa");
 
   function authHeaders() {
     return {
@@ -171,34 +164,6 @@ export default function FinanzasPage({ farmId: farmIdProp, token: tokenProp }) {
     return data;
   }
 
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadActiveFarmName() {
-      if (!farmId || !token) {
-        setActiveFarmName("");
-        return;
-      }
-
-      try {
-        const data = await apiFetch("/api/farms");
-        if (cancelled) return;
-
-        const farms = Array.isArray(data?.farms) ? data.farms : [];
-        const active = farms.find((farm) => farm?.id === farmId);
-        setActiveFarmName(active?.name || "Finca activa");
-      } catch {
-        if (!cancelled) setActiveFarmName("Finca activa");
-      }
-    }
-
-    loadActiveFarmName();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [farmId, token, API_BASE]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     let cancelled = false;
