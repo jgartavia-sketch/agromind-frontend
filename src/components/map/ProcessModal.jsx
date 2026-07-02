@@ -680,6 +680,9 @@ export default function ProcessModal({
               };
               const draftDueDate = addDaysToYYYYMMDD(draft.startDate, draft.durationDays);
               const isStepFormOpen = openStepFormByProcess[process.id] === true;
+              const isProcessCompleted = process.status === "Completado";
+              const nextProcessStatus = isProcessCompleted ? "Activo" : "Completado";
+              const processActionLabel = isProcessCompleted ? "↺ Reabrir proceso" : "✓ Completar proceso";
 
               return (
                 <div
@@ -738,8 +741,23 @@ export default function ProcessModal({
                     </div>
 
                     <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center", marginBottom: "10px" }}>
-                      <button type="button" className="secondary-btn" disabled={processActionLoading || process.status === "Completado"} onClick={() => updateProcessStatus(process, "Completado")}>
-                        Completar
+                      <button
+                        type="button"
+                        className="secondary-btn"
+                        disabled={processActionLoading}
+                        onClick={() => updateProcessStatus(process, nextProcessStatus)}
+                        title={isProcessCompleted ? "Quitar completado y volver a activo" : "Marcar proceso como completado"}
+                        style={
+                          isProcessCompleted
+                            ? {
+                                borderColor: "rgba(56,189,248,0.35)",
+                                background: "rgba(56,189,248,0.10)",
+                                color: "#bae6fd",
+                              }
+                            : undefined
+                        }
+                      >
+                        {processActionLoading ? "Actualizando..." : processActionLabel}
                       </button>
 
                       <button type="button" className="danger-link" onClick={() => deleteProcess(process)} disabled={processActionLoading}>
