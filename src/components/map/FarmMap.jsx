@@ -595,15 +595,20 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
     }
   };
 
-  const createProcessForZone = async () => {
-    if (!componentsModalZoneId || !modalZone) return;
+  const createProcessForZone = async (processOverride = null, initialSteps = []) => {
+    if (!componentsModalZoneId || !modalZone) return null;
 
-    const safeName = newProcessName.trim();
-    const safeDescription = newProcessDescription.trim();
+    const source = processOverride || {};
+    const safeName = String(source.name ?? newProcessName).trim();
+    const safeDescription = String(source.description ?? newProcessDescription).trim();
+    const safeOwner = String(source.owner ?? newProcessOwner).trim();
+    const safePriority = source.priority || newProcessPriority || "Media";
+    const safeType = source.type || "General";
+    const safeStatus = source.status || "Borrador";
 
     if (!safeName) {
       setProcessesError("Escribe el nombre del proceso.");
-      return;
+      return null;
     }
 
     try {
@@ -616,23 +621,61 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
         console.warn("No se pudo sincronizar la zona antes de crear el proceso:", err);
         setProcessesError("No se pudo sincronizar la zona antes de crear el proceso.");
         setProcessActionLoading(false);
-        return;
+        return null;
       }
 
-      await apiFetch("/api/processes", {
+      const createdProcess = await apiFetch("/api/processes", {
         method: "POST",
         body: JSON.stringify({
           zoneId: componentsModalZoneId,
           name: safeName,
           description: safeDescription,
-          owner: newProcessOwner.trim(),
-          priority: newProcessPriority,
+          owner: safeOwner,
+          priority: safePriority,
           startDate: null,
           targetDate: null,
-          type: "General",
-          status: "Borrador",
+          type: safeType,
+          status: safeStatus,
         }),
       });
+
+      const processId = createdProcess?.id;
+      const stepsToCreate = Array.isArray(initialSteps) ? initialSteps : [];
+
+      if (processId && stepsToCreate.length > 0) {
+        for (const [index, step] of stepsToCreate.entries()) {
+          const stepName = String(step?.name || `Etapa ${index + 1}`).trim();
+          const durationNumber = Number(step?.durationDays);
+          const calculatedDueDate =
+            step?.dueDate || addDaysToYYYYMMDD(step?.startDate, step?.durationDays);
+
+          if (!step?.startDate) {
+            throw new Error(`Selecciona la fecha de inicio de la etapa ${index + 1}.`);
+          }
+
+          if (!Number.isFinite(durationNumber) || durationNumber < 0) {
+            throw new Error(`Escribe una duración válida para la etapa ${index + 1}.`);
+          }
+
+          if (!calculatedDueDate) {
+            throw new Error(`No se pudo calcular la fecha final de la etapa ${index + 1}.`);
+          }
+
+          await apiFetch("/api/processes/step", {
+            method: "POST",
+            body: JSON.stringify({
+              processId,
+              name: stepName,
+              owner: safeOwner,
+              priority: safePriority,
+              startDate: step.startDate || null,
+              dueDate: calculatedDueDate || null,
+              notes: step.notes || "",
+              status: "Pendiente",
+            }),
+          });
+        }
+      }
 
       setNewProcessName("");
       setNewProcessDescription("");
@@ -642,8 +685,10 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
       setNewProcessTargetDate("");
       setShowCreateProcessForm(false);
       await loadZoneProcesses(componentsModalZoneId);
+      return createdProcess;
     } catch (err) {
       setProcessesError(err?.message || "No se pudo crear el proceso.");
+      return null;
     } finally {
       setProcessActionLoading(false);
     }
