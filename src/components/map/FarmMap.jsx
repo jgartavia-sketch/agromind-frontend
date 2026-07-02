@@ -22,6 +22,7 @@ import {
 import Point from "ol/geom/Point";
 import LineString from "ol/geom/LineString";
 import Polygon from "ol/geom/Polygon";
+import { useFarm } from "../../context/FarmContext";
 
 const VIEW_KEY = "agromind_farm_view";
 const DRAWINGS_KEY = "agromind_farm_drawings";
@@ -331,6 +332,7 @@ function getStatusPillStyle(status) {
 }
 
 export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
+  const { setActiveFarm: setGlobalActiveFarm } = useFarm();
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const vectorSourceRef = useRef(null);
@@ -1457,8 +1459,13 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
         return;
       }
 
+      const farmForContext =
+        nextFarms.find((farm) => farm.id === farmId) ||
+        picked ||
+        (nextFarms.length > 0 ? nextFarms[0] : null);
+
       setActiveFarmId(farmId);
-      localStorage.setItem(ACTIVE_FARM_KEY, farmId);
+      setGlobalActiveFarm(farmForContext || { id: farmId, name: "Finca activa" });
 
       await loadFarmMap(farmId, {
         allowLocalFallback: true,
@@ -1495,8 +1502,13 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
         autosaveTimerRef.current = null;
       }
 
+      const selectedFarm = farms.find((farm) => farm.id === farmId) || {
+        id: farmId,
+        name: "Finca activa",
+      };
+
       setActiveFarmId(farmId);
-      localStorage.setItem(ACTIVE_FARM_KEY, farmId);
+      setGlobalActiveFarm(selectedFarm);
       setFarmMenuOpen(false);
       setFarmViewPinned(false);
       setFarmSavedNotice("");
@@ -1545,7 +1557,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
       const nextFarms = [newFarm, ...farms.filter((farm) => farm.id !== newFarm.id)];
       setFarms(nextFarms);
       setActiveFarmId(newFarm.id);
-      localStorage.setItem(ACTIVE_FARM_KEY, newFarm.id);
+      setGlobalActiveFarm(newFarm);
       setFarmMenuOpen(false);
       setFarmViewPinned(true);
       setFarmSavedNotice(`✓ Vista establecida para ${newFarm.name || name}`);
@@ -1616,6 +1628,11 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
       setFarms((prev) =>
         prev.map((item) => (item.id === farm.id ? { ...item, ...updatedFarm } : item))
       );
+
+      if (farm.id === activeFarmId) {
+        setGlobalActiveFarm({ ...farm, ...updatedFarm });
+      }
+
       setEditingFarmId(null);
       setEditingFarmName("");
       setFarmSavedNotice(`✓ Nombre actualizado: ${updatedFarm.name || nextName}`);
@@ -2311,6 +2328,15 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
         view: currentView,
       });
 
+      const updatedActiveFarm = activeFarm
+        ? {
+            ...activeFarm,
+            view: currentView,
+            preferredCenter: currentView.center,
+            updatedAt: nowIso(),
+          }
+        : null;
+
       setFarms((prev) =>
         prev.map((farm) =>
           farm.id === activeFarmId
@@ -2323,6 +2349,10 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
             : farm
         )
       );
+
+      if (updatedActiveFarm) {
+        setGlobalActiveFarm(updatedActiveFarm);
+      }
 
       setFarmViewPinned(true);
       setFarmSavedNotice(`✓ Vista establecida para ${activeFarmName}`);

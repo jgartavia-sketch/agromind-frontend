@@ -6,6 +6,7 @@ import interactionPlugin from "@fullcalendar/interaction";
 import listPlugin from "@fullcalendar/list";
 
 import { useEffect, useMemo, useState, useCallback } from "react";
+import { useFarm } from "../context/FarmContext";
 import "../styles/tasks.css";
 
 function getPriorityClass(priority) {
@@ -361,21 +362,36 @@ export default function TareasPage({
 
   const token = tokenProp || getAuthToken();
 
+  const {
+    activeFarm: contextActiveFarm,
+    farmId: contextFarmId,
+    farmName: contextFarmName,
+    setActiveFarm,
+  } = useFarm();
+
   const [localFarmId, setLocalFarmId] = useState(() =>
-    farmIdProp || getActiveFarmId()
+    farmIdProp || contextFarmId || getActiveFarmId()
   );
   const [farms, setFarms] = useState([]);
   const [farmsLoading, setFarmsLoading] = useState(false);
 
-  const farmId = farmIdProp || localFarmId;
+  const farmId = farmIdProp || contextFarmId || localFarmId;
 
   const activeFarm = useMemo(() => {
-    if (!farmId || !Array.isArray(farms)) return null;
-    return farms.find((farm) => String(farm.id) === String(farmId)) || null;
-  }, [farms, farmId]);
+    if (contextActiveFarm?.id && String(contextActiveFarm.id) === String(farmId)) {
+      return contextActiveFarm;
+    }
+
+    if (!farmId || !Array.isArray(farms)) return contextActiveFarm || null;
+    return (
+      farms.find((farm) => String(farm.id) === String(farmId)) ||
+      contextActiveFarm ||
+      null
+    );
+  }, [farms, farmId, contextActiveFarm]);
 
   const activeFarmName =
-    activeFarm?.name || (farmId ? "Finca activa" : "Sin finca activa");
+    activeFarm?.name || contextFarmName || (farmId ? "Finca activa" : "Sin finca activa");
 
   function authHeaders() {
     return {
@@ -409,7 +425,7 @@ export default function TareasPage({
   const fetchFarms = useCallback(async () => {
     if (!token) {
       setFarms([]);
-      return;
+      return [];
     }
 
     setFarmsLoading(true);
@@ -425,86 +441,91 @@ export default function TareasPage({
 
       setFarms(list);
 
-      const savedFarmId = farmIdProp || getActiveFarmId();
-      const savedExists = savedFarmId
-        ? list.some((farm) => String(farm.id) === String(savedFarmId))
-        : false;
+      const desiredFarmId = farmIdProp || contextFarmId || getActiveFarmId();
+      const desiredFarm = desiredFarmId
+        ? list.find((farm) => String(farm.id) === String(desiredFarmId))
+        : null;
+      const fallbackFarm = list[0] || null;
+      const nextFarm = desiredFarm || fallbackFarm;
 
-      if (savedExists) {
-        setLocalFarmId(savedFarmId);
-      } else if (!farmIdProp && !localFarmId && list[0]?.id) {
-        setLocalFarmId(list[0].id);
-        try {
-          localStorage.setItem("agromind_active_farm_id", list[0].id);
-        } catch {
-          // no-op
+      if (nextFarm?.id) {
+        setLocalFarmId(nextFarm.id);
+
+        if (!farmIdProp && String(contextFarmId || "") !== String(nextFarm.id)) {
+          setActiveFarm(nextFarm);
         }
+      } else {
+        setLocalFarmId("");
       }
+
+      return list;
     } catch {
       setFarms([]);
+      return [];
     } finally {
       setFarmsLoading(false);
     }
-  }, [token, API_BASE, farmIdProp, localFarmId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [token, API_BASE, farmIdProp, contextFarmId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    if (farmIdProp && String(farmIdProp) !== String(localFarmId || "")) {
-      setLocalFarmId(farmIdProp);
+    const nextFarmId = farmIdProp || contextFarmId || "";
+
+    if (nextFarmId && String(nextFarmId) !== String(localFarmId || "")) {
+      setLocalFarmId(nextFarmId);
     }
-  }, [farmIdProp, localFarmId]);
+  }, [farmIdProp, contextFarmId, localFarmId]);
 
   useEffect(() => {
     fetchFarms();
   }, [fetchFarms]);
 
   useEffect(() => {
-    const syncActiveFarmFromStorage = () => {
-      if (farmIdProp) return;
-      const nextFarmId = getActiveFarmId();
+    const onFarmEvent = (event) => {
+      const farm = event?.detail?.farm || null;
+      const nextFarmId = farm?.id || getActiveFarmId();
+
       if (nextFarmId && String(nextFarmId) !== String(localFarmId || "")) {
         setLocalFarmId(nextFarmId);
       }
+
+      fetchFarms();
     };
 
-    const onStorage = (e) => {
+    const onStorage = (event) => {
       if (
-        e?.key &&
+        event?.key &&
         ![
           "agromind_active_farm_id",
+          "agromind_active_farm_name",
           "activeFarmId",
           "farmId",
           "agromind_farm_id",
           "farmLocation",
-        ].includes(e.key)
+        ].includes(event.key)
       ) {
         return;
       }
 
-      syncActiveFarmFromStorage();
+      const nextFarmId = getActiveFarmId();
+      if (nextFarmId && String(nextFarmId) !== String(localFarmId || "")) {
+        setLocalFarmId(nextFarmId);
+      }
+
       fetchFarms();
     };
 
-    const onFarmEvent = () => {
-      syncActiveFarmFromStorage();
-      fetchFarms();
-    };
-
-    const onFocus = () => {
-      syncActiveFarmFromStorage();
-    };
-
-    window.addEventListener("storage", onStorage);
-    window.addEventListener("focus", onFocus);
+    window.addEventListener("agromind:farm:change", onFarmEvent);
     window.addEventListener("agromind:farm:changed", onFarmEvent);
     window.addEventListener("agromind:farm-location:changed", onFarmEvent);
+    window.addEventListener("storage", onStorage);
 
     return () => {
-      window.removeEventListener("storage", onStorage);
-      window.removeEventListener("focus", onFocus);
+      window.removeEventListener("agromind:farm:change", onFarmEvent);
       window.removeEventListener("agromind:farm:changed", onFarmEvent);
       window.removeEventListener("agromind:farm-location:changed", onFarmEvent);
+      window.removeEventListener("storage", onStorage);
     };
-  }, [farmIdProp, localFarmId, fetchFarms]);
+  }, [localFarmId, fetchFarms]);
 
   const fetchWeather = useCallback(async () => {
     setWeatherLoading(true);
@@ -666,6 +687,16 @@ export default function TareasPage({
       window.removeEventListener("storage", onStorage);
     };
   }, [farmId, fetchTasks, fetchSuggestions]);
+
+  useEffect(() => {
+    setStatusFilter("Todas");
+    setTypeFilter("Todas");
+    setZoneFilter("Todas");
+    setSearchText("");
+    setEditingId(null);
+    setFormData(EMPTY_FORM);
+    setIgnoredSuggestions(new Set());
+  }, [farmId]);
 
   const summary = useMemo(() => {
     const total = tasks.length;
