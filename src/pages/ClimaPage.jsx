@@ -2,6 +2,59 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import "../styles/clima.css";
 
+
+const ACTIVE_FARM_KEY = "agromind_active_farm_id";
+const API_BASE =
+  import.meta.env.VITE_API_URL || "https://agromind-backend-slem.onrender.com";
+
+function getAuthToken() {
+  return (
+    localStorage.getItem("agromind_token") ||
+    localStorage.getItem("token") ||
+    localStorage.getItem("agromind_auth_token") ||
+    localStorage.getItem("auth_token") ||
+    localStorage.getItem("jwt") ||
+    ""
+  );
+}
+
+async function apiFetch(path, options = {}) {
+  const token = getAuthToken();
+  const headers = {
+    "Content-Type": "application/json",
+    ...(options.headers || {}),
+  };
+
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  const res = await fetch(`${API_BASE}${path}`, {
+    ...options,
+    headers,
+  });
+
+  const text = await res.text();
+  let data = null;
+
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    data = text;
+  }
+
+  if (!res.ok) {
+    const message =
+      data && typeof data === "object" && data.error
+        ? data.error
+        : typeof data === "string" && data.trim()
+        ? data
+        : "Error en request.";
+    throw new Error(message);
+  }
+
+  return data;
+}
+
+
 const WEATHER_CODE_LABELS = {
   0: "Despejado",
   1: "Mayormente despejado",
@@ -168,17 +221,32 @@ function parseFarmLocation() {
     const parsed = JSON.parse(raw);
     const lat = Number(parsed?.lat);
     const lon = Number(parsed?.lon);
+    const zoom = Number(parsed?.zoom);
+    const farmId =
+      parsed?.farmId || localStorage.getItem(ACTIVE_FARM_KEY) || null;
 
     if (Number.isFinite(lat) && Number.isFinite(lon)) {
       return {
         latitude: lat,
         longitude: lon,
+        zoom: Number.isFinite(zoom) ? zoom : null,
+        farmId,
       };
     }
 
     return null;
   } catch {
     return null;
+  }
+}
+
+function getSavedActiveFarmId() {
+  try {
+    const fromFarmLocation = JSON.parse(localStorage.getItem("farmLocation") || "null")
+      ?.farmId;
+    return fromFarmLocation || localStorage.getItem(ACTIVE_FARM_KEY) || null;
+  } catch {
+    return localStorage.getItem(ACTIVE_FARM_KEY) || null;
   }
 }
 
@@ -191,8 +259,41 @@ export default function ClimaPage() {
   const [loadingWeather, setLoadingWeather] = useState(false);
   const [error, setError] = useState("");
   const [hasFarmLocation, setHasFarmLocation] = useState(false);
+  const [activeFarmId, setActiveFarmId] = useState(() => getSavedActiveFarmId());
+  const [activeFarmName, setActiveFarmName] = useState("");
+  const [farmContextLoading, setFarmContextLoading] = useState(false);
 
   const timezone = weather?.timezone || "America/Costa_Rica";
+  const activeFarmLabel =
+    activeFarmName || (activeFarmId ? "Finca activa" : "Sin finca activa");
+
+  const loadActiveFarmContext = useCallback(async () => {
+    const savedFarmId = getSavedActiveFarmId();
+    setActiveFarmId(savedFarmId);
+
+    if (!savedFarmId) {
+      setActiveFarmName("");
+      return;
+    }
+
+    const token = getAuthToken();
+    if (!token) {
+      setActiveFarmName("Finca activa");
+      return;
+    }
+
+    try {
+      setFarmContextLoading(true);
+      const data = await apiFetch("/api/farms", { method: "GET" });
+      const farms = Array.isArray(data?.farms) ? data.farms : [];
+      const active = farms.find((farm) => farm.id === savedFarmId);
+      setActiveFarmName(active?.name || "Finca activa");
+    } catch {
+      setActiveFarmName("Finca activa");
+    } finally {
+      setFarmContextLoading(false);
+    }
+  }, []);
 
   const resolveLocationByName = useCallback(async (searchText) => {
     const clean = String(searchText || "").trim();
@@ -342,21 +443,46 @@ export default function ClimaPage() {
   }, []);
 
   useEffect(() => {
-    const farmLocation = parseFarmLocation();
+    let cancelled = false;
 
-    if (farmLocation) {
-      setCoords(farmLocation);
-      setHasFarmLocation(true);
-      setLocationName("Ubicación de mi finca");
-      resolveLocationNameByCoords(farmLocation.latitude, farmLocation.longitude);
-      return;
-    }
+    const syncFarmWeatherContext = async () => {
+      await loadActiveFarmContext();
+      if (cancelled) return;
 
-    setCoords(null);
-    setWeather(null);
-    setHasFarmLocation(false);
-    setLocationName("Ubicación de la finca no definida");
-  }, [resolveLocationNameByCoords]);
+      const farmLocation = parseFarmLocation();
+
+      if (farmLocation) {
+        setCoords({
+          latitude: farmLocation.latitude,
+          longitude: farmLocation.longitude,
+        });
+        setHasFarmLocation(true);
+        setLocationName("Ubicación de la finca activa");
+        resolveLocationNameByCoords(farmLocation.latitude, farmLocation.longitude);
+        return;
+      }
+
+      setCoords(null);
+      setWeather(null);
+      setHasFarmLocation(false);
+      setLocationName("Ubicación de la finca no definida");
+    };
+
+    syncFarmWeatherContext();
+
+    const handleFarmContextChange = () => {
+      syncFarmWeatherContext();
+    };
+
+    window.addEventListener("agromind:farm:changed", handleFarmContextChange);
+    window.addEventListener("storage", handleFarmContextChange);
+
+    return () => {
+      cancelled = true;
+      window.removeEventListener("agromind:farm:changed", handleFarmContextChange);
+      window.removeEventListener("storage", handleFarmContextChange);
+    };
+  }, [loadActiveFarmContext, resolveLocationNameByCoords]);
 
   useEffect(() => {
     if (!coords) return;
@@ -405,10 +531,71 @@ export default function ClimaPage() {
 
   return (
     <div className="clima-page">
+      <section
+        className="clima-active-farm-card"
+        style={{
+          marginBottom: "1rem",
+          padding: "1rem 1.15rem",
+          borderRadius: "18px",
+          border: "1px solid rgba(34,197,94,0.18)",
+          background:
+            "linear-gradient(135deg, rgba(20,83,45,0.28), rgba(15,23,42,0.88))",
+          boxShadow: "0 16px 38px rgba(0,0,0,0.18)",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: "1rem",
+            flexWrap: "wrap",
+          }}
+        >
+          <div>
+            <div
+              style={{
+                color: "rgba(187,247,208,0.92)",
+                fontSize: "0.78rem",
+                fontWeight: 800,
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+                marginBottom: "0.25rem",
+              }}
+            >
+              🌱 Finca activa
+            </div>
+            <strong
+              style={{
+                display: "block",
+                color: "#f8fafc",
+                fontSize: "1.15rem",
+                lineHeight: 1.2,
+              }}
+            >
+              {farmContextLoading ? "Cargando finca..." : activeFarmLabel}
+            </strong>
+          </div>
+
+          <p
+            style={{
+              margin: 0,
+              color: "rgba(226,232,240,0.76)",
+              fontSize: "0.9rem",
+              maxWidth: "680px",
+            }}
+          >
+            El pronóstico, las alertas y la lectura operativa usan la ubicación
+            guardada de esta finca. Para trabajar otra ubicación, cambiá la finca
+            activa desde el mapa.
+          </p>
+        </div>
+      </section>
+
       <section className="clima-hero">
         <div className="clima-hero-copy">
           <span className="clima-badge">
-            {hasFarmLocation ? "Clima real de la finca" : "Clima listo para conectarse a la finca"}
+            {hasFarmLocation ? `Clima real · ${activeFarmLabel}` : "Clima listo para conectarse a la finca"}
           </span>
 
           <h1 className="clima-title">El tiempo también manda en la finca.</h1>
@@ -449,7 +636,7 @@ export default function ClimaPage() {
           <div className="clima-location-meta">
             <span>
               <strong>Fuente:</strong>{" "}
-              {hasFarmLocation ? "Coordenadas guardadas de la finca" : "Sin coordenadas de finca"}
+              {hasFarmLocation ? `Coordenadas guardadas de ${activeFarmLabel}` : "Sin coordenadas de finca"}
             </span>
 
             <span>
@@ -483,7 +670,7 @@ export default function ClimaPage() {
               <div className="clima-current-top">
                 <div>
                   <p className="clima-current-label">
-                    {hasFarmLocation ? "Condición actual de la finca" : "Condición actual"}
+                    {hasFarmLocation ? `Condición actual · ${activeFarmLabel}` : "Condición actual"}
                   </p>
                   <h2 className="clima-current-location">{locationName}</h2>
                 </div>
