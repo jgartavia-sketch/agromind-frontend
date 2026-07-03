@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 export default function ComponentModal({
   modalZone,
@@ -20,27 +20,53 @@ export default function ComponentModal({
   const [expandedComponentId, setExpandedComponentId] = useState(
     safeComponents?.[0]?.id || null
   );
+  const [searchTerm, setSearchTerm] = useState("");
+  const [activeTypeFilter, setActiveTypeFilter] = useState("Todos");
+
+  const componentTypeOptions = useMemo(() => {
+    const baseTypes = Array.isArray(COMPONENT_TYPES) ? COMPONENT_TYPES : [];
+    const requiredTypes = [
+      "Árbol",
+      "Animal",
+      "Bebedero",
+      "Comedero",
+      "Bodega",
+      "Lote de cultivo",
+      "Pasillo",
+      "Área de descanso",
+      "Riego",
+      "Infraestructura",
+      "Otro",
+    ];
+
+    return Array.from(
+      new Set(
+        [...baseTypes, ...requiredTypes]
+          .map((type) => String(type || "").trim())
+          .filter(Boolean)
+      )
+    );
+  }, [COMPONENT_TYPES]);
 
   const resolveIcon = (type) => {
     if (typeof getComponentIcon === "function") return getComponentIcon(type);
 
     const value = String(type || "Otro").toLowerCase();
+    if (value.includes("animal")) return "🐄";
     if (
-      value.includes("animal") ||
-      value.includes("gallina") ||
-      value.includes("vaca") ||
-      value.includes("cerdo") ||
-      value.includes("pato")
+      value.includes("árbol") ||
+      value.includes("arbol") ||
+      value.includes("aguacate") ||
+      value.includes("frutal")
     ) {
-      return "🐄";
+      return "🌳";
     }
     if (value.includes("cultivo") || value.includes("lote")) return "🌱";
     if (value.includes("bebedero") || value.includes("riego")) return "💧";
     if (value.includes("comedero")) return "🌾";
-    if (value.includes("bodega")) return "🏠";
+    if (value.includes("bodega") || value.includes("infraestructura")) return "🏠";
     if (value.includes("pasillo")) return "↔️";
     if (value.includes("descanso")) return "🟢";
-    if (value.includes("árbol") || value.includes("arbol")) return "🌳";
     return "📍";
   };
 
@@ -56,21 +82,6 @@ export default function ComponentModal({
     return `${type} #${index + 1}`;
   };
 
-  const componentIconPreview = useMemo(
-    () =>
-      safeComponents.slice(0, 14).map((component, index) => ({
-        key: component?.id || `component-icon-${index}`,
-        icon: resolveIcon(component?.type),
-        label: resolveDisplayName(component, index),
-      })),
-    [safeComponents]
-  );
-
-  const remainingIconCount = Math.max(
-    totalComponents - componentIconPreview.length,
-    0
-  );
-
   const typeCounts = useMemo(() => {
     const counts = {};
     safeComponents.forEach((component) => {
@@ -80,19 +91,74 @@ export default function ComponentModal({
     return counts;
   }, [safeComponents]);
 
-  const topTypes = Object.entries(typeCounts).slice(0, 4);
+  const availableFilterTypes = useMemo(() => {
+    const currentTypes = Object.keys(typeCounts);
+    return ["Todos", ...currentTypes];
+  }, [typeCounts]);
+
+  const filteredComponents = useMemo(() => {
+    const query = searchTerm.trim().toLowerCase();
+
+    return safeComponents.filter((component, index) => {
+      const name = resolveDisplayName(component, index).toLowerCase();
+      const type = String(component?.type || "Otro").toLowerCase();
+      const note = String(component?.note || "").toLowerCase();
+
+      const matchesSearch = !query || name.includes(query) || type.includes(query) || note.includes(query);
+      const matchesType = activeTypeFilter === "Todos" || String(component?.type || "Otro") === activeTypeFilter;
+
+      return matchesSearch && matchesType;
+    });
+  }, [safeComponents, searchTerm, activeTypeFilter]);
+
+  const componentIconPreview = useMemo(
+    () =>
+      safeComponents.slice(0, 16).map((component, index) => ({
+        key: component?.id || `component-icon-${index}`,
+        icon: resolveIcon(component?.type),
+        label: resolveDisplayName(component, index),
+      })),
+    [safeComponents]
+  );
+
+  const remainingIconCount = Math.max(totalComponents - componentIconPreview.length, 0);
+  const topTypes = Object.entries(typeCounts).slice(0, 6);
+  const hasActiveFilters = searchTerm.trim() || activeTypeFilter !== "Todos";
+
+  useEffect(() => {
+    if (safeComponents.length === 0) {
+      setExpandedComponentId(null);
+      return;
+    }
+
+    const expandedStillExists = safeComponents.some(
+      (component) => component?.id === expandedComponentId
+    );
+
+    if (!expandedStillExists) {
+      setExpandedComponentId(safeComponents[0]?.id || null);
+    }
+  }, [safeComponents, expandedComponentId]);
 
   const handleToggleExpanded = (componentId) => {
     setExpandedComponentId((prev) => (prev === componentId ? null : componentId));
   };
 
   const handleAddComponent = () => {
+    const beforeIds = new Set(safeComponents.map((component) => component?.id));
     draftAddComponent();
+
     setTimeout(() => {
-      const latest = Array.isArray(componentsDraft) ? componentsDraft : [];
-      const fallbackId = latest?.[latest.length - 1]?.id || null;
-      if (fallbackId) setExpandedComponentId(fallbackId);
+      const newest = (Array.isArray(componentsDraft) ? componentsDraft : []).find(
+        (component) => component?.id && !beforeIds.has(component.id)
+      );
+      if (newest?.id) setExpandedComponentId(newest.id);
     }, 0);
+  };
+
+  const resetFilters = () => {
+    setSearchTerm("");
+    setActiveTypeFilter("Todos");
   };
 
   return (
@@ -114,8 +180,9 @@ export default function ComponentModal({
         style={{
           position: "absolute",
           inset: 0,
-          background: "rgba(0,0,0,0.55)",
-          backdropFilter: "blur(2px)",
+          background:
+            "radial-gradient(circle at top, rgba(34,197,94,0.13), transparent 36%), rgba(0,0,0,0.62)",
+          backdropFilter: "blur(5px)",
         }}
       />
 
@@ -123,12 +190,14 @@ export default function ComponentModal({
         onClick={(e) => e.stopPropagation()}
         style={{
           position: "relative",
-          width: "min(980px, 100%)",
-          maxHeight: "min(84vh, 820px)",
-          background: "rgba(2,6,23,0.96)",
+          width: "min(1080px, 100%)",
+          maxHeight: "min(88vh, 900px)",
+          background:
+            "linear-gradient(145deg, rgba(2,6,23,0.98), rgba(15,23,42,0.96))",
           border: "1px solid rgba(148,163,184,0.22)",
-          borderRadius: "18px",
-          boxShadow: "0 18px 60px rgba(0,0,0,0.55)",
+          borderRadius: "24px",
+          boxShadow:
+            "0 28px 90px rgba(0,0,0,0.62), 0 0 0 1px rgba(34,197,94,0.06), inset 0 1px 0 rgba(255,255,255,0.04)",
           overflow: "hidden",
           display: "flex",
           flexDirection: "column",
@@ -136,122 +205,148 @@ export default function ComponentModal({
       >
         <div
           style={{
-            padding: "14px 14px",
-            borderBottom: "1px solid rgba(148,163,184,0.18)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: "10px",
+            position: "relative",
+            padding: "18px 18px 16px",
+            borderBottom: "1px solid rgba(148,163,184,0.16)",
+            background:
+              "linear-gradient(135deg, rgba(6,78,59,0.48), rgba(15,23,42,0.86) 58%, rgba(2,6,23,0.92))",
+            overflow: "hidden",
           }}
         >
           <div
             style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "10px",
-              flexWrap: "wrap",
+              position: "absolute",
+              top: "-90px",
+              right: "-90px",
+              width: "220px",
+              height: "220px",
+              borderRadius: "999px",
+              background: "rgba(34,197,94,0.12)",
+              filter: "blur(4px)",
+              pointerEvents: "none",
             }}
-          >
-            <h4 style={{ margin: 0, color: "#e5e7eb" }}>Component Lab</h4>
-            <span className="zone-tag">{modalZone?.name || "Zona"}</span>
-          </div>
+          />
 
-          <button
-            type="button"
-            className="secondary-btn"
-            onClick={closeComponentsModal}
-            style={{ padding: "0.35rem 0.65rem" }}
-            title="Cerrar"
-          >
-            ✕
-          </button>
-        </div>
-
-        <div style={{ padding: "14px", overflow: "auto" }}>
-          <section
+          <div
             style={{
-              border: "1px solid rgba(34,197,94,0.20)",
-              background:
-                "linear-gradient(135deg, rgba(6,78,59,0.34), rgba(15,23,42,0.92))",
-              borderRadius: "20px",
-              padding: "18px",
-              marginBottom: "16px",
-              boxShadow: "0 20px 50px rgba(0,0,0,0.22)",
+              position: "relative",
+              display: "flex",
+              alignItems: "flex-start",
+              justifyContent: "space-between",
+              gap: "14px",
             }}
           >
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                gap: "12px",
-                flexWrap: "wrap",
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                <div
+            <div style={{ minWidth: 0 }}>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "10px",
+                  flexWrap: "wrap",
+                }}
+              >
+                <span
                   style={{
-                    width: "42px",
-                    height: "42px",
+                    width: "44px",
+                    height: "44px",
                     borderRadius: "16px",
                     display: "inline-flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    border: "1px solid rgba(34,197,94,0.28)",
-                    background: "rgba(34,197,94,0.12)",
-                    color: "#86efac",
-                    fontWeight: 900,
+                    border: "1px solid rgba(34,197,94,0.34)",
+                    background:
+                      "linear-gradient(135deg, rgba(34,197,94,0.18), rgba(20,184,166,0.08))",
+                    color: "#bbf7d0",
+                    fontWeight: 950,
+                    boxShadow: "0 0 32px rgba(34,197,94,0.13)",
                   }}
                 >
                   CL
-                </div>
+                </span>
 
-                <div>
-                  <h3 style={{ margin: 0, color: "#e5e7eb", fontSize: "1rem" }}>
-                    Componentes de la zona
-                  </h3>
-                  <p
+                <div style={{ minWidth: 0 }}>
+                  <h3
                     style={{
-                      margin: "0.25rem 0 0",
-                      color: "rgba(226,232,240,0.68)",
-                      fontSize: "0.86rem",
+                      margin: 0,
+                      color: "#f8fafc",
+                      fontSize: "1.08rem",
+                      letterSpacing: "-0.01em",
                     }}
                   >
-                    Inventario simple: títulos, tipos y notas. Sin procesos, sin etapas, sin fechas.
-                  </p>
+                    Component Lab
+                  </h3>
+                  <div
+                    style={{
+                      marginTop: "0.22rem",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    <span className="zone-tag">{modalZone?.name || "Zona"}</span>
+                    <span
+                      style={{
+                        color: "rgba(226,232,240,0.64)",
+                        fontSize: "0.82rem",
+                      }}
+                    >
+                      Inventario visual simple, listo para crecer.
+                    </span>
+                  </div>
                 </div>
               </div>
-
-              <button type="button" className="primary-btn" onClick={handleAddComponent}>
-                Nuevo componente
-              </button>
             </div>
 
+            <button
+              type="button"
+              className="secondary-btn"
+              onClick={closeComponentsModal}
+              style={{ padding: "0.38rem 0.68rem" }}
+              title="Cerrar"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+
+        <div style={{ padding: "16px", overflow: "auto" }}>
+          <section
+            style={{
+              border: "1px solid rgba(34,197,94,0.22)",
+              background:
+                "linear-gradient(135deg, rgba(6,78,59,0.28), rgba(15,23,42,0.86))",
+              borderRadius: "22px",
+              padding: "16px",
+              marginBottom: "14px",
+              boxShadow: "0 20px 55px rgba(0,0,0,0.24)",
+            }}
+          >
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+                gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))",
                 gap: "12px",
-                marginTop: "16px",
               }}
             >
               <div
                 style={{
-                  border: "1px solid rgba(148,163,184,0.18)",
-                  background: "rgba(15,23,42,0.55)",
-                  borderRadius: "16px",
-                  padding: "12px",
+                  border: "1px solid rgba(148,163,184,0.17)",
+                  background: "rgba(2,6,23,0.36)",
+                  borderRadius: "18px",
+                  padding: "13px",
                 }}
               >
-                <div style={{ color: "rgba(226,232,240,0.66)", fontSize: "0.8rem" }}>
+                <div style={{ color: "rgba(226,232,240,0.62)", fontSize: "0.78rem" }}>
                   Componentes
                 </div>
                 <div
                   style={{
-                    marginTop: "0.25rem",
-                    color: "#e5e7eb",
-                    fontSize: "1.45rem",
-                    fontWeight: 900,
+                    marginTop: "0.24rem",
+                    color: "#f8fafc",
+                    fontSize: "1.65rem",
+                    fontWeight: 950,
+                    letterSpacing: "-0.04em",
                   }}
                 >
                   {totalComponents}
@@ -260,18 +355,18 @@ export default function ComponentModal({
 
               <div
                 style={{
-                  border: "1px solid rgba(148,163,184,0.18)",
-                  background: "rgba(15,23,42,0.55)",
-                  borderRadius: "16px",
-                  padding: "12px",
+                  border: "1px solid rgba(148,163,184,0.17)",
+                  background: "rgba(2,6,23,0.36)",
+                  borderRadius: "18px",
+                  padding: "13px",
                 }}
               >
-                <div style={{ color: "rgba(226,232,240,0.66)", fontSize: "0.8rem" }}>
+                <div style={{ color: "rgba(226,232,240,0.62)", fontSize: "0.78rem" }}>
                   Modelo
                 </div>
                 <div
                   style={{
-                    marginTop: "0.32rem",
+                    marginTop: "0.34rem",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "space-between",
@@ -279,7 +374,7 @@ export default function ComponentModal({
                     flexWrap: "wrap",
                   }}
                 >
-                  <span style={{ color: "#bbf7d0", fontSize: "0.95rem", fontWeight: 900 }}>
+                  <span style={{ color: "#bbf7d0", fontSize: "0.94rem", fontWeight: 950 }}>
                     Inventario visual
                   </span>
 
@@ -300,15 +395,16 @@ export default function ComponentModal({
                           key={item.key}
                           title={item.label}
                           style={{
-                            width: "24px",
-                            height: "24px",
+                            width: "25px",
+                            height: "25px",
                             borderRadius: "999px",
                             display: "inline-flex",
                             alignItems: "center",
                             justifyContent: "center",
-                            border: "1px solid rgba(34,197,94,0.22)",
+                            border: "1px solid rgba(34,197,94,0.24)",
                             background: "rgba(34,197,94,0.10)",
                             fontSize: "0.78rem",
+                            boxShadow: "0 0 16px rgba(34,197,94,0.08)",
                           }}
                         >
                           {item.icon}
@@ -323,8 +419,8 @@ export default function ComponentModal({
                     {remainingIconCount > 0 ? (
                       <span
                         style={{
-                          minWidth: "24px",
-                          height: "24px",
+                          minWidth: "25px",
+                          height: "25px",
                           padding: "0 7px",
                           borderRadius: "999px",
                           display: "inline-flex",
@@ -334,7 +430,7 @@ export default function ComponentModal({
                           background: "rgba(15,23,42,0.62)",
                           color: "#bbf7d0",
                           fontSize: "0.72rem",
-                          fontWeight: 900,
+                          fontWeight: 950,
                         }}
                       >
                         +{remainingIconCount}
@@ -343,49 +439,165 @@ export default function ComponentModal({
                   </span>
                 </div>
               </div>
-            </div>
 
-            {topTypes.length > 0 ? (
               <div
                 style={{
-                  marginTop: "12px",
-                  display: "flex",
-                  gap: "8px",
-                  flexWrap: "wrap",
+                  border: "1px solid rgba(148,163,184,0.17)",
+                  background: "rgba(2,6,23,0.36)",
+                  borderRadius: "18px",
+                  padding: "13px",
                 }}
               >
-                {topTypes.map(([type, count]) => (
-                  <span
-                    key={type}
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: "0.38rem",
-                      padding: "0.3rem 0.58rem",
-                      borderRadius: "999px",
-                      border: "1px solid rgba(148,163,184,0.18)",
-                      background: "rgba(15,23,42,0.50)",
-                      color: "rgba(226,232,240,0.82)",
-                      fontSize: "0.76rem",
-                      fontWeight: 800,
-                    }}
-                  >
-                    <span>{resolveIcon(type)}</span>
-                    <span>{type}</span>
-                    <strong style={{ color: "#bbf7d0" }}>{count}</strong>
-                  </span>
-                ))}
+                <div style={{ color: "rgba(226,232,240,0.62)", fontSize: "0.78rem" }}>
+                  Futuro
+                </div>
+                <div
+                  style={{
+                    marginTop: "0.36rem",
+                    color: "#e5e7eb",
+                    fontSize: "0.92rem",
+                    fontWeight: 900,
+                  }}
+                >
+                  📷 Fotos preparadas
+                </div>
               </div>
-            ) : null}
+            </div>
+
+            <div
+              style={{
+                marginTop: "12px",
+                display: "flex",
+                gap: "10px",
+                alignItems: "center",
+                justifyContent: "space-between",
+                flexWrap: "wrap",
+              }}
+            >
+              <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                {topTypes.length > 0 ? (
+                  topTypes.map(([type, count]) => (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => setActiveTypeFilter(type)}
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "0.38rem",
+                        padding: "0.35rem 0.62rem",
+                        borderRadius: "999px",
+                        border:
+                          activeTypeFilter === type
+                            ? "1px solid rgba(34,197,94,0.42)"
+                            : "1px solid rgba(148,163,184,0.18)",
+                        background:
+                          activeTypeFilter === type
+                            ? "rgba(34,197,94,0.13)"
+                            : "rgba(15,23,42,0.50)",
+                        color: activeTypeFilter === type ? "#bbf7d0" : "rgba(226,232,240,0.82)",
+                        fontSize: "0.76rem",
+                        fontWeight: 850,
+                        cursor: "pointer",
+                      }}
+                    >
+                      <span>{resolveIcon(type)}</span>
+                      <span>{type}</span>
+                      <strong>{count}</strong>
+                    </button>
+                  ))
+                ) : (
+                  <span style={{ color: "rgba(226,232,240,0.55)", fontSize: "0.82rem" }}>
+                    Los tipos aparecerán aquí cuando agregues componentes.
+                  </span>
+                )}
+              </div>
+
+              <button type="button" className="primary-btn" onClick={handleAddComponent}>
+                + Nuevo componente
+              </button>
+            </div>
+          </section>
+
+          <section
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: "10px",
+              flexWrap: "wrap",
+              marginBottom: "12px",
+            }}
+          >
+            <div
+              style={{
+                flex: "1 1 280px",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                padding: "0.55rem 0.72rem",
+                borderRadius: "999px",
+                border: "1px solid rgba(148,163,184,0.18)",
+                background: "rgba(2,6,23,0.42)",
+              }}
+            >
+              <span style={{ color: "rgba(226,232,240,0.56)" }}>🔍</span>
+              <input
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Buscar por nombre, tipo o nota..."
+                style={{
+                  width: "100%",
+                  border: "none",
+                  outline: "none",
+                  background: "transparent",
+                  color: "#e5e7eb",
+                  fontSize: "0.88rem",
+                }}
+              />
+            </div>
+
+            <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+              {availableFilterTypes.slice(0, 8).map((type) => (
+                <button
+                  key={type}
+                  type="button"
+                  onClick={() => setActiveTypeFilter(type)}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "0.32rem",
+                    padding: "0.46rem 0.72rem",
+                    borderRadius: "999px",
+                    border:
+                      activeTypeFilter === type
+                        ? "1px solid rgba(34,197,94,0.40)"
+                        : "1px solid rgba(148,163,184,0.17)",
+                    background:
+                      activeTypeFilter === type
+                        ? "rgba(34,197,94,0.12)"
+                        : "rgba(15,23,42,0.42)",
+                    color: activeTypeFilter === type ? "#bbf7d0" : "rgba(226,232,240,0.78)",
+                    cursor: "pointer",
+                    fontSize: "0.78rem",
+                    fontWeight: 850,
+                  }}
+                >
+                  {type !== "Todos" ? <span>{resolveIcon(type)}</span> : null}
+                  <span>{type}</span>
+                </button>
+              ))}
+            </div>
           </section>
 
           {totalComponents === 0 ? (
             <div
               style={{
                 border: "1px dashed rgba(148,163,184,0.28)",
-                background: "rgba(15,23,42,0.38)",
-                borderRadius: "18px",
-                padding: "18px",
+                background:
+                  "linear-gradient(135deg, rgba(15,23,42,0.45), rgba(6,78,59,0.16))",
+                borderRadius: "20px",
+                padding: "20px",
                 color: "rgba(226,232,240,0.74)",
               }}
             >
@@ -394,9 +606,33 @@ export default function ComponentModal({
                 Agregá árboles, animales, camas, tanques, bodegas, pasillos o cualquier elemento que exista en la zona.
               </div>
             </div>
+          ) : filteredComponents.length === 0 ? (
+            <div
+              style={{
+                border: "1px dashed rgba(148,163,184,0.26)",
+                background: "rgba(15,23,42,0.38)",
+                borderRadius: "18px",
+                padding: "18px",
+                color: "rgba(226,232,240,0.72)",
+              }}
+            >
+              No encontré componentes con esos filtros.
+              {hasActiveFilters ? (
+                <button
+                  type="button"
+                  className="secondary-btn"
+                  onClick={resetFilters}
+                  style={{ marginLeft: "10px", padding: "0.28rem 0.55rem" }}
+                >
+                  Limpiar filtros
+                </button>
+              ) : null}
+            </div>
           ) : (
             <div style={{ display: "grid", gap: "12px" }}>
-              {safeComponents.map((comp, index) => {
+              {filteredComponents.map((comp) => {
+                const realIndex = safeComponents.findIndex((item) => item?.id === comp?.id);
+                const index = realIndex >= 0 ? realIndex : 0;
                 const isEditingNote = editingNotesMap?.[comp.id] === true;
                 const noteText = String(comp.note || "").trim();
                 const displayName = resolveDisplayName(comp, index);
@@ -407,19 +643,37 @@ export default function ComponentModal({
                   <article
                     key={comp.id}
                     style={{
+                      position: "relative",
                       margin: 0,
-                      borderRadius: "18px",
+                      borderRadius: "20px",
                       border: isExpanded
-                        ? "1px solid rgba(34,197,94,0.32)"
+                        ? "1px solid rgba(34,197,94,0.36)"
                         : "1px solid rgba(148,163,184,0.18)",
                       background: isExpanded
-                        ? "linear-gradient(135deg, rgba(15,23,42,0.96), rgba(6,78,59,0.28))"
-                        : "linear-gradient(135deg, rgba(15,23,42,0.94), rgba(8,47,73,0.18))",
+                        ? "linear-gradient(135deg, rgba(15,23,42,0.98), rgba(6,78,59,0.30))"
+                        : "linear-gradient(135deg, rgba(15,23,42,0.94), rgba(8,47,73,0.16))",
                       boxShadow: isExpanded
-                        ? "0 18px 42px rgba(0,0,0,0.26), inset 0 0 0 1px rgba(34,197,94,0.04)"
-                        : "0 12px 30px rgba(0,0,0,0.18)",
+                        ? "0 22px 52px rgba(0,0,0,0.28), 0 0 34px rgba(34,197,94,0.08), inset 0 0 0 1px rgba(34,197,94,0.04)"
+                        : "0 12px 30px rgba(0,0,0,0.17)",
                       overflow: "hidden",
-                      transition: "transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease",
+                      transition:
+                        "transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease, background 160ms ease",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = "translateY(-2px)";
+                      e.currentTarget.style.boxShadow = isExpanded
+                        ? "0 24px 58px rgba(0,0,0,0.32), 0 0 42px rgba(34,197,94,0.11)"
+                        : "0 18px 44px rgba(0,0,0,0.24), 0 0 28px rgba(34,197,94,0.07)";
+                      e.currentTarget.style.borderColor = "rgba(34,197,94,0.34)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = "translateY(0)";
+                      e.currentTarget.style.boxShadow = isExpanded
+                        ? "0 22px 52px rgba(0,0,0,0.28), 0 0 34px rgba(34,197,94,0.08), inset 0 0 0 1px rgba(34,197,94,0.04)"
+                        : "0 12px 30px rgba(0,0,0,0.17)";
+                      e.currentTarget.style.borderColor = isExpanded
+                        ? "rgba(34,197,94,0.36)"
+                        : "rgba(148,163,184,0.18)";
                     }}
                   >
                     <button
@@ -431,7 +685,7 @@ export default function ComponentModal({
                         background: "transparent",
                         color: "inherit",
                         cursor: "pointer",
-                        padding: "14px",
+                        padding: "15px",
                         display: "grid",
                         gridTemplateColumns: "auto minmax(0, 1fr) auto",
                         gap: "12px",
@@ -441,16 +695,17 @@ export default function ComponentModal({
                     >
                       <span
                         style={{
-                          width: "40px",
-                          height: "40px",
+                          width: "42px",
+                          height: "42px",
                           borderRadius: "999px",
                           display: "inline-flex",
                           alignItems: "center",
                           justifyContent: "center",
-                          border: "1px solid rgba(34,197,94,0.24)",
-                          background: "rgba(34,197,94,0.12)",
-                          fontSize: "1.06rem",
-                          boxShadow: isExpanded ? "0 0 24px rgba(34,197,94,0.12)" : "none",
+                          border: "1px solid rgba(34,197,94,0.26)",
+                          background:
+                            "linear-gradient(135deg, rgba(34,197,94,0.14), rgba(20,184,166,0.06))",
+                          fontSize: "1.08rem",
+                          boxShadow: isExpanded ? "0 0 28px rgba(34,197,94,0.14)" : "none",
                         }}
                       >
                         {icon}
@@ -460,9 +715,9 @@ export default function ComponentModal({
                         <span
                           style={{
                             display: "block",
-                            color: "#e5e7eb",
-                            fontSize: "0.98rem",
-                            fontWeight: 900,
+                            color: "#f8fafc",
+                            fontSize: "0.99rem",
+                            fontWeight: 950,
                             overflow: "hidden",
                             textOverflow: "ellipsis",
                             whiteSpace: "nowrap",
@@ -473,10 +728,10 @@ export default function ComponentModal({
 
                         <span
                           style={{
-                            marginTop: "0.28rem",
+                            marginTop: "0.32rem",
                             display: "flex",
                             alignItems: "center",
-                            gap: "0.45rem",
+                            gap: "0.48rem",
                             flexWrap: "wrap",
                           }}
                         >
@@ -485,13 +740,13 @@ export default function ComponentModal({
                               display: "inline-flex",
                               alignItems: "center",
                               gap: "0.34rem",
-                              padding: "0.24rem 0.52rem",
+                              padding: "0.25rem 0.54rem",
                               borderRadius: "999px",
                               border: "1px solid rgba(148,163,184,0.18)",
-                              background: "rgba(15,23,42,0.55)",
-                              color: "rgba(226,232,240,0.78)",
+                              background: "rgba(2,6,23,0.38)",
+                              color: "rgba(226,232,240,0.80)",
                               fontSize: "0.74rem",
-                              fontWeight: 800,
+                              fontWeight: 850,
                             }}
                           >
                             <span>{icon}</span>
@@ -500,68 +755,63 @@ export default function ComponentModal({
 
                           <span
                             style={{
-                              color: noteText ? "rgba(187,247,208,0.82)" : "rgba(226,232,240,0.48)",
+                              color: noteText ? "rgba(187,247,208,0.86)" : "rgba(226,232,240,0.48)",
                               fontSize: "0.76rem",
-                              fontWeight: 700,
+                              fontWeight: 750,
                             }}
                           >
                             {noteText ? "Con nota" : "Sin nota"}
+                          </span>
+
+                          <span
+                            style={{
+                              color: "rgba(226,232,240,0.44)",
+                              fontSize: "0.76rem",
+                              fontWeight: 750,
+                            }}
+                          >
+                            📷 preparado
                           </span>
                         </span>
                       </span>
 
                       <span
                         style={{
-                          width: "34px",
-                          height: "34px",
+                          width: "36px",
+                          height: "36px",
                           borderRadius: "999px",
                           display: "inline-flex",
                           alignItems: "center",
                           justifyContent: "center",
                           border: isExpanded
-                            ? "1px solid rgba(34,197,94,0.36)"
+                            ? "1px solid rgba(34,197,94,0.38)"
                             : "1px solid rgba(148,163,184,0.16)",
-                          background: isExpanded
-                            ? "rgba(34,197,94,0.13)"
-                            : "rgba(15,23,42,0.52)",
+                          background: isExpanded ? "rgba(34,197,94,0.13)" : "rgba(2,6,23,0.44)",
                           color: isExpanded ? "#86efac" : "#cbd5e1",
-                          fontWeight: 900,
+                          fontWeight: 950,
+                          transition: "transform 160ms ease",
+                          transform: isExpanded ? "rotate(90deg)" : "rotate(0deg)",
                         }}
                         title={isExpanded ? "Contraer" : "Expandir"}
                       >
-                        {isExpanded ? "⌃" : "›"}
+                        ›
                       </span>
                     </button>
 
                     {isExpanded ? (
                       <div
                         style={{
-                          padding: "0 14px 14px",
+                          padding: "0 15px 15px",
                           borderTop: "1px dashed rgba(148,163,184,0.18)",
+                          animation: "componentLabFadeIn 160ms ease",
                         }}
                       >
                         <div
                           style={{
-                            display: "flex",
-                            justifyContent: "flex-end",
-                            paddingTop: "12px",
-                            marginBottom: "10px",
-                          }}
-                        >
-                          <button
-                            type="button"
-                            className="danger-link"
-                            onClick={() => draftDeleteComponent(comp.id)}
-                          >
-                            Borrar componente
-                          </button>
-                        </div>
-
-                        <div
-                          style={{
                             display: "grid",
-                            gridTemplateColumns: "minmax(180px, 1fr) minmax(160px, 0.6fr)",
+                            gridTemplateColumns: "minmax(180px, 1fr) minmax(160px, 0.58fr)",
                             gap: "10px",
+                            paddingTop: "14px",
                           }}
                         >
                           <input
@@ -576,15 +826,37 @@ export default function ComponentModal({
                             value={comp.type || "Otro"}
                             onChange={(e) => draftUpdate(comp.id, { type: e.target.value })}
                           >
-                            {COMPONENT_TYPES.map((t) => (
-                              <option key={t} value={t}>
-                                {t}
+                            {componentTypeOptions.map((type) => (
+                              <option key={type} value={type}>
+                                {type}
                               </option>
                             ))}
                           </select>
                         </div>
 
-                        <div style={{ marginTop: "10px" }}>
+                        <div
+                          style={{
+                            marginTop: "12px",
+                            border: "1px dashed rgba(148,163,184,0.17)",
+                            background: "rgba(2,6,23,0.26)",
+                            borderRadius: "15px",
+                            padding: "11px 12px",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            gap: "10px",
+                            flexWrap: "wrap",
+                          }}
+                        >
+                          <span style={{ color: "rgba(226,232,240,0.72)", fontSize: "0.82rem" }}>
+                            📷 Espacio preparado para fotografías del componente.
+                          </span>
+                          <span style={{ color: "rgba(187,247,208,0.72)", fontSize: "0.78rem", fontWeight: 850 }}>
+                            Próxima iteración
+                          </span>
+                        </div>
+
+                        <div style={{ marginTop: "12px" }}>
                           <div
                             style={{
                               display: "flex",
@@ -597,7 +869,7 @@ export default function ComponentModal({
                               style={{
                                 fontSize: "0.82rem",
                                 color: "rgba(226,232,240,0.72)",
-                                fontWeight: 800,
+                                fontWeight: 850,
                               }}
                             >
                               Nota simple
@@ -626,18 +898,33 @@ export default function ComponentModal({
                             <div
                               style={{
                                 marginTop: "8px",
-                                padding: "10px 12px",
-                                borderRadius: "12px",
+                                padding: "11px 12px",
+                                borderRadius: "14px",
                                 border: "1px solid rgba(148,163,184,0.16)",
-                                background: "rgba(2,6,23,0.35)",
+                                background: "rgba(2,6,23,0.36)",
                                 color: noteText ? "#e5e7eb" : "rgba(226,232,240,0.50)",
                                 whiteSpace: "pre-wrap",
                               }}
                             >
-                              {noteText ||
-                                "Sin nota. Podés dejarlo así o agregar una observación rápida."}
+                              {noteText || "Sin nota. Podés dejarlo así o agregar una observación rápida."}
                             </div>
                           )}
+                        </div>
+
+                        <div
+                          style={{
+                            marginTop: "12px",
+                            display: "flex",
+                            justifyContent: "flex-end",
+                          }}
+                        >
+                          <button
+                            type="button"
+                            className="danger-link"
+                            onClick={() => draftDeleteComponent(comp.id)}
+                          >
+                            Borrar componente
+                          </button>
                         </div>
                       </div>
                     ) : null}
@@ -650,8 +937,9 @@ export default function ComponentModal({
 
         <div
           style={{
-            padding: "12px 14px",
-            borderTop: "1px solid rgba(148,163,184,0.18)",
+            padding: "13px 16px",
+            borderTop: "1px solid rgba(148,163,184,0.16)",
+            background: "rgba(2,6,23,0.42)",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
@@ -659,10 +947,8 @@ export default function ComponentModal({
             flexWrap: "wrap",
           }}
         >
-          <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
-            <button type="button" className="primary-btn" onClick={handleAddComponent}>
-              Agregar componente
-            </button>
+          <div style={{ color: "rgba(226,232,240,0.58)", fontSize: "0.8rem" }}>
+            {filteredComponents.length} visible{filteredComponents.length === 1 ? "" : "s"} · {totalComponents} total
           </div>
 
           <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
@@ -670,11 +956,18 @@ export default function ComponentModal({
               Cancelar
             </button>
             <button type="button" className="primary-btn" onClick={saveComponentsModal}>
-              Guardar
+              Guardar cambios
             </button>
           </div>
         </div>
       </div>
+
+      <style>{`
+        @keyframes componentLabFadeIn {
+          from { opacity: 0; transform: translateY(-4px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
     </div>
   );
 }
