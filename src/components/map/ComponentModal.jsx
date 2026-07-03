@@ -206,6 +206,7 @@ export default function ComponentModal({
   const [photoErrorMap, setPhotoErrorMap] = useState({});
   const [previewPhoto, setPreviewPhoto] = useState(null);
   const [saveBeforePhotoPrompt, setSaveBeforePhotoPrompt] = useState(null);
+  const [saveNotice, setSaveNotice] = useState("");
 
   const isTabletLayout = viewportWidth <= 920;
   const isMobileLayout = viewportWidth <= 640;
@@ -411,9 +412,29 @@ export default function ComponentModal({
     setSaveBeforePhotoPrompt(null);
   };
 
-  const handleSaveComponentBeforePhoto = () => {
+  const handleSaveWithoutClosing = async () => {
+    try {
+      const result = saveComponentsModal?.({
+        keepOpen: true,
+        stayOpen: true,
+        source: "component-lab",
+      });
+
+      if (result && typeof result.then === "function") {
+        await result;
+      }
+
+      setSaveNotice("✓ Cambios guardados. Puedes continuar en Component Lab.");
+      window.setTimeout(() => setSaveNotice(""), 3200);
+    } catch (error) {
+      setSaveNotice("No se pudieron guardar los cambios. Intenta nuevamente.");
+      window.setTimeout(() => setSaveNotice(""), 4200);
+    }
+  };
+
+  const handleSaveComponentBeforePhoto = async () => {
     setSaveBeforePhotoPrompt(null);
-    saveComponentsModal();
+    await handleSaveWithoutClosing();
   };
 
   const setPhotoError = (componentId, message = "") => {
@@ -621,16 +642,19 @@ export default function ComponentModal({
           overflow: "hidden",
           display: "flex",
           flexDirection: "column",
+          minHeight: 0,
         }}
       >
         <div
           style={{
             position: "relative",
-            padding: isMobileLayout ? "14px 12px 13px" : "18px 18px 16px",
+            padding: isMobileLayout ? "18px 12px 16px" : "20px 18px 18px",
             borderBottom: "1px solid rgba(148,163,184,0.16)",
             background:
               "linear-gradient(135deg, rgba(6,78,59,0.48), rgba(15,23,42,0.86) 58%, rgba(2,6,23,0.92))",
-            overflow: "hidden",
+            overflow: "visible",
+            flexShrink: 0,
+            zIndex: 2,
           }}
         >
           <div
@@ -731,7 +755,14 @@ export default function ComponentModal({
           </div>
         </div>
 
-        <div style={{ padding: isMobileLayout ? "12px" : "16px", overflow: "auto" }}>
+        <div
+          style={{
+            padding: isMobileLayout ? "12px" : "16px",
+            overflow: "auto",
+            minHeight: 0,
+            WebkitOverflowScrolling: "touch",
+          }}
+        >
           <section
             style={{
               border: "1px solid rgba(34,197,94,0.22)",
@@ -1599,6 +1630,27 @@ export default function ComponentModal({
           )}
         </div>
 
+        {saveNotice ? (
+          <div
+            style={{
+              margin: isMobileLayout ? "0 12px 10px" : "0 16px 10px",
+              padding: "0.62rem 0.78rem",
+              borderRadius: "13px",
+              border: saveNotice.startsWith("✓")
+                ? "1px solid rgba(34,197,94,0.24)"
+                : "1px solid rgba(248,113,113,0.24)",
+              background: saveNotice.startsWith("✓")
+                ? "rgba(34,197,94,0.10)"
+                : "rgba(248,113,113,0.08)",
+              color: saveNotice.startsWith("✓") ? "#bbf7d0" : "#fecaca",
+              fontSize: "0.82rem",
+              fontWeight: 850,
+            }}
+          >
+            {saveNotice}
+          </div>
+        ) : null}
+
         <div
           style={{
             padding: "13px 16px",
@@ -1609,6 +1661,7 @@ export default function ComponentModal({
             justifyContent: "space-between",
             gap: "10px",
             flexWrap: "wrap",
+            flexShrink: 0,
           }}
         >
           <div style={{ color: "rgba(226,232,240,0.58)", fontSize: "0.8rem" }}>
@@ -1619,7 +1672,12 @@ export default function ComponentModal({
             <button type="button" className="secondary-btn" onClick={closeComponentsModal} style={{ flex: isMobileLayout ? "1 1 100%" : "0 0 auto", justifyContent: "center" }}>
               Cancelar
             </button>
-            <button type="button" className="primary-btn" onClick={saveComponentsModal} style={{ flex: isMobileLayout ? "1 1 100%" : "0 0 auto", justifyContent: "center" }}>
+            <button
+              type="button"
+              className="primary-btn"
+              onClick={handleSaveWithoutClosing}
+              style={{ flex: isMobileLayout ? "1 1 100%" : "0 0 auto", justifyContent: "center" }}
+            >
               Guardar cambios
             </button>
           </div>
