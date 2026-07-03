@@ -52,12 +52,16 @@ const COMPONENT_TYPES = [
   "Lote de cultivo",
   "Pasillo",
   "Área de descanso",
+  "Animal",
+  "Árbol",
+  "Riego",
   "Otro",
 ];
 
 function getComponentIcon(type = "Otro") {
   const value = String(type || "Otro").toLowerCase();
 
+  if (value.includes("animal") || value.includes("gallina") || value.includes("vaca") || value.includes("cerdo")) return "🐄";
   if (value.includes("cultivo") || value.includes("lote")) return "🌱";
   if (value.includes("bebedero") || value.includes("riego")) return "💧";
   if (value.includes("comedero")) return "🌾";
@@ -3247,48 +3251,12 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
                             marginTop: "0.65rem",
                             paddingTop: "0.58rem",
                             borderTop: "1px solid rgba(148,163,184,0.14)",
-                            display: "grid",
-                            gap: "0.35rem",
+                            color: "rgba(226,232,240,0.70)",
+                            fontSize: "0.76rem",
+                            lineHeight: 1.35,
                           }}
                         >
-                          {(item.components || []).slice(0, 3).map((component, idx) => (
-                            <div
-                              key={component.id || `${item.id}-comp-preview-${idx}`}
-                              style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: "0.42rem",
-                                color: "rgba(226,232,240,0.88)",
-                                fontSize: "0.78rem",
-                                minWidth: 0,
-                              }}
-                            >
-                              <span style={{ flex: "0 0 auto" }}>
-                                {getComponentIcon(component.type)}
-                              </span>
-                              <span
-                                style={{
-                                  overflow: "hidden",
-                                  textOverflow: "ellipsis",
-                                  whiteSpace: "nowrap",
-                                }}
-                              >
-                                {getComponentDisplayName(component, idx)}
-                              </span>
-                            </div>
-                          ))}
-
-                          {totalComponents > 3 ? (
-                            <div
-                              style={{
-                                color: "rgba(187,247,208,0.78)",
-                                fontSize: "0.76rem",
-                                fontWeight: 800,
-                              }}
-                            >
-                              +{totalComponents - 3} más
-                            </div>
-                          ) : null}
+                          Inventario listo para abrir.
                         </div>
                       ) : null}
                     </div>

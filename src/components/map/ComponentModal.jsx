@@ -20,6 +20,7 @@ export default function ComponentModal({
     if (typeof getComponentIcon === "function") return getComponentIcon(type);
 
     const value = String(type || "Otro").toLowerCase();
+    if (value.includes("animal") || value.includes("gallina") || value.includes("vaca") || value.includes("cerdo")) return "🐄";
     if (value.includes("cultivo") || value.includes("lote")) return "🌱";
     if (value.includes("bebedero") || value.includes("riego")) return "💧";
     if (value.includes("comedero")) return "🌾";
@@ -41,6 +42,13 @@ export default function ComponentModal({
     const type = String(component?.type || "Componente").trim() || "Componente";
     return `${type} #${index + 1}`;
   };
+  const componentIconPreview = safeComponents.slice(0, 12).map((component, index) => ({
+    key: component?.id || `component-icon-${index}`,
+    icon: resolveIcon(component?.type),
+    label: resolveDisplayName(component, index),
+  }));
+
+  const remainingIconCount = Math.max(totalComponents - componentIconPreview.length, 0);
 
   return (
     <div
@@ -209,8 +217,78 @@ export default function ComponentModal({
                 <div style={{ color: "rgba(226,232,240,0.66)", fontSize: "0.8rem" }}>
                   Modelo
                 </div>
-                <div style={{ marginTop: "0.25rem", color: "#bbf7d0", fontSize: "0.95rem", fontWeight: 900 }}>
-                  Inventario visual
+                <div
+                  style={{
+                    marginTop: "0.32rem",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: "10px",
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <span style={{ color: "#bbf7d0", fontSize: "0.95rem", fontWeight: 900 }}>
+                    Inventario visual
+                  </span>
+
+                  <span
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "flex-end",
+                      gap: "4px",
+                      flexWrap: "wrap",
+                      maxWidth: "100%",
+                    }}
+                    aria-label="Vista rápida de tipos de componentes"
+                  >
+                    {componentIconPreview.length > 0 ? (
+                      componentIconPreview.map((item) => (
+                        <span
+                          key={item.key}
+                          title={item.label}
+                          style={{
+                            width: "24px",
+                            height: "24px",
+                            borderRadius: "999px",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            border: "1px solid rgba(34,197,94,0.22)",
+                            background: "rgba(34,197,94,0.10)",
+                            fontSize: "0.78rem",
+                          }}
+                        >
+                          {item.icon}
+                        </span>
+                      ))
+                    ) : (
+                      <span style={{ color: "rgba(226,232,240,0.52)", fontSize: "0.78rem" }}>
+                        Sin iconos aún
+                      </span>
+                    )}
+
+                    {remainingIconCount > 0 ? (
+                      <span
+                        style={{
+                          minWidth: "24px",
+                          height: "24px",
+                          padding: "0 7px",
+                          borderRadius: "999px",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          border: "1px solid rgba(148,163,184,0.22)",
+                          background: "rgba(15,23,42,0.62)",
+                          color: "#bbf7d0",
+                          fontSize: "0.72rem",
+                          fontWeight: 900,
+                        }}
+                      >
+                        +{remainingIconCount}
+                      </span>
+                    ) : null}
+                  </span>
                 </div>
               </div>
             </div>
