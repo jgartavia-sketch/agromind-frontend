@@ -108,6 +108,136 @@ function addDaysYYYYMMDD(dateStr, days) {
   return d.toISOString().slice(0, 10);
 }
 
+
+function parsePossibleJson(value) {
+  if (!value || typeof value !== "string") return null;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
+}
+
+function collectArrayDeep(value, depth = 0) {
+  if (depth > 3 || !value) return [];
+  if (Array.isArray(value)) return value;
+  if (typeof value !== "object") return [];
+
+  const preferredKeys = [
+    "processes",
+    "items",
+    "data",
+    "records",
+    "list",
+    "activeProcesses",
+  ];
+
+  for (const key of preferredKeys) {
+    const nested = collectArrayDeep(value[key], depth + 1);
+    if (nested.length) return nested;
+  }
+
+  return [];
+}
+
+function normalizeProcessCalendarItem(process, index = 0) {
+  const rawStart =
+    process?.startDate ||
+    process?.start ||
+    process?.initialDate ||
+    process?.fechaInicio ||
+    process?.createdAt ||
+    "";
+
+  const rawEnd =
+    process?.endDate ||
+    process?.due ||
+    process?.estimatedEndDate ||
+    process?.finalDate ||
+    process?.fechaFinal ||
+    process?.completedAt ||
+    rawStart;
+
+  const start = toYYYYMMDD(rawStart);
+  const due = toYYYYMMDD(rawEnd || rawStart);
+
+  if (!start) return null;
+
+  return {
+    id: process?.id || process?._id || `process-${index}`,
+    title:
+      process?.title ||
+      process?.name ||
+      process?.processName ||
+      process?.label ||
+      "Proceso en marcha",
+    start,
+    due: due || start,
+    status: process?.status || process?.state || "Activo",
+    zone: process?.zone || process?.zoneName || process?.area || "",
+    owner: process?.owner || process?.responsible || process?.responsibleName || "",
+  };
+}
+
+function readProcessCalendarItems(farmId) {
+  if (typeof window === "undefined" || !window.localStorage) return [];
+
+  const keys = [
+    `agromind_processes_${farmId}`,
+    `agromind:processes:${farmId}`,
+    `process_lab_${farmId}`,
+    "agromind_processes",
+    "agromind:processes",
+    "process_lab_items",
+  ];
+
+  const collected = [];
+
+  keys.forEach((key) => {
+    const parsed = parsePossibleJson(window.localStorage.getItem(key));
+    const list = collectArrayDeep(parsed);
+    list.forEach((item, index) => {
+      const normalized = normalizeProcessCalendarItem(item, index);
+      if (normalized) collected.push(normalized);
+    });
+  });
+
+  const unique = new Map();
+  collected.forEach((item) => {
+    const id = String(item.id || `${item.title}-${item.start}-${item.due}`);
+    if (!unique.has(id)) unique.set(id, item);
+  });
+
+  return Array.from(unique.values());
+}
+
+function getTodayYYYYMMDD() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function isTaskOverdue(task) {
+  if (!task?.due || task.status === "Completada") return false;
+  return task.due < getTodayYYYYMMDD();
+}
+
+function isWithinNextDays(dateStr, days = 7) {
+  if (!dateStr) return false;
+  const today = new Date(`${getTodayYYYYMMDD()}T00:00:00`);
+  const target = new Date(`${dateStr}T00:00:00`);
+  if (Number.isNaN(target.getTime())) return false;
+  const diff = (target - today) / (1000 * 60 * 60 * 24);
+  return diff >= 0 && diff <= days;
+}
+
+function getStrategicEventClass(item) {
+  if (!item) return "calendar-event-default";
+  if (item.itemType === "process") return "calendar-event-process-readonly";
+  if (item.priority === "Alta") return "calendar-event-high";
+  if (item.status === "Completada") return "calendar-event-done";
+  if (item.status === "En progreso") return "calendar-event-progress";
+  return "calendar-event-task";
+}
+
 function getWeatherCodeLabel(code) {
   const map = {
     0: "Despejado",
@@ -323,6 +453,7 @@ export default function TareasPage({
   token: tokenProp,
 }) {
   const [tasks, setTasks] = useState([]);
+  const [processCalendarItems, setProcessCalendarItems] = useState([]);
 
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -616,13 +747,22 @@ export default function TareasPage({
     setIgnoredSuggestions(new Set());
   }, [farmId]);
 
+  useEffect(() => {
+    setProcessCalendarItems(readProcessCalendarItems(farmId));
+  }, [farmId, tasks.length]);
+
   const summary = useMemo(() => {
     const total = tasks.length;
     const pending = tasks.filter((t) => t.status === "Pendiente").length;
     const inProgress = tasks.filter((t) => t.status === "En progreso").length;
     const done = tasks.filter((t) => t.status === "Completada").length;
-    return { total, pending, inProgress, done };
-  }, [tasks]);
+    const overdue = tasks.filter(isTaskOverdue).length;
+    const week = tasks.filter((t) => isWithinNextDays(t.start) || isWithinNextDays(t.due)).length;
+    const activeProcesses = processCalendarItems.filter(
+      (p) => !["Finalizado", "Completado", "Cancelado"].includes(p.status)
+    ).length;
+    return { total, pending, inProgress, done, overdue, week, activeProcesses };
+  }, [tasks, processCalendarItems]);
 
   const zoneOptions = useMemo(() => {
     const set = new Set();
@@ -964,21 +1104,444 @@ export default function TareasPage({
   };
 
   const calendarEvents = useMemo(() => {
-    return tasks
+    const taskEvents = tasks
       .filter((t) => t?.start && t?.due && t?.title)
       .map((t) => ({
-        id: t.id,
+        id: `task-${t.id}`,
         title: t.title,
         start: t.start,
         end: addDaysYYYYMMDD(t.due, 1),
         allDay: true,
+        classNames: [getStrategicEventClass({ ...t, itemType: "task" })],
+        extendedProps: {
+          ...t,
+          itemType: "task",
+          editableFromCalendar: true,
+        },
       }));
-  }, [tasks]);
+
+    const processEvents = processCalendarItems
+      .filter((p) => p?.start && p?.title)
+      .map((p) => ({
+        id: `process-${p.id}`,
+        title: `Proceso · ${p.title}`,
+        start: p.start,
+        end: addDaysYYYYMMDD(p.due || p.start, 1),
+        allDay: true,
+        classNames: ["calendar-event-process-readonly"],
+        extendedProps: {
+          ...p,
+          itemType: "process",
+          editableFromCalendar: false,
+        },
+      }));
+
+    return [...processEvents, ...taskEvents];
+  }, [tasks, processCalendarItems]);
+
+  const handleCalendarEventClick = (info) => {
+    const item = info?.event?.extendedProps || null;
+    if (!item) return;
+
+    if (item.itemType === "process") {
+      alert(
+        "Este proceso se muestra solo como referencia operativa. Para editarlo, abre Process Lab."
+      );
+      return;
+    }
+
+    if (item.itemType === "task") {
+      handleEditClick(item);
+    }
+  };
 
   return (
-    <div className="page">
+    <div className="page tareas-master-page">
+      <style>{`
+        .tareas-master-page {
+          display: flex;
+          flex-direction: column;
+          gap: 1rem;
+        }
+
+        .tasks-command-hero {
+          position: relative;
+          overflow: hidden;
+          border-radius: 28px;
+          padding: 1.25rem;
+          border: 1px solid rgba(34, 197, 94, 0.18);
+          background:
+            radial-gradient(circle at 12% 12%, rgba(34,197,94,0.22), transparent 34%),
+            radial-gradient(circle at 82% 18%, rgba(20,184,166,0.16), transparent 28%),
+            linear-gradient(135deg, rgba(15,23,42,0.96), rgba(3,7,18,0.94));
+          box-shadow: 0 24px 70px rgba(0,0,0,0.32);
+        }
+
+        .tasks-command-hero::before {
+          content: "";
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(120deg, transparent, rgba(255,255,255,0.06), transparent);
+          transform: translateX(-80%);
+          pointer-events: none;
+        }
+
+        .tasks-command-hero:hover::before {
+          animation: taskHeroSweep 1.4s ease;
+        }
+
+        @keyframes taskHeroSweep {
+          to { transform: translateX(80%); }
+        }
+
+        .tasks-command-topline {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 1rem;
+          flex-wrap: wrap;
+          position: relative;
+          z-index: 1;
+        }
+
+        .tasks-page-title {
+          margin: 0;
+          font-size: clamp(1.7rem, 3vw, 2.35rem);
+          color: #f8fafc;
+          letter-spacing: -0.04em;
+        }
+
+        .tasks-farm-pill {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.45rem;
+          border: 1px solid rgba(148,163,184,0.18);
+          background: rgba(15,23,42,0.68);
+          color: rgba(226,232,240,0.9);
+          padding: 0.6rem 0.8rem;
+          border-radius: 999px;
+          font-size: 0.86rem;
+          backdrop-filter: blur(14px);
+        }
+
+        .control-center-panel {
+          position: relative;
+          z-index: 1;
+          margin-top: 1rem;
+          padding: 1rem;
+          border-radius: 24px;
+          border: 1px solid rgba(255,255,255,0.08);
+          background: rgba(2,6,23,0.46);
+          backdrop-filter: blur(18px);
+        }
+
+        .control-center-head {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 1rem;
+          flex-wrap: wrap;
+          margin-bottom: 1rem;
+        }
+
+        .control-center-title {
+          margin: 0;
+          font-size: 1.05rem;
+          color: #e2e8f0;
+          letter-spacing: 0.01em;
+        }
+
+        .control-center-actions {
+          display: flex;
+          align-items: center;
+          gap: 0.7rem;
+          flex-wrap: wrap;
+        }
+
+        .master-btn {
+          border: 1px solid rgba(34,197,94,0.26);
+          background: linear-gradient(135deg, rgba(22,163,74,0.95), rgba(20,184,166,0.78));
+          color: #f8fafc;
+          border-radius: 14px;
+          padding: 0.72rem 1rem;
+          font-weight: 800;
+          cursor: pointer;
+          box-shadow: 0 14px 34px rgba(34,197,94,0.18);
+          transition: transform .18s ease, box-shadow .18s ease, filter .18s ease;
+        }
+
+        .master-btn:hover:not(:disabled) {
+          transform: translateY(-1px);
+          filter: brightness(1.06);
+          box-shadow: 0 18px 44px rgba(34,197,94,0.28);
+        }
+
+        .master-btn:disabled {
+          opacity: 0.65;
+          cursor: not-allowed;
+        }
+
+        .master-ghost-btn {
+          border: 1px solid rgba(148,163,184,0.18);
+          background: rgba(15,23,42,0.65);
+          color: rgba(226,232,240,0.9);
+          border-radius: 14px;
+          padding: 0.72rem 1rem;
+          font-weight: 700;
+          cursor: pointer;
+          transition: transform .18s ease, border-color .18s ease, background .18s ease;
+        }
+
+        .master-ghost-btn:hover:not(:disabled) {
+          transform: translateY(-1px);
+          border-color: rgba(34,197,94,0.34);
+          background: rgba(15,23,42,0.86);
+        }
+
+        .master-stats-grid {
+          display: grid;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 0.8rem;
+          margin-bottom: 1rem;
+        }
+
+        .master-stat-card {
+          min-height: 96px;
+          border-radius: 20px;
+          padding: 0.95rem;
+          border: 1px solid rgba(255,255,255,0.08);
+          background: rgba(15,23,42,0.62);
+          transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+        }
+
+        .master-stat-card:hover {
+          transform: translateY(-2px);
+          border-color: rgba(34,197,94,0.24);
+          box-shadow: 0 18px 38px rgba(0,0,0,0.26);
+        }
+
+        .master-stat-label {
+          display: block;
+          color: rgba(203,213,225,0.76);
+          font-size: 0.78rem;
+          text-transform: uppercase;
+          letter-spacing: 0.06em;
+        }
+
+        .master-stat-value {
+          display: block;
+          margin-top: 0.5rem;
+          color: #f8fafc;
+          font-size: 2rem;
+          line-height: 1;
+          font-weight: 900;
+          letter-spacing: -0.05em;
+        }
+
+        .master-stat-note {
+          display: block;
+          margin-top: 0.45rem;
+          color: rgba(148,163,184,0.84);
+          font-size: 0.82rem;
+        }
+
+        .calendar-shell-pro {
+          border-radius: 24px;
+          overflow: hidden;
+          border: 1px solid rgba(148,163,184,0.14);
+          background: rgba(15,23,42,0.54);
+          padding: 0.85rem;
+        }
+
+        .calendar-shell-pro .fc {
+          color: #e5e7eb;
+        }
+
+        .calendar-shell-pro .fc-toolbar-title {
+          color: #f8fafc;
+          font-size: clamp(1rem, 2vw, 1.35rem);
+          font-weight: 900;
+          letter-spacing: -0.03em;
+        }
+
+        .calendar-shell-pro .fc-button {
+          border: 1px solid rgba(148,163,184,0.18) !important;
+          background: rgba(15,23,42,0.88) !important;
+          color: #e2e8f0 !important;
+          border-radius: 12px !important;
+          box-shadow: none !important;
+          text-transform: capitalize !important;
+          font-weight: 700 !important;
+          transition: transform .16s ease, border-color .16s ease, background .16s ease !important;
+        }
+
+        .calendar-shell-pro .fc-button:hover,
+        .calendar-shell-pro .fc-button-active {
+          transform: translateY(-1px);
+          border-color: rgba(34,197,94,0.36) !important;
+          background: rgba(22,163,74,0.24) !important;
+        }
+
+        .calendar-shell-pro .fc-theme-standard td,
+        .calendar-shell-pro .fc-theme-standard th,
+        .calendar-shell-pro .fc-scrollgrid {
+          border-color: rgba(148,163,184,0.12) !important;
+        }
+
+        .calendar-shell-pro .fc-col-header-cell {
+          background: rgba(15,23,42,0.78);
+          padding: 0.4rem 0;
+        }
+
+        .calendar-shell-pro .fc-daygrid-day,
+        .calendar-shell-pro .fc-timegrid-slot,
+        .calendar-shell-pro .fc-list-day-cushion,
+        .calendar-shell-pro .fc-list-table td {
+          background: rgba(2,6,23,0.28) !important;
+        }
+
+        .calendar-shell-pro .fc-day-today {
+          background: rgba(34,197,94,0.10) !important;
+        }
+
+        .calendar-shell-pro .fc-event {
+          border: 0 !important;
+          border-radius: 10px !important;
+          padding: 0.08rem 0.24rem !important;
+          cursor: pointer;
+          box-shadow: 0 10px 24px rgba(0,0,0,0.18);
+        }
+
+        .calendar-event-task {
+          background: linear-gradient(135deg, rgba(59,130,246,0.88), rgba(14,165,233,0.72)) !important;
+        }
+
+        .calendar-event-progress {
+          background: linear-gradient(135deg, rgba(245,158,11,0.9), rgba(217,119,6,0.7)) !important;
+        }
+
+        .calendar-event-done {
+          background: linear-gradient(135deg, rgba(34,197,94,0.85), rgba(16,185,129,0.72)) !important;
+        }
+
+        .calendar-event-high {
+          background: linear-gradient(135deg, rgba(239,68,68,0.92), rgba(244,63,94,0.74)) !important;
+        }
+
+        .calendar-event-process-readonly {
+          background: linear-gradient(135deg, rgba(168,85,247,0.88), rgba(99,102,241,0.68)) !important;
+          cursor: help !important;
+        }
+
+        .calendar-event-inner-pro {
+          display: flex;
+          align-items: center;
+          gap: 0.35rem;
+          min-width: 0;
+          font-size: 0.78rem;
+          font-weight: 800;
+        }
+
+        .calendar-event-dot {
+          width: 6px;
+          height: 6px;
+          border-radius: 999px;
+          background: rgba(255,255,255,0.86);
+          flex: 0 0 auto;
+        }
+
+        .calendar-event-title-pro {
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .master-lower-grid {
+          display: grid;
+          grid-template-columns: minmax(0, 0.95fr) minmax(320px, 0.55fr);
+          gap: 1rem;
+          align-items: start;
+        }
+
+        .task-editor-pro.card,
+        .filters-pro.card,
+        .table-pro.card {
+          border-radius: 24px;
+          border: 1px solid rgba(148,163,184,0.14);
+          background:
+            radial-gradient(circle at 8% 0%, rgba(34,197,94,0.10), transparent 32%),
+            rgba(15,23,42,0.58);
+          box-shadow: 0 18px 50px rgba(0,0,0,0.18);
+        }
+
+        .compact-section-title {
+          margin: 0 0 0.75rem;
+          color: #f8fafc;
+          font-size: 1rem;
+          letter-spacing: -0.02em;
+        }
+
+        .operation-note {
+          margin: -0.35rem 0 1rem;
+          opacity: 0.72;
+          font-size: 0.88rem;
+        }
+
+        .readonly-chip {
+          display: inline-flex;
+          align-items: center;
+          padding: 0.35rem 0.55rem;
+          border-radius: 999px;
+          border: 1px solid rgba(168,85,247,0.28);
+          background: rgba(168,85,247,0.12);
+          color: rgba(233,213,255,0.95);
+          font-size: 0.78rem;
+          font-weight: 800;
+        }
+
+        .fc .fc-list-event.calendar-event-process-readonly td {
+          background: rgba(88,28,135,0.22) !important;
+        }
+
+        .fc .fc-list-event.calendar-event-high td {
+          background: rgba(127,29,29,0.22) !important;
+        }
+
+        @media (max-width: 980px) {
+          .master-stats-grid,
+          .master-lower-grid {
+            grid-template-columns: 1fr 1fr;
+          }
+        }
+
+        @media (max-width: 720px) {
+          .tasks-command-hero,
+          .control-center-panel,
+          .calendar-shell-pro {
+            border-radius: 20px;
+          }
+
+          .master-stats-grid,
+          .master-lower-grid {
+            grid-template-columns: 1fr;
+          }
+
+          .calendar-shell-pro .fc-header-toolbar {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 0.7rem;
+          }
+
+          .calendar-shell-pro .fc-toolbar-chunk {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+          }
+        }
+      `}</style>
+
       {(errorMsg || loading) && (
-        <section className="card" style={{ marginBottom: "1rem" }}>
+        <section className="card" style={{ marginBottom: "0.25rem" }}>
           {loading ? (
             <p style={{ margin: 0, opacity: 0.85 }}>Cargando tareas…</p>
           ) : (
@@ -987,148 +1550,290 @@ export default function TareasPage({
         </section>
       )}
 
-      <section
-        className="card"
-        style={{
-          marginBottom: "1rem",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: "1rem",
-          flexWrap: "wrap",
-          border: "1px solid rgba(34,197,94,0.18)",
-          background:
-            "linear-gradient(135deg, rgba(20,83,45,0.20), rgba(15,23,42,0.72))",
-        }}
-      >
-        <div>
-          <p
-            style={{
-              margin: "0 0 0.25rem",
-              color: "rgba(226,232,240,0.72)",
-              fontSize: "0.82rem",
-              letterSpacing: "0.04em",
-              textTransform: "uppercase",
-            }}
-          >
-            🌱 Finca activa
-          </p>
-          <h2 style={{ margin: 0, color: "#e5e7eb", fontSize: "1.15rem" }}>
-            {farmsLoading ? "Cargando finca…" : activeFarmName}
-          </h2>
+      <section className="tasks-command-hero">
+        <div className="tasks-command-topline">
+          <h1 className="tasks-page-title">Tareas</h1>
+
+          <div className="tasks-farm-pill">
+            <span>🌱</span>
+            <strong>{farmsLoading ? "Cargando finca…" : activeFarmName}</strong>
+          </div>
         </div>
 
-        <div
-          style={{
-            color: "rgba(226,232,240,0.72)",
-            fontSize: "0.9rem",
-            maxWidth: "420px",
-            lineHeight: 1.45,
-          }}
-        >
-          Las tareas que ves y las nuevas tareas que crees pertenecen a esta finca.
-          Para trabajar en otra, cambiá la finca activa desde el mapa.
-        </div>
-      </section>
+        <div className="control-center-panel">
+          <div className="control-center-head">
+            <h2 className="control-center-title">Centro de Control</h2>
 
-      <section className="card tasks-calendar">
-        <h3>Calendario de tareas</h3>
-
-        <FullCalendar
-          plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin, listPlugin]}
-          initialView="dayGridMonth"
-          headerToolbar={{
-            left: "prev,next today",
-            center: "title",
-            right: "dayGridMonth,timeGridWeek,timeGridDay,listYear",
-          }}
-          locale="es"
-          height="auto"
-          events={calendarEvents}
-        />
-      </section>
-
-
-      <section className="tasks-summary">
-        <div className="summary-card">
-          <span className="summary-label">Total de tareas</span>
-          <span className="summary-value">{summary.total}</span>
-        </div>
-        <div className="summary-card">
-          <span className="summary-label">Pendientes</span>
-          <span className="summary-value summary-value-warning">
-            {summary.pending}
-          </span>
-        </div>
-        <div className="summary-card">
-          <span className="summary-label">En progreso</span>
-          <span className="summary-value summary-value-info">
-            {summary.inProgress}
-          </span>
-        </div>
-        <div className="summary-card">
-          <span className="summary-label">Completadas</span>
-          <span className="summary-value summary-value-ok">{summary.done}</span>
-        </div>
-      </section>
-
-      <section className="task-editor card">
-        <h3>{editingId ? "Editar tarea" : "Nueva tarea"}</h3>
-        <p style={{ margin: "-0.35rem 0 1rem", opacity: 0.75 }}>
-          Se guardará en: <strong>{activeFarmName}</strong>
-        </p>
-
-        <form onSubmit={handleSubmit}>
-          <div className="task-editor-grid">
-            <div className="task-field">
-              <label>Título</label>
-              <input
-                type="text"
-                value={formData.title}
-                onChange={(e) => handleFormChange("title", e.target.value)}
-                placeholder="Ej: Revisar cerca norte"
+            <div className="control-center-actions">
+              <span className="readonly-chip">Procesos: solo vista</span>
+              <button
+                type="button"
+                className="master-ghost-btn"
+                onClick={() => {
+                  fetchTasks();
+                  fetchSuggestions();
+                  setProcessCalendarItems(readProcessCalendarItems(farmId));
+                }}
+                disabled={loading || saving}
+              >
+                Actualizar
+              </button>
+              <button
+                type="button"
+                className="master-btn"
+                onClick={() => {
+                  handleResetForm();
+                  scrollToEditor();
+                }}
                 disabled={saving}
-              />
+              >
+                + Nueva tarea
+              </button>
+            </div>
+          </div>
+
+          <div className="master-stats-grid">
+            <div className="master-stat-card">
+              <span className="master-stat-label">Hoy / semana</span>
+              <span className="master-stat-value">{summary.week}</span>
+              <span className="master-stat-note">Movimientos próximos</span>
             </div>
 
-            <div className="task-field">
-              <label>Zona / elemento</label>
-              <div className="task-zone-input-row">
+            <div className="master-stat-card">
+              <span className="master-stat-label">Vencidas</span>
+              <span className="master-stat-value">{summary.overdue}</span>
+              <span className="master-stat-note">Requieren atención</span>
+            </div>
+
+            <div className="master-stat-card">
+              <span className="master-stat-label">En progreso</span>
+              <span className="master-stat-value">{summary.inProgress}</span>
+              <span className="master-stat-note">Tareas activas</span>
+            </div>
+
+            <div className="master-stat-card">
+              <span className="master-stat-label">Procesos visibles</span>
+              <span className="master-stat-value">{summary.activeProcesses}</span>
+              <span className="master-stat-note">Lectura desde Process Lab</span>
+            </div>
+          </div>
+
+          <div className="calendar-shell-pro">
+            <FullCalendar
+              plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin, listPlugin]}
+              initialView="dayGridMonth"
+              headerToolbar={{
+                left: "prev,next today",
+                center: "title",
+                right: "dayGridMonth,timeGridWeek,timeGridDay,listWeek",
+              }}
+              buttonText={{
+                today: "Hoy",
+                month: "Mes",
+                week: "Semana",
+                day: "Día",
+                list: "Agenda",
+              }}
+              locale="es"
+              height="auto"
+              events={calendarEvents}
+              eventClick={handleCalendarEventClick}
+              eventContent={(arg) => {
+                const itemType = arg?.event?.extendedProps?.itemType;
+                return (
+                  <div className="calendar-event-inner-pro">
+                    <span className="calendar-event-dot" />
+                    <span className="calendar-event-title-pro">
+                      {itemType === "process" ? "Proceso · " : ""}
+                      {arg.event.title.replace(/^Proceso · /, "")}
+                    </span>
+                  </div>
+                );
+              }}
+            />
+          </div>
+        </div>
+      </section>
+
+      <div className="master-lower-grid">
+        <section className="task-editor task-editor-pro card">
+          <h3 className="compact-section-title">
+            {editingId ? "Editar tarea" : "Nueva tarea"}
+          </h3>
+          <p className="operation-note">
+            Las tareas creadas aquí sí se editan desde el calendario. Los procesos solo se consultan.
+          </p>
+
+          <form onSubmit={handleSubmit}>
+            <div className="task-editor-grid">
+              <div className="task-field">
+                <label>Título</label>
                 <input
                   type="text"
-                  value={formData.zone}
-                  onChange={(e) => handleFormChange("zone", e.target.value)}
-                  placeholder="Ej: Zona de vivero, Calle 1..."
+                  value={formData.title}
+                  onChange={(e) => handleFormChange("title", e.target.value)}
+                  placeholder="Ej: Revisar cerca norte"
                   disabled={saving}
                 />
-                {mapZones.length > 0 && (
-                  <select
-                    value=""
+              </div>
+
+              <div className="task-field">
+                <label>Zona / elemento</label>
+                <div className="task-zone-input-row">
+                  <input
+                    type="text"
+                    value={formData.zone}
+                    onChange={(e) => handleFormChange("zone", e.target.value)}
+                    placeholder="Ej: Zona de vivero, Calle 1..."
                     disabled={saving}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      if (!value) return;
-                      handleFormChange("zone", value);
-                    }}
-                  >
-                    <option value="">Zonas del mapa</option>
-                    {mapZones.map((z) => (
-                      <option key={z} value={z}>
-                        {z}
-                      </option>
-                    ))}
-                  </select>
-                )}
+                  />
+                  {mapZones.length > 0 && (
+                    <select
+                      value=""
+                      disabled={saving}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        if (!value) return;
+                        handleFormChange("zone", value);
+                      }}
+                    >
+                      <option value="">Zonas del mapa</option>
+                      {mapZones.map((z) => (
+                        <option key={z} value={z}>
+                          {z}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+              </div>
+
+              <div className="task-field">
+                <label>Tipo</label>
+                <select
+                  value={formData.type}
+                  onChange={(e) => handleFormChange("type", e.target.value)}
+                  disabled={saving}
+                >
+                  {TIPOS.map((t) => (
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="task-field">
+                <label>Prioridad</label>
+                <select
+                  value={formData.priority}
+                  onChange={(e) => handleFormChange("priority", e.target.value)}
+                  disabled={saving}
+                >
+                  {PRIORIDADES.map((p) => (
+                    <option key={p} value={p}>
+                      {p}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="task-field">
+                <label>Inicio</label>
+                <input
+                  type="date"
+                  value={formData.start}
+                  onChange={(e) => handleFormChange("start", e.target.value)}
+                  disabled={saving}
+                />
+              </div>
+
+              <div className="task-field">
+                <label>Vence</label>
+                <input
+                  type="date"
+                  value={formData.due}
+                  onChange={(e) => handleFormChange("due", e.target.value)}
+                  disabled={saving}
+                />
+              </div>
+
+              <div className="task-field">
+                <label>Estado</label>
+                <select
+                  value={formData.status}
+                  onChange={(e) => handleFormChange("status", e.target.value)}
+                  disabled={saving}
+                >
+                  {ESTADOS.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="task-field">
+                <label>Responsable</label>
+                <input
+                  type="text"
+                  value={formData.owner}
+                  onChange={(e) => handleFormChange("owner", e.target.value)}
+                  placeholder="Ej: José, Personal..."
+                  disabled={saving}
+                />
               </div>
             </div>
 
-            <div className="task-field">
-              <label>Tipo</label>
+            <div className="task-editor-actions">
+              <button type="submit" className="primary-btn" disabled={saving}>
+                {saving
+                  ? "Guardando…"
+                  : editingId
+                  ? "Guardar cambios"
+                  : "Crear tarea"}
+              </button>
+
+              {editingId && (
+                <button
+                  type="button"
+                  className="secondary-btn"
+                  onClick={handleResetForm}
+                  disabled={saving}
+                >
+                  Cancelar edición
+                </button>
+              )}
+            </div>
+          </form>
+        </section>
+
+        <section className="filters-pro card">
+          <h3 className="compact-section-title">Vista operativa</h3>
+
+          <div className="filters-bar" style={{ margin: 0 }}>
+            <div className="filter-group">
+              <label>Estado</label>
               <select
-                value={formData.type}
-                onChange={(e) => handleFormChange("type", e.target.value)}
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
                 disabled={saving}
               >
+                <option value="Todas">Todas</option>
+                <option value="Pendiente">Pendiente</option>
+                <option value="En progreso">En progreso</option>
+                <option value="Completada">Completada</option>
+              </select>
+            </div>
+
+            <div className="filter-group">
+              <label>Tipo</label>
+              <select
+                value={typeFilter}
+                onChange={(e) => setTypeFilter(e.target.value)}
+                disabled={saving}
+              >
+                <option value="Todas">Todas</option>
                 {TIPOS.map((t) => (
                   <option key={t} value={t}>
                     {t}
@@ -1137,151 +1842,37 @@ export default function TareasPage({
               </select>
             </div>
 
-            <div className="task-field">
-              <label>Prioridad</label>
+            <div className="filter-group">
+              <label>Zona</label>
               <select
-                value={formData.priority}
-                onChange={(e) => handleFormChange("priority", e.target.value)}
+                value={zoneFilter}
+                onChange={(e) => setZoneFilter(e.target.value)}
                 disabled={saving}
               >
-                {PRIORIDADES.map((p) => (
-                  <option key={p} value={p}>
-                    {p}
+                <option value="Todas">Todas</option>
+                {zoneOptions.map((z) => (
+                  <option key={z} value={z}>
+                    {z}
                   </option>
                 ))}
               </select>
             </div>
 
-            <div className="task-field">
-              <label>Inicio</label>
-              <input
-                type="date"
-                value={formData.start}
-                onChange={(e) => handleFormChange("start", e.target.value)}
-                disabled={saving}
-              />
-            </div>
-
-            <div className="task-field">
-              <label>Vence</label>
-              <input
-                type="date"
-                value={formData.due}
-                onChange={(e) => handleFormChange("due", e.target.value)}
-                disabled={saving}
-              />
-            </div>
-
-            <div className="task-field">
-              <label>Estado</label>
-              <select
-                value={formData.status}
-                onChange={(e) => handleFormChange("status", e.target.value)}
-                disabled={saving}
-              >
-                {ESTADOS.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="task-field">
-              <label>Responsable</label>
+            <div className="filter-group filter-group-wide">
+              <label>Buscar</label>
               <input
                 type="text"
-                value={formData.owner}
-                onChange={(e) => handleFormChange("owner", e.target.value)}
-                placeholder="Ej: José, Personal..."
+                placeholder="Buscar por tarea, zona o responsable..."
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
                 disabled={saving}
               />
             </div>
           </div>
+        </section>
+      </div>
 
-          <div className="task-editor-actions">
-            <button type="submit" className="primary-btn" disabled={saving}>
-              {saving
-                ? "Guardando…"
-                : editingId
-                ? "Guardar cambios"
-                : "Crear tarea"}
-            </button>
-
-            {editingId && (
-              <button
-                type="button"
-                className="secondary-btn"
-                onClick={handleResetForm}
-                disabled={saving}
-              >
-                Cancelar edición
-              </button>
-            )}
-          </div>
-        </form>
-      </section>
-
-      <section className="filters-bar">
-        <div className="filter-group">
-          <label>Estado</label>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            disabled={saving}
-          >
-            <option value="Todas">Todas</option>
-            <option value="Pendiente">Pendiente</option>
-            <option value="En progreso">En progreso</option>
-            <option value="Completada">Completada</option>
-          </select>
-        </div>
-
-        <div className="filter-group">
-          <label>Tipo</label>
-          <select
-            value={typeFilter}
-            onChange={(e) => setTypeFilter(e.target.value)}
-            disabled={saving}
-          >
-            <option value="Todas">Todas</option>
-            {TIPOS.map((t) => (
-              <option key={t} value={t}>
-                {t}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="filter-group">
-          <label>Zona</label>
-          <select
-            value={zoneFilter}
-            onChange={(e) => setZoneFilter(e.target.value)}
-            disabled={saving}
-          >
-            <option value="Todas">Todas</option>
-            {zoneOptions.map((z) => (
-              <option key={z} value={z}>
-                {z}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="filter-group filter-group-wide">
-          <label>Buscar</label>
-          <input
-            type="text"
-            placeholder="Buscar por tarea, zona o responsable..."
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            disabled={saving}
-          />
-        </div>
-      </section>
-
-      <section className="card">
+      <section className="table-pro card">
         <table className="data-table">
           <thead>
             <tr>
@@ -1364,76 +1955,6 @@ export default function TareasPage({
           </tbody>
         </table>
       </section>
-
-      <section className="card ia-placeholder">
-        <h3>Recomendaciones IA</h3>
-
-        {(loadingSuggestions || weatherLoading) ? (
-          <p style={{ margin: 0, opacity: 0.85 }}>Analizando tu operación y contexto climático…</p>
-        ) : combinedSuggestions.length === 0 ? (
-          <p style={{ margin: 0, opacity: 0.85 }}>
-            No hay sugerencias por ahora. (Eso también es una victoria: tu finca
-            está en control.)
-          </p>
-        ) : (
-          <div className="ai-suggestions-list ai-suggestions-row">
-            {combinedSuggestions.map((s) => {
-              const id = String(s?.id || s?._id || Math.random());
-              const level = s?.level || "info";
-              const title = s?.title || "Sugerencia";
-              const message = s?.message || "";
-              const canAdd = !!s?.actionPayload;
-              const zone = s?.zone ? String(s.zone) : "";
-
-              return (
-                <div
-                  key={id}
-                  className={`ai-suggestion-card ai-suggestion-card-h ${getSuggestionClass(
-                    level
-                  )}`}
-                >
-                  <div className="ai-suggestion-head">
-                    <div className="ai-suggestion-title">{title}</div>
-                    {zone ? (
-                      <div className="ai-suggestion-chip">{zone}</div>
-                    ) : null}
-                  </div>
-
-                  {message ? (
-                    <div className="ai-suggestion-message">{message}</div>
-                  ) : null}
-
-                  <div className="ai-suggestion-actions">
-                    <button
-                      type="button"
-                      className="ai-suggestion-btn-primary"
-                      disabled={!canAdd || saving}
-                      onClick={() => applySuggestionToForm(s)}
-                      title={
-                        canAdd
-                          ? "Precarga el formulario para que lo edites y lo guardes como tarea real"
-                          : "Esta sugerencia es informativa (no genera tarea)"
-                      }
-                    >
-                      + Agregar a tareas
-                    </button>
-
-                    <button
-                      type="button"
-                      className="ai-suggestion-btn-ghost"
-                      disabled={saving}
-                      onClick={() => ignoreSuggestion(s)}
-                    >
-                      Ignorar
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </section>
-
     </div>
   );
 }
