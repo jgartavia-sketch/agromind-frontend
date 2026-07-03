@@ -387,12 +387,12 @@ export default function ProcessModal({
       id="zone-processes-section"
       style={{
         marginBottom: "16px",
-        padding: "14px",
-        borderRadius: "18px",
-        border: "1px solid rgba(34,197,94,0.18)",
+        padding: "18px",
+        borderRadius: "24px",
+        border: "1px solid rgba(34,197,94,0.24)",
         background:
-          "radial-gradient(circle at top left, rgba(34,197,94,0.12), transparent 34%), linear-gradient(160deg, rgba(9,18,39,0.94), rgba(2,6,23,0.98))",
-        boxShadow: "0 18px 36px rgba(0,0,0,0.28)",
+          "radial-gradient(circle at 12% 0%, rgba(34,197,94,0.22), transparent 30%), radial-gradient(circle at 92% 8%, rgba(20,184,166,0.14), transparent 26%), linear-gradient(160deg, rgba(9,18,39,0.97), rgba(2,6,23,0.99))",
+        boxShadow: "0 26px 70px rgba(0,0,0,0.38), inset 0 1px 0 rgba(255,255,255,0.03)",
       }}
     >
       <div
@@ -405,19 +405,39 @@ export default function ProcessModal({
           marginBottom: "14px",
         }}
       >
-        <div>
-          <h4 style={{ margin: 0, color: "#e5e7eb", fontSize: "1.02rem" }}>
-            Process Lab
-          </h4>
-          <p
+        <div style={{ display: "flex", alignItems: "center", gap: "12px", minWidth: 0 }}>
+          <div
             style={{
-              margin: "4px 0 0",
-              color: "rgba(226,232,240,0.72)",
-              fontSize: "0.82rem",
+              width: "42px",
+              height: "42px",
+              borderRadius: "16px",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              background: "linear-gradient(135deg, rgba(34,197,94,0.20), rgba(20,184,166,0.10))",
+              border: "1px solid rgba(34,197,94,0.25)",
+              color: "#bbf7d0",
+              fontWeight: 900,
+              boxShadow: "0 12px 28px rgba(34,197,94,0.08)",
             }}
           >
-            Zona: {modalZone.name} · diseña el proceso y sus etapas desde el primer click
-          </p>
+            PL
+          </div>
+          <div style={{ minWidth: 0 }}>
+            <h4 style={{ margin: 0, color: "#f8fafc", fontSize: "1.08rem", letterSpacing: "-0.02em" }}>
+              Process Lab
+            </h4>
+            <p
+              style={{
+                margin: "4px 0 0",
+                color: "rgba(226,232,240,0.72)",
+                fontSize: "0.82rem",
+                lineHeight: 1.35,
+              }}
+            >
+              Zona: {modalZone.name} · procesos activos, etapas encadenadas y avance visible.
+            </p>
+          </div>
         </div>
 
         {modalZoneProcesses.length > 0 && (
@@ -438,29 +458,50 @@ export default function ProcessModal({
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))",
-          gap: "10px",
-          marginBottom: "14px",
+          gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+          gap: "12px",
+          marginBottom: "16px",
         }}
       >
         {[
-          ["Procesos", processStats.total],
-          ["Activos", processStats.active],
-          ["Completados", processStats.completed],
-        ].map(([label, value]) => (
+          ["Procesos", processStats.total, "◎"],
+          ["Activos", processStats.active, "●"],
+          ["Completados", processStats.completed, "✓"],
+        ].map(([label, value, icon]) => (
           <div
             key={label}
             style={{
-              padding: "10px 12px",
-              borderRadius: "14px",
+              padding: "14px 14px",
+              borderRadius: "18px",
               border: "1px solid rgba(148,163,184,0.16)",
-              background: "rgba(2,6,23,0.42)",
+              background: "linear-gradient(180deg, rgba(15,23,42,0.72), rgba(2,6,23,0.50))",
+              boxShadow: "inset 0 1px 0 rgba(255,255,255,0.025)",
             }}
           >
-            <div style={{ color: "rgba(226,232,240,0.62)", fontSize: "0.72rem" }}>
-              {label}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px" }}>
+              <div>
+                <div style={{ color: "rgba(226,232,240,0.62)", fontSize: "0.72rem", marginBottom: "4px" }}>
+                  {label}
+                </div>
+                <strong style={{ color: "#f8fafc", fontSize: "1.34rem", lineHeight: 1 }}>{value}</strong>
+              </div>
+              <span
+                style={{
+                  width: "30px",
+                  height: "30px",
+                  borderRadius: "12px",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  border: "1px solid rgba(34,197,94,0.18)",
+                  background: "rgba(34,197,94,0.08)",
+                  color: "#86efac",
+                  fontWeight: 900,
+                }}
+              >
+                {icon}
+              </span>
             </div>
-            <strong style={{ color: "#e5e7eb", fontSize: "1.1rem" }}>{value}</strong>
           </div>
         ))}
       </div>
@@ -477,9 +518,9 @@ export default function ProcessModal({
         >
           <div style={{ display: "flex", justifyContent: "space-between", gap: "10px", flexWrap: "wrap", marginBottom: "12px" }}>
             <div>
-              <strong style={{ color: "#e5e7eb" }}>Crear proceso completo</strong>
+              <strong style={{ color: "#f8fafc", fontSize: "0.96rem" }}>Diseñar nuevo proceso</strong>
               <p style={{ margin: "4px 0 0", color: "rgba(226,232,240,0.68)", fontSize: "0.8rem" }}>
-                Primero la visión, luego las etapas. Nada de ventanas zombie.
+                Definí el objetivo, ordená las etapas y dejá listo el flujo operativo de esta zona.
               </p>
             </div>
           </div>
@@ -670,12 +711,31 @@ export default function ProcessModal({
         </div>
       ) : modalZoneProcesses.length > 0 ? (
         <>
-          <div style={{ marginBottom: "12px" }}>
+          <div style={{ marginBottom: "14px", position: "relative" }}>
+            <span
+              style={{
+                position: "absolute",
+                left: "12px",
+                top: "50%",
+                transform: "translateY(-50%)",
+                color: "rgba(148,163,184,0.75)",
+                fontSize: "0.86rem",
+                pointerEvents: "none",
+              }}
+            >
+              ⌕
+            </span>
             <input
               className="farm-feature-input"
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
-              placeholder="Buscar proceso, responsable, estado o prioridad..."
+              placeholder="Buscar por proceso, responsable, estado o prioridad..."
+              style={{
+                paddingLeft: "34px",
+                borderRadius: "14px",
+                background: "rgba(2,6,23,0.56)",
+                border: "1px solid rgba(148,163,184,0.18)",
+              }}
             />
           </div>
 
@@ -702,15 +762,15 @@ export default function ProcessModal({
                 <div
                   key={process.id}
                   style={{
-                    borderRadius: "18px",
+                    borderRadius: "22px",
                     border: isExpanded
-                      ? "1px solid rgba(34,197,94,0.28)"
+                      ? "1px solid rgba(34,197,94,0.34)"
                       : "1px solid rgba(148,163,184,0.16)",
                     background: isExpanded
-                      ? "linear-gradient(180deg, rgba(15,23,42,0.92), rgba(5,10,22,0.98))"
-                      : "linear-gradient(180deg, rgba(15,23,42,0.76), rgba(5,10,22,0.92))",
+                      ? "radial-gradient(circle at 8% 0%, rgba(34,197,94,0.12), transparent 32%), linear-gradient(180deg, rgba(15,23,42,0.96), rgba(5,10,22,0.99))"
+                      : "linear-gradient(180deg, rgba(15,23,42,0.82), rgba(5,10,22,0.96))",
                     overflow: "hidden",
-                    boxShadow: isExpanded ? "0 18px 36px rgba(0,0,0,0.22)" : "none",
+                    boxShadow: isExpanded ? "0 22px 44px rgba(0,0,0,0.30), 0 0 0 1px rgba(34,197,94,0.04)" : "0 12px 24px rgba(0,0,0,0.14)",
                   }}
                 >
                   <button
@@ -720,7 +780,7 @@ export default function ProcessModal({
                       width: "100%",
                       border: "none",
                       background: "transparent",
-                      padding: "14px",
+                      padding: "16px",
                       color: "inherit",
                       cursor: "pointer",
                       textAlign: "left",
@@ -803,7 +863,7 @@ export default function ProcessModal({
                         </div>
                       </div>
 
-                      <div style={{ minWidth: "150px" }}>
+                      <div style={{ minWidth: "170px" }}>
                         <div
                           style={{
                             display: "flex",
@@ -834,7 +894,7 @@ export default function ProcessModal({
                   {isExpanded && (
                     <div
                       style={{
-                        padding: "0 14px 14px",
+                        padding: "0 16px 16px",
                         borderTop: "1px solid rgba(148,163,184,0.12)",
                       }}
                     >
@@ -848,7 +908,19 @@ export default function ProcessModal({
                         </p>
                       )}
 
-                      <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center", marginBottom: "12px" }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          gap: "8px",
+                          flexWrap: "wrap",
+                          alignItems: "center",
+                          marginBottom: "14px",
+                          padding: "10px",
+                          borderRadius: "16px",
+                          background: "rgba(2,6,23,0.30)",
+                          border: "1px solid rgba(148,163,184,0.10)",
+                        }}
+                      >
                         <button
                           type="button"
                           className="secondary-btn"
@@ -883,7 +955,12 @@ export default function ProcessModal({
                           marginBottom: "10px",
                         }}
                       >
-                        <strong style={{ color: "#e5e7eb", fontSize: "0.9rem" }}>Etapas del proceso</strong>
+                        <div>
+                          <strong style={{ color: "#f8fafc", fontSize: "0.9rem" }}>Ruta de etapas</strong>
+                          <div style={{ color: "rgba(148,163,184,0.78)", fontSize: "0.72rem", marginTop: "2px" }}>
+                            Secuencia operativa del proceso
+                          </div>
+                        </div>
                         <button
                           type="button"
                           className="secondary-btn"
@@ -908,7 +985,7 @@ export default function ProcessModal({
                       </div>
 
                       {sortedSteps.length > 0 ? (
-                        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "10px", position: "relative" }}>
                           {sortedSteps.map((step) => {
                             const isCompleted = step.status === "Completada";
 
@@ -916,10 +993,13 @@ export default function ProcessModal({
                               <div
                                 key={step.id}
                                 style={{
-                                  padding: "10px",
-                                  borderRadius: "14px",
-                                  background: isCompleted ? "rgba(34,197,94,0.07)" : "rgba(2,6,23,0.44)",
-                                  border: isCompleted ? "1px solid rgba(34,197,94,0.14)" : "1px solid rgba(148,163,184,0.12)",
+                                  padding: "12px",
+                                  borderRadius: "18px",
+                                  background: isCompleted
+                                    ? "linear-gradient(180deg, rgba(34,197,94,0.10), rgba(2,6,23,0.38))"
+                                    : "linear-gradient(180deg, rgba(15,23,42,0.62), rgba(2,6,23,0.48))",
+                                  border: isCompleted ? "1px solid rgba(34,197,94,0.20)" : "1px solid rgba(148,163,184,0.13)",
+                                  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.02)",
                                 }}
                               >
                                 <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "10px", flexWrap: "wrap" }}>
@@ -960,9 +1040,11 @@ export default function ProcessModal({
                                           {step.name}
                                         </div>
 
-                                        <span style={{ ...tinyPillStyle, ...getStatusPillStyle(step.status || "Pendiente") }}>
-                                          {step.status || "Pendiente"}
-                                        </span>
+                                        {isCompleted ? (
+                                          <span style={{ ...tinyPillStyle, ...getStatusPillStyle("Completada") }}>
+                                            Hecha
+                                          </span>
+                                        ) : null}
                                       </div>
 
                                       <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", color: "rgba(148,163,184,0.88)", fontSize: "0.74rem", marginBottom: step.notes ? "6px" : "0" }}>
@@ -1000,7 +1082,7 @@ export default function ProcessModal({
                             background: "rgba(2,6,23,0.32)",
                           }}
                         >
-                          Este proceso aún no tiene etapas. Agregá la primera y el laboratorio empieza a respirar.
+                          Este proceso aún no tiene etapas. Agregá la primera para construir la ruta operativa.
                         </div>
                       )}
 
@@ -1009,8 +1091,8 @@ export default function ProcessModal({
                           style={{
                             padding: "12px",
                             borderRadius: "14px",
-                            border: "1px solid rgba(34,197,94,0.18)",
-                            background: "rgba(2,6,23,0.38)",
+                            border: "1px solid rgba(34,197,94,0.24)",
+                            background: "radial-gradient(circle at top left, rgba(34,197,94,0.10), transparent 30%), rgba(2,6,23,0.46)",
                             display: "grid",
                             gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
                             gap: "10px",
