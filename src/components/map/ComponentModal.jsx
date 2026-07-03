@@ -181,6 +181,18 @@ export default function ComponentModal({
   const safeComponents = Array.isArray(componentsDraft) ? componentsDraft : [];
   const totalComponents = safeComponents.length;
 
+  const savedComponentIds = useMemo(() => {
+    const savedComponents = Array.isArray(modalZone?.components)
+      ? modalZone.components
+      : [];
+
+    return new Set(
+      savedComponents
+        .map((component) => String(component?.id || "").trim())
+        .filter(Boolean)
+    );
+  }, [modalZone]);
+
   const [expandedComponentId, setExpandedComponentId] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTypeFilter, setActiveTypeFilter] = useState("Todos");
@@ -193,6 +205,7 @@ export default function ComponentModal({
   const [photoUploadingMap, setPhotoUploadingMap] = useState({});
   const [photoErrorMap, setPhotoErrorMap] = useState({});
   const [previewPhoto, setPreviewPhoto] = useState(null);
+  const [saveBeforePhotoPrompt, setSaveBeforePhotoPrompt] = useState(null);
 
   const isTabletLayout = viewportWidth <= 920;
   const isMobileLayout = viewportWidth <= 640;
@@ -375,6 +388,34 @@ export default function ComponentModal({
     setActiveTypeFilter("Todos");
   };
 
+  const isComponentSavedForPhotos = (component) => {
+    const componentId = String(component?.id || "").trim();
+    if (!componentId) return false;
+    return savedComponentIds.has(componentId);
+  };
+
+  const openSaveBeforePhotoPrompt = (component) => {
+    if (!component?.id) return;
+
+    const componentIndex = safeComponents.findIndex(
+      (item) => item?.id === component.id
+    );
+
+    setSaveBeforePhotoPrompt({
+      id: component.id,
+      name: resolveDisplayName(component, componentIndex >= 0 ? componentIndex : 0),
+    });
+  };
+
+  const closeSaveBeforePhotoPrompt = () => {
+    setSaveBeforePhotoPrompt(null);
+  };
+
+  const handleSaveComponentBeforePhoto = () => {
+    setSaveBeforePhotoPrompt(null);
+    saveComponentsModal();
+  };
+
   const setPhotoError = (componentId, message = "") => {
     setPhotoErrorMap((prev) => ({ ...prev, [componentId]: message }));
   };
@@ -455,6 +496,12 @@ export default function ComponentModal({
     event.target.value = "";
 
     if (!file || !modalZone?.id || !componentId) return;
+
+    const component = safeComponents.find((item) => item?.id === componentId);
+    if (!isComponentSavedForPhotos(component)) {
+      openSaveBeforePhotoPrompt(component);
+      return;
+    }
 
     const currentPhotos = photosByComponent[componentId] || [];
     if (currentPhotos.length >= MAX_COMPONENT_PHOTOS) {
@@ -1031,7 +1078,11 @@ export default function ComponentModal({
                 const isPhotosLoading = photosLoadingMap[comp.id] === true;
                 const isPhotoUploading = photoUploadingMap[comp.id] === true;
                 const photoError = photoErrorMap[comp.id] || "";
-                const canAddPhoto = compPhotosCount < MAX_COMPONENT_PHOTOS && !isPhotoUploading;
+                const isSavedForPhotos = isComponentSavedForPhotos(comp);
+                const canAddPhoto =
+                  isSavedForPhotos &&
+                  compPhotosCount < MAX_COMPONENT_PHOTOS &&
+                  !isPhotoUploading;
 
                 return (
                   <article
@@ -1290,45 +1341,72 @@ export default function ComponentModal({
                               </div>
                             </div>
 
-                            <label
-                              style={{
-                                display: "inline-flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                minHeight: "40px",
-                                padding: "0.48rem 0.72rem",
-                                borderRadius: "999px",
-                                border: canAddPhoto
-                                  ? "1px solid rgba(34,197,94,0.36)"
-                                  : "1px solid rgba(148,163,184,0.18)",
-                                background: canAddPhoto
-                                  ? "rgba(34,197,94,0.12)"
-                                  : "rgba(15,23,42,0.55)",
-                                color: canAddPhoto ? "#bbf7d0" : "rgba(226,232,240,0.48)",
-                                fontSize: "0.8rem",
-                                fontWeight: 900,
-                                cursor: canAddPhoto ? "pointer" : "not-allowed",
-                                width: isMobileLayout ? "100%" : "auto",
-                              }}
-                              title={
-                                canAddPhoto
-                                  ? "Tomar o subir fotografía"
-                                  : "Máximo de fotografías alcanzado"
-                              }
-                            >
-                              {isPhotoUploading
-                                ? "Subiendo..."
-                                : canAddPhoto
-                                ? "+ Agregar fotografía"
-                                : "Máximo alcanzado"}
-                              <input
-                                type="file"
-                                accept="image/*"
-                                disabled={!canAddPhoto}
-                                onChange={(event) => handlePhotoInputChange(comp.id, event)}
-                                style={{ display: "none" }}
-                              />
-                            </label>
+                            {isSavedForPhotos ? (
+                              <label
+                                style={{
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  minHeight: "40px",
+                                  padding: "0.48rem 0.72rem",
+                                  borderRadius: "999px",
+                                  border: canAddPhoto
+                                    ? "1px solid rgba(34,197,94,0.36)"
+                                    : "1px solid rgba(148,163,184,0.18)",
+                                  background: canAddPhoto
+                                    ? "rgba(34,197,94,0.12)"
+                                    : "rgba(15,23,42,0.55)",
+                                  color: canAddPhoto
+                                    ? "#bbf7d0"
+                                    : "rgba(226,232,240,0.48)",
+                                  fontSize: "0.8rem",
+                                  fontWeight: 900,
+                                  cursor: canAddPhoto ? "pointer" : "not-allowed",
+                                  width: isMobileLayout ? "100%" : "auto",
+                                }}
+                                title={
+                                  canAddPhoto
+                                    ? "Tomar o subir fotografía"
+                                    : "Máximo de fotografías alcanzado"
+                                }
+                              >
+                                {isPhotoUploading
+                                  ? "Subiendo..."
+                                  : canAddPhoto
+                                  ? "+ Agregar fotografía"
+                                  : "Máximo alcanzado"}
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  disabled={!canAddPhoto}
+                                  onChange={(event) => handlePhotoInputChange(comp.id, event)}
+                                  style={{ display: "none" }}
+                                />
+                              </label>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => openSaveBeforePhotoPrompt(comp)}
+                                style={{
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  minHeight: "40px",
+                                  padding: "0.48rem 0.72rem",
+                                  borderRadius: "999px",
+                                  border: "1px solid rgba(250,204,21,0.28)",
+                                  background: "rgba(250,204,21,0.10)",
+                                  color: "#fde68a",
+                                  fontSize: "0.8rem",
+                                  fontWeight: 900,
+                                  cursor: "pointer",
+                                  width: isMobileLayout ? "100%" : "auto",
+                                }}
+                                title="Guarda el componente antes de agregar fotografías"
+                              >
+                                + Agregar fotografía
+                              </button>
+                            )}
                           </div>
 
                           {photoError ? (
@@ -1547,6 +1625,122 @@ export default function ComponentModal({
           </div>
         </div>
       </div>
+
+      {saveBeforePhotoPrompt ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          onClick={closeSaveBeforePhotoPrompt}
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 10020,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: isMobileLayout ? "14px" : "24px",
+            background: "rgba(0,0,0,0.72)",
+            backdropFilter: "blur(5px)",
+          }}
+        >
+          <div
+            onClick={(event) => event.stopPropagation()}
+            style={{
+              width: "min(430px, 100%)",
+              borderRadius: "20px",
+              border: "1px solid rgba(250,204,21,0.24)",
+              background:
+                "linear-gradient(135deg, rgba(2,6,23,0.98), rgba(113,63,18,0.30))",
+              boxShadow: "0 24px 80px rgba(0,0,0,0.58)",
+              padding: isMobileLayout ? "16px" : "18px",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: "12px",
+              }}
+            >
+              <h4
+                style={{
+                  margin: 0,
+                  color: "#f8fafc",
+                  fontSize: "1rem",
+                  fontWeight: 950,
+                }}
+              >
+                📸 Primero guarda el componente
+              </h4>
+              <button
+                type="button"
+                className="secondary-btn"
+                onClick={closeSaveBeforePhotoPrompt}
+                style={{ padding: "0.32rem 0.62rem" }}
+                title="Cancelar"
+              >
+                ✕
+              </button>
+            </div>
+
+            <p
+              style={{
+                margin: "12px 0 0",
+                color: "rgba(226,232,240,0.74)",
+                fontSize: "0.88rem",
+                lineHeight: 1.55,
+              }}
+            >
+              Para agregar evidencias fotográficas, primero debes guardar este componente.
+            </p>
+
+            {saveBeforePhotoPrompt?.name ? (
+              <div
+                style={{
+                  marginTop: "12px",
+                  padding: "0.62rem 0.72rem",
+                  borderRadius: "14px",
+                  border: "1px solid rgba(148,163,184,0.16)",
+                  background: "rgba(15,23,42,0.52)",
+                  color: "rgba(226,232,240,0.82)",
+                  fontSize: "0.78rem",
+                  fontWeight: 800,
+                }}
+              >
+                Componente: {saveBeforePhotoPrompt.name}
+              </div>
+            ) : null}
+
+            <div
+              style={{
+                marginTop: "16px",
+                display: "flex",
+                justifyContent: "flex-end",
+                gap: "10px",
+                flexWrap: "wrap",
+              }}
+            >
+              <button
+                type="button"
+                className="secondary-btn"
+                onClick={closeSaveBeforePhotoPrompt}
+                style={{ flex: isMobileLayout ? "1 1 100%" : "0 0 auto", justifyContent: "center" }}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="primary-btn"
+                onClick={handleSaveComponentBeforePhoto}
+                style={{ flex: isMobileLayout ? "1 1 100%" : "0 0 auto", justifyContent: "center" }}
+              >
+                💾 Guardar componente
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {previewPhoto ? (
         <div
