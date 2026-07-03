@@ -395,6 +395,197 @@ export default function ProcessModal({
         boxShadow: "0 26px 70px rgba(0,0,0,0.38), inset 0 1px 0 rgba(255,255,255,0.03)",
       }}
     >
+
+      <style>{`
+        #zone-processes-section {
+          position: relative;
+          isolation: isolate;
+        }
+
+        #zone-processes-section::before {
+          content: "";
+          position: absolute;
+          inset: 0;
+          border-radius: 24px;
+          pointer-events: none;
+          background:
+            radial-gradient(circle at var(--pl-x, 18%) var(--pl-y, 0%), rgba(34,197,94,0.13), transparent 28%),
+            linear-gradient(120deg, transparent, rgba(20,184,166,0.045), transparent);
+          opacity: 0.85;
+          transition: opacity 220ms ease;
+          z-index: -1;
+        }
+
+        #zone-processes-section .pl-stat-card,
+        #zone-processes-section .pl-process-card,
+        #zone-processes-section .pl-step-card,
+        #zone-processes-section .pl-draft-step,
+        #zone-processes-section .pl-builder-panel {
+          position: relative;
+          overflow: hidden;
+          transition:
+            transform 180ms ease,
+            border-color 180ms ease,
+            box-shadow 180ms ease,
+            background 180ms ease,
+            filter 180ms ease;
+        }
+
+        #zone-processes-section .pl-stat-card::before,
+        #zone-processes-section .pl-process-card::before,
+        #zone-processes-section .pl-step-card::before,
+        #zone-processes-section .pl-draft-step::before,
+        #zone-processes-section .pl-builder-panel::before {
+          content: "";
+          position: absolute;
+          inset: -1px;
+          pointer-events: none;
+          opacity: 0;
+          transition: opacity 180ms ease;
+          background:
+            radial-gradient(circle at var(--mouse-x, 18%) var(--mouse-y, 18%), rgba(34,197,94,0.20), transparent 22%),
+            linear-gradient(120deg, transparent, rgba(20,184,166,0.10), transparent);
+        }
+
+        #zone-processes-section .pl-stat-card:hover,
+        #zone-processes-section .pl-process-card:hover,
+        #zone-processes-section .pl-step-card:hover,
+        #zone-processes-section .pl-draft-step:hover,
+        #zone-processes-section .pl-builder-panel:hover {
+          transform: translateY(-2px);
+          border-color: rgba(34,197,94,0.40) !important;
+          box-shadow:
+            0 18px 44px rgba(0,0,0,0.34),
+            0 0 0 1px rgba(34,197,94,0.10),
+            0 0 34px rgba(34,197,94,0.10) !important;
+        }
+
+        #zone-processes-section .pl-stat-card:hover::before,
+        #zone-processes-section .pl-process-card:hover::before,
+        #zone-processes-section .pl-step-card:hover::before,
+        #zone-processes-section .pl-draft-step:hover::before,
+        #zone-processes-section .pl-builder-panel:hover::before {
+          opacity: 1;
+        }
+
+        #zone-processes-section .pl-process-toggle {
+          transition: background 180ms ease, filter 180ms ease;
+        }
+
+        #zone-processes-section .pl-process-toggle:hover {
+          background: rgba(34,197,94,0.035) !important;
+        }
+
+        #zone-processes-section .pl-arrow {
+          transition:
+            transform 180ms ease,
+            background 180ms ease,
+            color 180ms ease,
+            border-color 180ms ease,
+            box-shadow 180ms ease;
+        }
+
+        #zone-processes-section .pl-process-card:hover .pl-arrow {
+          border-color: rgba(34,197,94,0.38) !important;
+          box-shadow: 0 0 22px rgba(34,197,94,0.12);
+        }
+
+        #zone-processes-section .pl-progress-track {
+          position: relative;
+          overflow: hidden;
+        }
+
+        #zone-processes-section .pl-progress-fill {
+          position: relative;
+          transition: width 320ms ease;
+          box-shadow: 0 0 16px rgba(34,197,94,0.30);
+        }
+
+        #zone-processes-section .pl-progress-fill::after {
+          content: "";
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(90deg, transparent, rgba(255,255,255,0.32), transparent);
+          transform: translateX(-110%);
+          animation: pl-progress-shine 2.25s ease-in-out infinite;
+        }
+
+        #zone-processes-section .primary-btn,
+        #zone-processes-section .secondary-btn,
+        #zone-processes-section .danger-link {
+          transition:
+            transform 160ms ease,
+            box-shadow 160ms ease,
+            border-color 160ms ease,
+            filter 160ms ease,
+            background 160ms ease;
+        }
+
+        #zone-processes-section .primary-btn:hover,
+        #zone-processes-section .secondary-btn:hover {
+          transform: translateY(-1px);
+          filter: brightness(1.08);
+          box-shadow: 0 12px 28px rgba(34,197,94,0.14);
+        }
+
+        #zone-processes-section .danger-link:hover {
+          transform: translateY(-1px);
+          filter: brightness(1.15);
+          text-shadow: 0 0 12px rgba(248,113,113,0.35);
+        }
+
+        #zone-processes-section .farm-feature-input,
+        #zone-processes-section .farm-feature-textarea,
+        #zone-processes-section .component-type-select {
+          transition:
+            border-color 160ms ease,
+            box-shadow 160ms ease,
+            background 160ms ease;
+        }
+
+        #zone-processes-section .farm-feature-input:focus,
+        #zone-processes-section .farm-feature-textarea:focus,
+        #zone-processes-section .component-type-select:focus {
+          border-color: rgba(34,197,94,0.52) !important;
+          box-shadow: 0 0 0 3px rgba(34,197,94,0.10), 0 0 24px rgba(34,197,94,0.08);
+          outline: none;
+        }
+
+        #zone-processes-section .pl-expanded-area {
+          animation: pl-expand-in 180ms ease both;
+        }
+
+        #zone-processes-section .pl-step-card:hover .pl-step-number {
+          box-shadow: 0 0 22px rgba(34,197,94,0.14);
+          border-color: rgba(34,197,94,0.30);
+        }
+
+        @keyframes pl-expand-in {
+          from {
+            opacity: 0;
+            transform: translateY(-6px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        @keyframes pl-progress-shine {
+          0% { transform: translateX(-120%); }
+          45% { transform: translateX(120%); }
+          100% { transform: translateX(120%); }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          #zone-processes-section *,
+          #zone-processes-section *::before,
+          #zone-processes-section *::after {
+            animation: none !important;
+            transition: none !important;
+          }
+        }
+      `}</style>
       <div
         style={{
           display: "flex",
@@ -470,6 +661,12 @@ export default function ProcessModal({
         ].map(([label, value, icon]) => (
           <div
             key={label}
+            className="pl-stat-card"
+            onMouseMove={(e) => {
+              const rect = e.currentTarget.getBoundingClientRect();
+              e.currentTarget.style.setProperty("--mouse-x", `${e.clientX - rect.left}px`);
+              e.currentTarget.style.setProperty("--mouse-y", `${e.clientY - rect.top}px`);
+            }}
             style={{
               padding: "14px 14px",
               borderRadius: "18px",
@@ -508,6 +705,12 @@ export default function ProcessModal({
 
       {shouldShowBuilder && (
         <div
+          className="pl-builder-panel"
+          onMouseMove={(e) => {
+            const rect = e.currentTarget.getBoundingClientRect();
+            e.currentTarget.style.setProperty("--mouse-x", `${e.clientX - rect.left}px`);
+            e.currentTarget.style.setProperty("--mouse-y", `${e.clientY - rect.top}px`);
+          }}
           style={{
             marginBottom: "14px",
             padding: "14px",
@@ -594,6 +797,12 @@ export default function ProcessModal({
               return (
                 <div
                   key={step.localId}
+                  className="pl-draft-step"
+                  onMouseMove={(e) => {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    e.currentTarget.style.setProperty("--mouse-x", `${e.clientX - rect.left}px`);
+                    e.currentTarget.style.setProperty("--mouse-y", `${e.clientY - rect.top}px`);
+                  }}
                   style={{
                     padding: "12px",
                     borderRadius: "14px",
@@ -761,6 +970,12 @@ export default function ProcessModal({
               return (
                 <div
                   key={process.id}
+                  className="pl-process-card"
+                  onMouseMove={(e) => {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    e.currentTarget.style.setProperty("--mouse-x", `${e.clientX - rect.left}px`);
+                    e.currentTarget.style.setProperty("--mouse-y", `${e.clientY - rect.top}px`);
+                  }}
                   style={{
                     borderRadius: "22px",
                     border: isExpanded
@@ -775,6 +990,7 @@ export default function ProcessModal({
                 >
                   <button
                     type="button"
+                    className="pl-process-toggle"
                     onClick={() => toggleProcessExpansion(process.id)}
                     style={{
                       width: "100%",
@@ -807,6 +1023,7 @@ export default function ProcessModal({
                           }}
                         >
                           <span
+                            className="pl-arrow"
                             style={{
                               width: "26px",
                               height: "26px",
@@ -878,8 +1095,9 @@ export default function ProcessModal({
                           <span>Avance</span>
                           <span>{progress}%</span>
                         </div>
-                        <div style={{ width: "100%", height: "8px", borderRadius: "999px", background: "rgba(148,163,184,0.18)", overflow: "hidden" }}>
+                        <div className="pl-progress-track" style={{ width: "100%", height: "8px", borderRadius: "999px", background: "rgba(148,163,184,0.18)", overflow: "hidden" }}>
                           <div
+                            className="pl-progress-fill"
                             style={{
                               width: `${progress}%`,
                               height: "100%",
@@ -893,6 +1111,7 @@ export default function ProcessModal({
 
                   {isExpanded && (
                     <div
+                      className="pl-expanded-area"
                       style={{
                         padding: "0 16px 16px",
                         borderTop: "1px solid rgba(148,163,184,0.12)",
@@ -992,6 +1211,12 @@ export default function ProcessModal({
                             return (
                               <div
                                 key={step.id}
+                                className="pl-step-card"
+                                onMouseMove={(e) => {
+                                  const rect = e.currentTarget.getBoundingClientRect();
+                                  e.currentTarget.style.setProperty("--mouse-x", `${e.clientX - rect.left}px`);
+                                  e.currentTarget.style.setProperty("--mouse-y", `${e.clientY - rect.top}px`);
+                                }}
                                 style={{
                                   padding: "12px",
                                   borderRadius: "18px",
@@ -1032,7 +1257,7 @@ export default function ProcessModal({
 
                                     <div style={{ minWidth: 0, flex: 1 }}>
                                       <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", marginBottom: "4px" }}>
-                                        <span style={{ minWidth: "24px", height: "24px", borderRadius: "999px", display: "inline-flex", alignItems: "center", justifyContent: "center", background: "rgba(34,197,94,0.14)", color: "#bbf7d0", fontSize: "0.72rem", fontWeight: 700 }}>
+                                        <span className="pl-step-number" style={{ minWidth: "24px", height: "24px", borderRadius: "999px", display: "inline-flex", alignItems: "center", justifyContent: "center", background: "rgba(34,197,94,0.14)", color: "#bbf7d0", fontSize: "0.72rem", fontWeight: 700, border: "1px solid rgba(34,197,94,0.12)", transition: "box-shadow 160ms ease, border-color 160ms ease" }}>
                                           {step.stepOrder}
                                         </span>
 
