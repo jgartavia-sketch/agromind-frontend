@@ -768,7 +768,7 @@ export default function ComponentModal({
                     fontWeight: 900,
                   }}
                 >
-                  📷 Fotos preparadas
+                  📷 Registro fotográfico
                 </div>
               </div>
             </div>
