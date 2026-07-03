@@ -21,6 +21,22 @@ export default function ComponentModal({
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTypeFilter, setActiveTypeFilter] = useState("Todos");
   const [hoveredComponentId, setHoveredComponentId] = useState(null);
+  const [viewportWidth, setViewportWidth] = useState(() =>
+    typeof window === "undefined" ? 1200 : window.innerWidth
+  );
+
+  const isTabletLayout = viewportWidth <= 920;
+  const isMobileLayout = viewportWidth <= 640;
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+
+    const handleResize = () => setViewportWidth(window.innerWidth);
+    handleResize();
+    window.addEventListener("resize", handleResize);
+
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   const componentTypeOptions = useMemo(() => {
     const baseTypes = Array.isArray(COMPONENT_TYPES) ? COMPONENT_TYPES : [];
@@ -186,7 +202,7 @@ export default function ComponentModal({
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        padding: "16px",
+        padding: isMobileLayout ? "8px" : "16px",
       }}
     >
       <div
@@ -204,12 +220,12 @@ export default function ComponentModal({
         onClick={(e) => e.stopPropagation()}
         style={{
           position: "relative",
-          width: "min(1080px, 100%)",
-          maxHeight: "min(88vh, 900px)",
+          width: isMobileLayout ? "100%" : "min(1080px, 100%)",
+          maxHeight: isMobileLayout ? "calc(100dvh - 16px)" : "min(88vh, 900px)",
           background:
             "linear-gradient(145deg, rgba(2,6,23,0.98), rgba(15,23,42,0.96))",
           border: "1px solid rgba(148,163,184,0.22)",
-          borderRadius: "24px",
+          borderRadius: isMobileLayout ? "18px" : "24px",
           boxShadow:
             "0 28px 90px rgba(0,0,0,0.62), 0 0 0 1px rgba(34,197,94,0.06), inset 0 1px 0 rgba(255,255,255,0.04)",
           overflow: "hidden",
@@ -220,7 +236,7 @@ export default function ComponentModal({
         <div
           style={{
             position: "relative",
-            padding: "18px 18px 16px",
+            padding: isMobileLayout ? "14px 12px 13px" : "18px 18px 16px",
             borderBottom: "1px solid rgba(148,163,184,0.16)",
             background:
               "linear-gradient(135deg, rgba(6,78,59,0.48), rgba(15,23,42,0.86) 58%, rgba(2,6,23,0.92))",
@@ -245,9 +261,10 @@ export default function ComponentModal({
             style={{
               position: "relative",
               display: "flex",
-              alignItems: "flex-start",
+              flexDirection: isMobileLayout ? "column" : "row",
+              alignItems: isMobileLayout ? "stretch" : "flex-start",
               justifyContent: "space-between",
-              gap: "14px",
+              gap: isMobileLayout ? "12px" : "14px",
             }}
           >
             <div style={{ minWidth: 0 }}>
@@ -316,7 +333,7 @@ export default function ComponentModal({
               type="button"
               className="secondary-btn"
               onClick={closeComponentsModal}
-              style={{ padding: "0.38rem 0.68rem" }}
+              style={{ padding: "0.38rem 0.68rem", alignSelf: isMobileLayout ? "flex-end" : "auto" }}
               title="Cerrar"
             >
               ✕
@@ -324,14 +341,14 @@ export default function ComponentModal({
           </div>
         </div>
 
-        <div style={{ padding: "16px", overflow: "auto" }}>
+        <div style={{ padding: isMobileLayout ? "12px" : "16px", overflow: "auto" }}>
           <section
             style={{
               border: "1px solid rgba(34,197,94,0.22)",
               background:
                 "linear-gradient(135deg, rgba(6,78,59,0.28), rgba(15,23,42,0.86))",
-              borderRadius: "22px",
-              padding: "16px",
+              borderRadius: isMobileLayout ? "18px" : "22px",
+              padding: isMobileLayout ? "12px" : "16px",
               marginBottom: "14px",
               boxShadow: "0 20px 55px rgba(0,0,0,0.24)",
             }}
@@ -339,7 +356,9 @@ export default function ComponentModal({
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))",
+                gridTemplateColumns: isMobileLayout
+                  ? "1fr"
+                  : "repeat(auto-fit, minmax(210px, 1fr))",
                 gap: "12px",
               }}
             >
@@ -483,12 +502,12 @@ export default function ComponentModal({
                 marginTop: "12px",
                 display: "flex",
                 gap: "10px",
-                alignItems: "center",
+                alignItems: isMobileLayout ? "stretch" : "center",
                 justifyContent: "space-between",
                 flexWrap: "wrap",
               }}
             >
-              <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+              <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", width: isMobileLayout ? "100%" : "auto" }}>
                 {topTypes.length > 0 ? (
                   topTypes.map(([type, count]) => (
                     <button
@@ -527,7 +546,7 @@ export default function ComponentModal({
                 )}
               </div>
 
-              <button type="button" className="primary-btn" onClick={handleAddComponent}>
+              <button type="button" className="primary-btn" onClick={handleAddComponent} style={{ width: isMobileLayout ? "100%" : "auto", justifyContent: "center" }}>
                 + Nuevo componente
               </button>
             </div>
@@ -536,7 +555,8 @@ export default function ComponentModal({
           <section
             style={{
               display: "flex",
-              alignItems: "center",
+              flexDirection: isMobileLayout ? "column" : "row",
+              alignItems: isMobileLayout ? "stretch" : "center",
               justifyContent: "space-between",
               gap: "10px",
               flexWrap: "wrap",
@@ -571,7 +591,7 @@ export default function ComponentModal({
               />
             </div>
 
-            <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+            <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", width: isMobileLayout ? "100%" : "auto" }}>
               {availableFilterTypes.slice(0, 8).map((type) => (
                 <button
                   key={type}
@@ -662,7 +682,7 @@ export default function ComponentModal({
                       "--component-glow-y": "50%",
                       position: "relative",
                       margin: 0,
-                      borderRadius: "20px",
+                      borderRadius: isMobileLayout ? "17px" : "20px",
                       border:
                         isExpanded || isHovered
                           ? "1px solid rgba(34,197,94,0.44)"
@@ -712,7 +732,7 @@ export default function ComponentModal({
                         background: "transparent",
                         color: "inherit",
                         cursor: "pointer",
-                        padding: "15px",
+                        padding: isMobileLayout ? "13px" : "15px",
                         display: "grid",
                         gridTemplateColumns: "auto minmax(0, 1fr) auto",
                         gap: "12px",
@@ -842,7 +862,9 @@ export default function ComponentModal({
                           className="component-lab-edit-grid"
                           style={{
                             display: "grid",
-                            gridTemplateColumns: "minmax(180px, 1fr) minmax(160px, 0.58fr)",
+                            gridTemplateColumns: isTabletLayout
+                              ? "1fr"
+                              : "minmax(180px, 1fr) minmax(160px, 0.58fr)",
                             gap: "10px",
                             paddingTop: "14px",
                           }}
@@ -974,7 +996,7 @@ export default function ComponentModal({
             borderTop: "1px solid rgba(148,163,184,0.16)",
             background: "rgba(2,6,23,0.42)",
             display: "flex",
-            alignItems: "center",
+            alignItems: isMobileLayout ? "stretch" : "center",
             justifyContent: "space-between",
             gap: "10px",
             flexWrap: "wrap",
@@ -984,11 +1006,11 @@ export default function ComponentModal({
             {filteredComponents.length} visible{filteredComponents.length === 1 ? "" : "s"} · {totalComponents} total
           </div>
 
-          <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
-            <button type="button" className="secondary-btn" onClick={closeComponentsModal}>
+          <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap", width: isMobileLayout ? "100%" : "auto" }}>
+            <button type="button" className="secondary-btn" onClick={closeComponentsModal} style={{ flex: isMobileLayout ? "1 1 100%" : "0 0 auto", justifyContent: "center" }}>
               Cancelar
             </button>
-            <button type="button" className="primary-btn" onClick={saveComponentsModal}>
+            <button type="button" className="primary-btn" onClick={saveComponentsModal} style={{ flex: isMobileLayout ? "1 1 100%" : "0 0 auto", justifyContent: "center" }}>
               Guardar cambios
             </button>
           </div>
@@ -1007,9 +1029,52 @@ export default function ComponentModal({
           box-shadow: 0 0 0 3px rgba(34,197,94,0.10), 0 0 28px rgba(34,197,94,0.08) !important;
         }
 
-        @media (max-width: 720px) {
+        .component-lab-shell,
+        .component-lab-shell * {
+          box-sizing: border-box;
+        }
+
+        .component-lab-shell button,
+        .component-lab-shell input,
+        .component-lab-shell textarea,
+        .component-lab-shell select {
+          max-width: 100%;
+        }
+
+        .component-lab-shell input,
+        .component-lab-shell textarea,
+        .component-lab-shell select {
+          font-size: 16px;
+        }
+
+        @media (max-width: 920px) {
           .component-lab-edit-grid {
             grid-template-columns: 1fr !important;
+          }
+        }
+
+        @media (max-width: 720px) {
+          .component-lab-shell .primary-btn,
+          .component-lab-shell .secondary-btn,
+          .component-lab-shell .danger-link {
+            min-height: 42px;
+          }
+
+          .component-lab-shell .zone-tag {
+            max-width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          }
+
+          .component-lab-edit-grid {
+            grid-template-columns: 1fr !important;
+          }
+        }
+
+        @media (max-width: 520px) {
+          .component-lab-shell article button[style] {
+            gap: 10px !important;
           }
         }
 

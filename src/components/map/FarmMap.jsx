@@ -2707,7 +2707,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
       <div className="farm-map-toolbar" style={{ gap: "0.75rem" }}>
         <div
           className="agromind-search-wrap"
-          style={{ position: "relative", flex: 1, maxWidth: 560 }}
+          style={{ position: "relative" }}
         >
           <form
             onSubmit={handleSearchSubmit}
@@ -2825,7 +2825,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
 
         <div
           className="agromind-farm-switcher"
-          style={{ position: "relative", minWidth: 220 }}
+          style={{ position: "relative" }}
         >
           <button
             type="button"
@@ -3193,11 +3193,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
         <div className="farm-zones-table-wrapper">
           <div
             className="farm-zones-header-row"
-            style={{
-              gridTemplateColumns:
-                "minmax(260px, 1fr) minmax(170px, 220px) minmax(360px, auto)",
-              alignItems: "center",
-            }}
+            style={{ alignItems: "center" }}
           >
             <span>ZONA / ELEMENTO</span>
             <span>ESTADO</span>
@@ -3222,11 +3218,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
                   if (el) rowRefs.current[item.id] = el;
                 }}
                 className={rowClass}
-                style={{
-                  gridTemplateColumns:
-                    "minmax(260px, 1fr) minmax(170px, 220px) minmax(360px, auto)",
-                  alignItems: "center",
-                }}
+                style={{ alignItems: "center" }}
                 onClick={() => handleSelectFeature(item.id)}
                 onMouseEnter={() => setHoveredId(item.id)}
                 onMouseLeave={() =>
@@ -3274,7 +3266,6 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
                   style={{
                     justifyContent: "center",
                     gap: "0.5rem",
-                    flexWrap: "nowrap",
                     alignItems: "center",
                   }}
                 >
@@ -3470,6 +3461,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
         <div
           role="dialog"
           aria-modal="true"
+          className="agromind-process-modal-backdrop"
           style={{
             position: "fixed",
             inset: 0,
@@ -3492,6 +3484,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
 
           <div
             onClick={(e) => e.stopPropagation()}
+            className="agromind-process-modal"
             style={{
               position: "relative",
               width: "min(1080px, 100%)",

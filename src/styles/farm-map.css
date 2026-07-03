@@ -246,7 +246,7 @@
 .farm-zones-header-row,
 .farm-zones-row {
   display: grid;
-  grid-template-columns: 2fr 1.4fr 1.4fr minmax(320px, 2fr);
+  grid-template-columns: minmax(260px, 1fr) minmax(170px, 220px) minmax(360px, auto);
   gap: 0.9rem;
   padding-left: 0.6rem;
   padding-right: 0.6rem;
@@ -724,7 +724,7 @@
 
   .farm-zones-header-row,
   .farm-zones-row {
-    grid-template-columns: 1.8fr 1.4fr 1.4fr minmax(240px, 1.8fr);
+    grid-template-columns: minmax(220px, 1fr) minmax(150px, 190px) minmax(300px, auto);
     gap: 0.75rem;
   }
 
@@ -779,5 +779,471 @@
   .component-type-select {
     min-height: 44px;
     font-size: 0.83rem;
+  }
+}
+
+/* =========================================================
+   RESPONSIVE PRO AGROMIND — FARM MAP + MODALES
+   Base: no toca lógica, solo layout, legibilidad y control de overflow.
+   ========================================================= */
+
+.farm-map-shell,
+.farm-map-shell * {
+  box-sizing: border-box;
+}
+
+.farm-map-shell {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.agromind-search-wrap {
+  flex: 1 1 320px;
+  min-width: 240px;
+  max-width: 560px;
+}
+
+.agromind-search-wrap form {
+  width: 100%;
+}
+
+.agromind-search-wrap input {
+  min-width: 0;
+}
+
+.agromind-farm-switcher {
+  flex: 0 1 260px;
+  min-width: 220px;
+}
+
+.farm-map-tools-left {
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.farm-map-summary {
+  width: 100%;
+  align-items: center;
+}
+
+.farm-map-summary .summary-chip {
+  min-height: 34px;
+}
+
+.farm-zones-table-wrapper {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.farm-zones-header-row,
+.farm-zones-row {
+  grid-template-columns: minmax(260px, 1fr) minmax(170px, 220px) minmax(360px, auto);
+  min-width: 0;
+}
+
+.zone-col,
+.zone-name,
+.zone-status,
+.zone-components {
+  min-width: 0;
+}
+
+.zone-name-input,
+.status-select,
+.zone-status select,
+.zone-type select {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.zone-col.zone-components {
+  min-width: 0;
+}
+
+.zone-col.zone-components > button {
+  max-width: 100%;
+}
+
+.agromind-process-modal-backdrop,
+.agromind-modal-backdrop {
+  width: 100vw;
+  max-width: 100vw;
+}
+
+.agromind-process-modal,
+.agromind-modal {
+  max-width: 100%;
+}
+
+.agromind-modal-body,
+.agromind-process-modal > div {
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 1180px) {
+  .farm-map-toolbar {
+    border-radius: 24px;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    padding: 0.55rem;
+  }
+
+  .agromind-search-wrap {
+    max-width: none;
+    flex: 1 1 420px;
+  }
+
+  .farm-map-tools-left {
+    flex: 1 1 300px;
+    justify-content: center;
+  }
+
+  .agromind-farm-switcher {
+    flex: 1 1 240px;
+  }
+
+  .farm-zones-header-row,
+  .farm-zones-row {
+    grid-template-columns: minmax(230px, 1fr) minmax(145px, 190px) minmax(280px, auto);
+    gap: 0.7rem;
+  }
+}
+
+@media (max-width: 900px) {
+  .farm-map-shell {
+    gap: 0.65rem;
+    margin-top: 0.55rem;
+  }
+
+  .farm-map-toolbar {
+    border-radius: 22px;
+    padding: 0.7rem;
+    gap: 0.65rem !important;
+  }
+
+  .agromind-search-wrap,
+  .agromind-farm-switcher,
+  .farm-map-tools-left {
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+    flex: 1 1 100%;
+  }
+
+  .agromind-search-wrap form {
+    gap: 0.45rem !important;
+  }
+
+  .farm-map-tools-left {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.45rem;
+  }
+
+  .farm-map-tools-left .tool-btn,
+  .agromind-farm-switcher .primary-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .farm-map {
+    height: clamp(360px, 58vh, 520px);
+    min-height: 340px;
+    border-radius: 18px;
+  }
+
+  .farm-map-summary {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+    margin-bottom: 0.55rem;
+  }
+
+  .farm-map-summary .summary-chip {
+    width: 100%;
+    justify-content: center;
+    padding: 0.45rem 0.65rem;
+  }
+
+  .farm-zones-table-wrapper {
+    border-radius: 18px;
+    padding: 0.65rem;
+  }
+
+  .farm-zones-header-row {
+    display: none;
+  }
+
+  .farm-zones-row {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+    padding: 0.85rem;
+    margin-top: 0.55rem;
+    border-radius: 16px;
+    background: linear-gradient(180deg, rgba(15, 23, 42, 0.72), rgba(2, 6, 23, 0.94));
+    border-color: rgba(148, 163, 184, 0.12);
+  }
+
+  .farm-zones-row::before {
+    content: "Zona / elemento";
+    display: block;
+    margin-bottom: -0.45rem;
+    color: rgba(148, 163, 184, 0.85);
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .zone-col.zone-name {
+    width: 100%;
+    gap: 0.55rem;
+  }
+
+  .feature-color-pill {
+    width: 18px;
+    height: 6px;
+  }
+
+  .zone-name-input {
+    width: 100%;
+    min-height: 40px;
+    border-radius: 12px;
+    padding: 0.5rem 0.7rem;
+    font-size: 0.88rem;
+  }
+
+  .zone-col.zone-status {
+    display: grid;
+    grid-template-columns: minmax(86px, auto) minmax(0, 1fr);
+    gap: 0.65rem;
+    align-items: center;
+    width: 100%;
+  }
+
+  .zone-col.zone-status::before {
+    content: "Estado";
+    color: rgba(148, 163, 184, 0.86);
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.075em;
+    text-transform: uppercase;
+  }
+
+  .zone-status select,
+  .status-select {
+    width: 100%;
+    min-height: 40px;
+    border-radius: 12px;
+    padding: 0.45rem 0.75rem;
+    font-size: 0.84rem;
+  }
+
+  .status-label {
+    color: rgba(226, 232, 240, 0.72);
+  }
+
+  .zone-col.zone-components {
+    justify-content: stretch !important;
+    align-items: stretch !important;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+    gap: 0.55rem !important;
+    width: 100%;
+  }
+
+  .zone-col.zone-components > button:not(.danger-link) {
+    width: 100% !important;
+    min-width: 0 !important;
+    height: 46px !important;
+  }
+
+  .zone-col.zone-components > .danger-link {
+    width: 46px !important;
+    min-width: 46px !important;
+    height: 46px !important;
+    align-self: stretch;
+  }
+}
+
+@media (max-width: 640px) {
+  .farm-map-shell {
+    gap: 0.58rem;
+  }
+
+  .farm-map-toolbar {
+    border-radius: 18px;
+    padding: 0.62rem;
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
+  }
+
+  .agromind-search-wrap form {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .agromind-search-wrap input {
+    width: 100%;
+    min-height: 42px;
+    padding: 0.68rem 0.78rem !important;
+    border-radius: 14px !important;
+    font-size: 0.86rem;
+  }
+
+  .agromind-search-wrap .secondary-btn {
+    min-height: 42px;
+    border-radius: 14px;
+    padding-inline: 0.75rem;
+  }
+
+  .farm-map-tools-left {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .tool-btn,
+  .primary-btn,
+  .secondary-btn {
+    min-height: 40px;
+    border-radius: 14px;
+    padding: 0.45rem 0.75rem;
+  }
+
+  .farm-map {
+    height: clamp(330px, 54vh, 460px);
+    min-height: 320px;
+    border-radius: 16px;
+  }
+
+  .farm-map-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .farm-map-summary .summary-chip {
+    min-height: 42px;
+    padding: 0.48rem 0.5rem;
+    font-size: 0.76rem;
+  }
+
+  .summary-label {
+    white-space: normal;
+    line-height: 1.15;
+    text-align: center;
+  }
+
+  .farm-zones-table-wrapper {
+    padding: 0.5rem;
+    border-radius: 16px;
+  }
+
+  .farm-zones-row {
+    padding: 0.75rem;
+    gap: 0.68rem;
+  }
+
+  .zone-col.zone-status {
+    grid-template-columns: 1fr;
+    gap: 0.38rem;
+  }
+
+  .zone-col.zone-components {
+    grid-template-columns: 1fr;
+  }
+
+  .zone-col.zone-components > button:not(.danger-link) {
+    justify-content: space-between !important;
+  }
+
+  .zone-col.zone-components > .danger-link {
+    width: 100% !important;
+    min-width: 0 !important;
+    border-radius: 14px !important;
+  }
+
+  .agromind-modal-backdrop,
+  .agromind-process-modal-backdrop {
+    padding: 8px !important;
+    align-items: flex-start !important;
+    padding-top: max(8px, env(safe-area-inset-top)) !important;
+    padding-bottom: max(8px, env(safe-area-inset-bottom)) !important;
+  }
+
+  .agromind-modal,
+  .agromind-process-modal {
+    width: 100% !important;
+    max-height: calc(100dvh - 16px) !important;
+    border-radius: 16px !important;
+  }
+
+  .agromind-modal-header,
+  .agromind-modal-footer {
+    align-items: stretch;
+  }
+
+  .agromind-modal-header-left,
+  .agromind-modal-footer-left,
+  .agromind-modal-footer-right {
+    width: 100%;
+  }
+
+  .agromind-modal-footer {
+    justify-content: stretch;
+  }
+
+  .agromind-modal-footer button,
+  .agromind-process-modal button.secondary-btn,
+  .agromind-process-modal button.primary-btn {
+    flex: 1 1 auto;
+  }
+
+  .farm-zone-component-row {
+    padding: 12px;
+    border-radius: 14px;
+  }
+
+  .component-note-view {
+    font-size: 0.84rem;
+  }
+}
+
+@media (max-width: 420px) {
+  .farm-map-toolbar {
+    padding: 0.55rem;
+  }
+
+  .farm-map-tools-left {
+    gap: 0.38rem;
+  }
+
+  .tool-btn,
+  .primary-btn,
+  .secondary-btn {
+    font-size: 0.78rem;
+    padding-inline: 0.55rem;
+  }
+
+  .farm-map {
+    height: 320px;
+    min-height: 300px;
+  }
+
+  .farm-map-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .farm-map-summary .summary-chip {
+    justify-content: flex-start;
+    text-align: left;
+  }
+
+  .summary-label {
+    text-align: left;
+  }
+
+  .zone-name-input {
+    font-size: 0.84rem;
   }
 }

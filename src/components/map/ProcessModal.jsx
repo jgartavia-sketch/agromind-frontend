@@ -577,6 +577,251 @@ export default function ProcessModal({
           100% { transform: translateX(120%); }
         }
 
+
+
+        @media (max-width: 980px) {
+          #zone-processes-section {
+            padding: 14px !important;
+            border-radius: 20px !important;
+            margin-bottom: 12px !important;
+          }
+
+          #zone-processes-section [style*="grid-template-columns"] {
+            grid-template-columns: 1fr !important;
+          }
+
+          #zone-processes-section [style*="min-width: 170px"] {
+            min-width: 0 !important;
+            width: 100% !important;
+          }
+
+          #zone-processes-section .pl-process-toggle {
+            padding: 14px !important;
+          }
+
+          #zone-processes-section .pl-expanded-area {
+            padding: 0 14px 14px !important;
+          }
+        }
+
+        @media (max-width: 760px) {
+          #zone-processes-section {
+            padding: 12px !important;
+            border-radius: 18px !important;
+            box-shadow: 0 18px 46px rgba(0,0,0,0.34), inset 0 1px 0 rgba(255,255,255,0.03) !important;
+          }
+
+          #zone-processes-section > div:first-of-type {
+            align-items: flex-start !important;
+          }
+
+          #zone-processes-section > div:first-of-type > div:first-child {
+            width: 100% !important;
+            align-items: flex-start !important;
+          }
+
+          #zone-processes-section h4 {
+            font-size: 1rem !important;
+          }
+
+          #zone-processes-section p {
+            font-size: 0.78rem !important;
+          }
+
+          #zone-processes-section .pl-stat-card {
+            padding: 12px !important;
+            border-radius: 16px !important;
+          }
+
+          #zone-processes-section .pl-builder-panel {
+            padding: 12px !important;
+            border-radius: 16px !important;
+          }
+
+          #zone-processes-section .pl-draft-step,
+          #zone-processes-section .pl-step-card {
+            padding: 11px !important;
+            border-radius: 16px !important;
+          }
+
+          #zone-processes-section .pl-process-card {
+            border-radius: 18px !important;
+          }
+
+          #zone-processes-section .pl-process-toggle {
+            padding: 13px !important;
+          }
+
+          #zone-processes-section .pl-expanded-area {
+            padding: 0 13px 13px !important;
+          }
+
+          #zone-processes-section strong[style*="white-space"] {
+            white-space: normal !important;
+            overflow: visible !important;
+            text-overflow: clip !important;
+            max-width: 100% !important;
+            line-height: 1.25 !important;
+          }
+
+          #zone-processes-section .farm-feature-input,
+          #zone-processes-section .farm-feature-textarea,
+          #zone-processes-section .component-type-select {
+            width: 100% !important;
+            min-width: 0 !important;
+            box-sizing: border-box !important;
+            font-size: 16px !important;
+          }
+
+          #zone-processes-section .primary-btn,
+          #zone-processes-section .secondary-btn,
+          #zone-processes-section .danger-link {
+            min-height: 42px !important;
+            justify-content: center !important;
+          }
+
+          #zone-processes-section .pl-builder-panel .primary-btn,
+          #zone-processes-section .pl-builder-panel .secondary-btn,
+          #zone-processes-section .pl-builder-panel .danger-link,
+          #zone-processes-section .pl-expanded-area .primary-btn,
+          #zone-processes-section .pl-expanded-area .secondary-btn,
+          #zone-processes-section .pl-expanded-area .danger-link {
+            width: 100% !important;
+          }
+
+          #zone-processes-section .pl-step-card > div,
+          #zone-processes-section .pl-draft-step > div,
+          #zone-processes-section .pl-expanded-area > div,
+          #zone-processes-section .pl-builder-panel > div {
+            min-width: 0 !important;
+          }
+        }
+
+        @media (max-width: 560px) {
+          #zone-processes-section {
+            padding: 10px !important;
+            border-radius: 16px !important;
+            background:
+              radial-gradient(circle at 8% 0%, rgba(34,197,94,0.18), transparent 28%),
+              linear-gradient(160deg, rgba(9,18,39,0.98), rgba(2,6,23,1)) !important;
+          }
+
+          #zone-processes-section > div:first-of-type {
+            gap: 10px !important;
+            margin-bottom: 12px !important;
+          }
+
+          #zone-processes-section > div:first-of-type > div:first-child > div:first-child {
+            width: 36px !important;
+            height: 36px !important;
+            border-radius: 14px !important;
+            font-size: 0.78rem !important;
+            flex: 0 0 auto !important;
+          }
+
+          #zone-processes-section [style*="display: grid"] {
+            display: grid !important;
+            grid-template-columns: 1fr !important;
+          }
+
+          #zone-processes-section [style*="display: flex"] {
+            max-width: 100% !important;
+          }
+
+          #zone-processes-section [style*="grid-column: 1 / -1"] {
+            grid-column: auto !important;
+          }
+
+          #zone-processes-section .pl-stat-card strong {
+            font-size: 1.18rem !important;
+          }
+
+          #zone-processes-section .pl-process-toggle > div {
+            grid-template-columns: 1fr !important;
+            gap: 10px !important;
+          }
+
+          #zone-processes-section .pl-progress-track {
+            height: 9px !important;
+          }
+
+          #zone-processes-section .pl-arrow {
+            width: 24px !important;
+            height: 24px !important;
+            min-width: 24px !important;
+          }
+
+          #zone-processes-section .pl-step-card > div > div:first-child {
+            width: 100% !important;
+            flex: 1 1 100% !important;
+          }
+
+          #zone-processes-section .pl-step-card > div > button.secondary-btn {
+            width: 100% !important;
+          }
+
+          #zone-processes-section .pl-step-number {
+            min-width: 24px !important;
+            flex: 0 0 auto !important;
+          }
+
+          #zone-processes-section [style*="gap: 10px"] {
+            gap: 8px !important;
+          }
+
+          #zone-processes-section [style*="gap: 12px"] {
+            gap: 9px !important;
+          }
+
+          #zone-processes-section [style*="padding: 16px"] {
+            padding: 12px !important;
+          }
+
+          #zone-processes-section [style*="padding: 14px"] {
+            padding: 11px !important;
+          }
+
+          #zone-processes-section [style*="font-size: 0.76rem"],
+          #zone-processes-section [style*="font-size: 0.74rem"],
+          #zone-processes-section [style*="font-size: 0.72rem"] {
+            font-size: 0.73rem !important;
+          }
+
+          #zone-processes-section .farm-feature-textarea {
+            min-height: 88px !important;
+          }
+        }
+
+        @media (max-width: 420px) {
+          #zone-processes-section {
+            padding: 9px !important;
+            border-radius: 14px !important;
+          }
+
+          #zone-processes-section .pl-process-card,
+          #zone-processes-section .pl-builder-panel,
+          #zone-processes-section .pl-draft-step,
+          #zone-processes-section .pl-step-card,
+          #zone-processes-section .pl-stat-card {
+            border-radius: 14px !important;
+          }
+
+          #zone-processes-section .pl-process-toggle {
+            padding: 11px !important;
+          }
+
+          #zone-processes-section .pl-expanded-area {
+            padding: 0 11px 11px !important;
+          }
+
+          #zone-processes-section .primary-btn,
+          #zone-processes-section .secondary-btn,
+          #zone-processes-section .danger-link {
+            width: 100% !important;
+            min-height: 40px !important;
+          }
+        }
+
         @media (prefers-reduced-motion: reduce) {
           #zone-processes-section *,
           #zone-processes-section *::before,
