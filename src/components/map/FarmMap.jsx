@@ -3231,22 +3231,21 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
 
       {filteredList.length > 0 && (
         <div className="farm-zones-table-wrapper">
-          <div className="farm-zones-header-row">
+          <div
+            className="farm-zones-header-row"
+            style={{
+              gridTemplateColumns:
+                "minmax(260px, 1fr) minmax(170px, 220px) minmax(360px, auto)",
+              alignItems: "center",
+            }}
+          >
             <span>ZONA / ELEMENTO</span>
-            <span>TIPO</span>
             <span>ESTADO</span>
-            <span>COMPONENTES / ACCIONES</span>
+            <span style={{ textAlign: "center" }}>LABS / ACCIONES</span>
           </div>
 
           {filteredList.map((item) => {
             const isZone = item.kind === "polygon";
-            const typeLabel =
-              item.kind === "point"
-                ? "Punto"
-                : item.kind === "line"
-                ? "Línea"
-                : "Zona";
-
             const rowClass =
               "farm-zones-row" +
               (selectedId === item.id ? " selected" : "") +
@@ -3263,6 +3262,11 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
                   if (el) rowRefs.current[item.id] = el;
                 }}
                 className={rowClass}
+                style={{
+                  gridTemplateColumns:
+                    "minmax(260px, 1fr) minmax(170px, 220px) minmax(360px, auto)",
+                  alignItems: "center",
+                }}
                 onClick={() => handleSelectFeature(item.id)}
                 onMouseEnter={() => setHoveredId(item.id)}
                 onMouseLeave={() =>
@@ -3282,26 +3286,6 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
                   />
                 </div>
 
-                <div className="zone-col zone-type">
-                  {isZone ? (
-                    <select
-                      value={item.zoneType || "Zona libre"}
-                      onChange={(e) => {
-                        e.stopPropagation();
-                        handleZoneTypeChange(item.id, e.target.value);
-                      }}
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      {ZONE_TYPES.map((t) => (
-                        <option key={t} value={t}>
-                          {t}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <span className="type-label">{typeLabel}</span>
-                  )}
-                </div>
 
                 <div className="zone-col zone-status">
                   {isZone ? (
@@ -3328,7 +3312,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
                 <div
                   className="zone-col zone-components"
                   style={{
-                    justifyContent: "flex-end",
+                    justifyContent: "center",
                     gap: "0.5rem",
                     flexWrap: "nowrap",
                     alignItems: "center",
