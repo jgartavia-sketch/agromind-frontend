@@ -2468,6 +2468,24 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
   };
 
   const handleDeleteFeature = (id) => {
+    const target =
+      (latestFeaturesListRef.current || []).find((item) => item.id === id) ||
+      featuresList.find((item) => item.id === id) ||
+      null;
+
+    const isZone = target?.kind === "polygon";
+
+    if (isZone) {
+      const zoneName = String(target?.name || "esta zona").trim() || "esta zona";
+      const ok = window.confirm(
+        `¿Eliminar ${zoneName}?
+
+También se eliminarán sus componentes, procesos y evidencias asociadas.`
+      );
+
+      if (!ok) return;
+    }
+
     markDirty();
 
     const vectorSource = vectorSourceRef.current;

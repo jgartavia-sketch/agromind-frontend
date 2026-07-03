@@ -194,7 +194,6 @@ export default function ComponentModal({
   }, [modalZone]);
 
   const [expandedComponentId, setExpandedComponentId] = useState(null);
-  const [searchTerm, setSearchTerm] = useState("");
   const [activeTypeFilter, setActiveTypeFilter] = useState("Todos");
   const [hoveredComponentId, setHoveredComponentId] = useState(null);
   const [viewportWidth, setViewportWidth] = useState(() =>
@@ -295,19 +294,10 @@ export default function ComponentModal({
   }, [typeCounts]);
 
   const filteredComponents = useMemo(() => {
-    const query = searchTerm.trim().toLowerCase();
-
-    return safeComponents.filter((component, index) => {
-      const name = resolveDisplayName(component, index).toLowerCase();
-      const type = String(component?.type || "Otro").toLowerCase();
-      const note = String(component?.note || "").toLowerCase();
-
-      const matchesSearch = !query || name.includes(query) || type.includes(query) || note.includes(query);
-      const matchesType = activeTypeFilter === "Todos" || String(component?.type || "Otro") === activeTypeFilter;
-
-      return matchesSearch && matchesType;
+    return safeComponents.filter((component) => {
+      return activeTypeFilter === "Todos" || String(component?.type || "Otro") === activeTypeFilter;
     });
-  }, [safeComponents, searchTerm, activeTypeFilter]);
+  }, [safeComponents, activeTypeFilter]);
 
   const componentIconPreview = useMemo(
     () =>
@@ -321,7 +311,7 @@ export default function ComponentModal({
 
   const remainingIconCount = Math.max(totalComponents - componentIconPreview.length, 0);
   const topTypes = Object.entries(typeCounts).slice(0, 6);
-  const hasActiveFilters = searchTerm.trim() || activeTypeFilter !== "Todos";
+  const hasActiveFilters = activeTypeFilter !== "Todos";
 
   const componentIdsSignature = useMemo(
     () =>
@@ -385,7 +375,6 @@ export default function ComponentModal({
   };
 
   const resetFilters = () => {
-    setSearchTerm("");
     setActiveTypeFilter("Todos");
   };
 
@@ -986,43 +975,14 @@ export default function ComponentModal({
           <section
             style={{
               display: "flex",
-              flexDirection: isMobileLayout ? "column" : "row",
               alignItems: isMobileLayout ? "stretch" : "center",
-              justifyContent: "space-between",
+              justifyContent: "flex-end",
               gap: "10px",
               flexWrap: "wrap",
               marginBottom: "12px",
             }}
           >
-            <div
-              style={{
-                flex: "1 1 280px",
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-                padding: "0.55rem 0.72rem",
-                borderRadius: "999px",
-                border: "1px solid rgba(148,163,184,0.18)",
-                background: "rgba(2,6,23,0.42)",
-              }}
-            >
-              <span style={{ color: "rgba(226,232,240,0.56)" }}>🔍</span>
-              <input
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Buscar por nombre, tipo o nota..."
-                style={{
-                  width: "100%",
-                  border: "none",
-                  outline: "none",
-                  background: "transparent",
-                  color: "#e5e7eb",
-                  fontSize: "0.88rem",
-                }}
-              />
-            </div>
-
-            <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", width: isMobileLayout ? "100%" : "auto" }}>
+            <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", width: isMobileLayout ? "100%" : "auto", justifyContent: isMobileLayout ? "flex-start" : "flex-end" }}>
               {availableFilterTypes.slice(0, 8).map((type) => (
                 <button
                   key={type}
