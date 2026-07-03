@@ -162,6 +162,18 @@ export default function ComponentModal({
     setActiveTypeFilter("Todos");
   };
 
+  const handleComponentCardMouseMove = (event) => {
+    const card = event.currentTarget;
+    if (!card || typeof card.getBoundingClientRect !== "function") return;
+
+    const rect = card.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+
+    card.style.setProperty("--component-glow-x", `${x}px`);
+    card.style.setProperty("--component-glow-y", `${y}px`);
+  };
+
   return (
     <div
       className="component-lab-shell"
@@ -646,6 +658,8 @@ export default function ComponentModal({
                   <article
                     key={comp.id}
                     style={{
+                      "--component-glow-x": "50%",
+                      "--component-glow-y": "50%",
                       position: "relative",
                       margin: 0,
                       borderRadius: "20px",
@@ -669,6 +683,7 @@ export default function ComponentModal({
                         "transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease, background 180ms ease",
                     }}
                     onMouseEnter={() => setHoveredComponentId(comp.id)}
+                    onMouseMove={handleComponentCardMouseMove}
                     onMouseLeave={() =>
                       setHoveredComponentId((prev) => (prev === comp.id ? null : prev))
                     }
@@ -680,8 +695,9 @@ export default function ComponentModal({
                         pointerEvents: "none",
                         opacity: isExpanded || isHovered ? 1 : 0,
                         background:
-                          "radial-gradient(circle at 16% 0%, rgba(34,197,94,0.18), transparent 34%), radial-gradient(circle at 92% 18%, rgba(20,184,166,0.13), transparent 28%)",
+                          "radial-gradient(420px circle at var(--component-glow-x) var(--component-glow-y), rgba(255,255,255,0.16), rgba(34,197,94,0.13) 18%, rgba(20,184,166,0.08) 32%, transparent 58%), radial-gradient(circle at 16% 0%, rgba(34,197,94,0.16), transparent 34%), radial-gradient(circle at 92% 18%, rgba(20,184,166,0.12), transparent 28%)",
                         transition: "opacity 180ms ease",
+                        mixBlendMode: "screen",
                       }}
                     />
 
@@ -689,6 +705,8 @@ export default function ComponentModal({
                       type="button"
                       onClick={() => handleToggleExpanded(comp.id)}
                       style={{
+                        position: "relative",
+                        zIndex: 1,
                         width: "100%",
                         border: "none",
                         background: "transparent",
@@ -813,6 +831,8 @@ export default function ComponentModal({
                     {isExpanded ? (
                       <div
                         style={{
+                          position: "relative",
+                          zIndex: 1,
                           padding: "0 15px 15px",
                           borderTop: "1px dashed rgba(148,163,184,0.18)",
                           animation: "componentLabFadeIn 160ms ease",
