@@ -446,7 +446,7 @@ export default function ProcessModal({
         {[
           ["Procesos", processStats.total],
           ["Activos", processStats.active],
-          ["Pendientes", processStats.pending],
+          ["Completados", processStats.pending],
           ["Completados", processStats.completed],
         ].map(([label, value]) => (
           <div
