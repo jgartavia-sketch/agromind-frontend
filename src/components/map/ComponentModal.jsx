@@ -17,11 +17,10 @@ export default function ComponentModal({
   const safeComponents = Array.isArray(componentsDraft) ? componentsDraft : [];
   const totalComponents = safeComponents.length;
 
-  const [expandedComponentId, setExpandedComponentId] = useState(
-    safeComponents?.[0]?.id || null
-  );
+  const [expandedComponentId, setExpandedComponentId] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTypeFilter, setActiveTypeFilter] = useState("Todos");
+  const [hoveredComponentId, setHoveredComponentId] = useState(null);
 
   const componentTypeOptions = useMemo(() => {
     const baseTypes = Array.isArray(COMPONENT_TYPES) ? COMPONENT_TYPES : [];
@@ -131,12 +130,14 @@ export default function ComponentModal({
       return;
     }
 
+    if (!expandedComponentId) return;
+
     const expandedStillExists = safeComponents.some(
       (component) => component?.id === expandedComponentId
     );
 
     if (!expandedStillExists) {
-      setExpandedComponentId(safeComponents[0]?.id || null);
+      setExpandedComponentId(null);
     }
   }, [safeComponents, expandedComponentId]);
 
@@ -163,6 +164,7 @@ export default function ComponentModal({
 
   return (
     <div
+      className="component-lab-shell"
       role="dialog"
       aria-modal="true"
       style={{
@@ -638,6 +640,7 @@ export default function ComponentModal({
                 const displayName = resolveDisplayName(comp, index);
                 const icon = resolveIcon(comp.type);
                 const isExpanded = expandedComponentId === comp.id;
+                const isHovered = hoveredComponentId === comp.id;
 
                 return (
                   <article
@@ -646,36 +649,42 @@ export default function ComponentModal({
                       position: "relative",
                       margin: 0,
                       borderRadius: "20px",
-                      border: isExpanded
-                        ? "1px solid rgba(34,197,94,0.36)"
-                        : "1px solid rgba(148,163,184,0.18)",
+                      border:
+                        isExpanded || isHovered
+                          ? "1px solid rgba(34,197,94,0.44)"
+                          : "1px solid rgba(148,163,184,0.18)",
                       background: isExpanded
-                        ? "linear-gradient(135deg, rgba(15,23,42,0.98), rgba(6,78,59,0.30))"
+                        ? "linear-gradient(135deg, rgba(15,23,42,0.98), rgba(6,78,59,0.34))"
+                        : isHovered
+                        ? "linear-gradient(135deg, rgba(15,23,42,0.98), rgba(20,184,166,0.18), rgba(6,78,59,0.16))"
                         : "linear-gradient(135deg, rgba(15,23,42,0.94), rgba(8,47,73,0.16))",
                       boxShadow: isExpanded
-                        ? "0 22px 52px rgba(0,0,0,0.28), 0 0 34px rgba(34,197,94,0.08), inset 0 0 0 1px rgba(34,197,94,0.04)"
+                        ? "0 24px 60px rgba(0,0,0,0.34), 0 0 44px rgba(34,197,94,0.16), inset 0 0 0 1px rgba(34,197,94,0.06)"
+                        : isHovered
+                        ? "0 22px 54px rgba(0,0,0,0.30), 0 0 40px rgba(34,197,94,0.13), inset 0 1px 0 rgba(255,255,255,0.04)"
                         : "0 12px 30px rgba(0,0,0,0.17)",
                       overflow: "hidden",
+                      transform: isHovered ? "translateY(-2px)" : "translateY(0)",
                       transition:
-                        "transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease, background 160ms ease",
+                        "transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease, background 180ms ease",
                     }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.transform = "translateY(-2px)";
-                      e.currentTarget.style.boxShadow = isExpanded
-                        ? "0 24px 58px rgba(0,0,0,0.32), 0 0 42px rgba(34,197,94,0.11)"
-                        : "0 18px 44px rgba(0,0,0,0.24), 0 0 28px rgba(34,197,94,0.07)";
-                      e.currentTarget.style.borderColor = "rgba(34,197,94,0.34)";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.transform = "translateY(0)";
-                      e.currentTarget.style.boxShadow = isExpanded
-                        ? "0 22px 52px rgba(0,0,0,0.28), 0 0 34px rgba(34,197,94,0.08), inset 0 0 0 1px rgba(34,197,94,0.04)"
-                        : "0 12px 30px rgba(0,0,0,0.17)";
-                      e.currentTarget.style.borderColor = isExpanded
-                        ? "rgba(34,197,94,0.36)"
-                        : "rgba(148,163,184,0.18)";
-                    }}
+                    onMouseEnter={() => setHoveredComponentId(comp.id)}
+                    onMouseLeave={() =>
+                      setHoveredComponentId((prev) => (prev === comp.id ? null : prev))
+                    }
                   >
+                    <div
+                      style={{
+                        position: "absolute",
+                        inset: 0,
+                        pointerEvents: "none",
+                        opacity: isExpanded || isHovered ? 1 : 0,
+                        background:
+                          "radial-gradient(circle at 16% 0%, rgba(34,197,94,0.18), transparent 34%), radial-gradient(circle at 92% 18%, rgba(20,184,166,0.13), transparent 28%)",
+                        transition: "opacity 180ms ease",
+                      }}
+                    />
+
                     <button
                       type="button"
                       onClick={() => handleToggleExpanded(comp.id)}
@@ -705,7 +714,10 @@ export default function ComponentModal({
                           background:
                             "linear-gradient(135deg, rgba(34,197,94,0.14), rgba(20,184,166,0.06))",
                           fontSize: "1.08rem",
-                          boxShadow: isExpanded ? "0 0 28px rgba(34,197,94,0.14)" : "none",
+                          boxShadow:
+                            isExpanded || isHovered
+                              ? "0 0 34px rgba(34,197,94,0.20), inset 0 1px 0 rgba(255,255,255,0.06)"
+                              : "none",
                         }}
                       >
                         {icon}
@@ -789,7 +801,7 @@ export default function ComponentModal({
                           background: isExpanded ? "rgba(34,197,94,0.13)" : "rgba(2,6,23,0.44)",
                           color: isExpanded ? "#86efac" : "#cbd5e1",
                           fontWeight: 950,
-                          transition: "transform 160ms ease",
+                          transition: "transform 180ms ease, background 180ms ease, border-color 180ms ease",
                           transform: isExpanded ? "rotate(90deg)" : "rotate(0deg)",
                         }}
                         title={isExpanded ? "Contraer" : "Expandir"}
@@ -807,6 +819,7 @@ export default function ComponentModal({
                         }}
                       >
                         <div
+                          className="component-lab-edit-grid"
                           style={{
                             display: "grid",
                             gridTemplateColumns: "minmax(180px, 1fr) minmax(160px, 0.58fr)",
@@ -967,6 +980,19 @@ export default function ComponentModal({
           from { opacity: 0; transform: translateY(-4px); }
           to { opacity: 1; transform: translateY(0); }
         }
+        .component-lab-shell input:focus,
+        .component-lab-shell textarea:focus,
+        .component-lab-shell select:focus {
+          border-color: rgba(34,197,94,0.48) !important;
+          box-shadow: 0 0 0 3px rgba(34,197,94,0.10), 0 0 28px rgba(34,197,94,0.08) !important;
+        }
+
+        @media (max-width: 720px) {
+          .component-lab-edit-grid {
+            grid-template-columns: 1fr !important;
+          }
+        }
+
       `}</style>
     </div>
   );
