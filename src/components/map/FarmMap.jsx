@@ -1018,6 +1018,8 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
 
     markDirty();
 
+    let normalizedComponentsForDraft = [];
+
     setFeaturesList((prev) => {
       const updated = prev.map((item) => {
         if (item.id !== componentsModalZoneId) return item;
@@ -1040,6 +1042,8 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
           };
         });
 
+        normalizedComponentsForDraft = components;
+
         const feature = featuresMapRef.current[componentsModalZoneId];
         const nextUpdatedAt = nowIso();
 
@@ -1051,11 +1055,14 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
         return { ...item, components, updatedAt: nextUpdatedAt };
       });
 
-      scheduleAutosave(updated);
+      latestFeaturesListRef.current = updated;
+      scheduleAutosave(updated, { force: true });
       return updated;
     });
 
-    closeComponentsModal();
+    if (normalizedComponentsForDraft.length > 0) {
+      setComponentsDraft(normalizedComponentsForDraft);
+    }
   };
 
   const draftAddComponent = () => {
