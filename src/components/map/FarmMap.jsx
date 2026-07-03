@@ -384,6 +384,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
   const [drawMode, setDrawMode] = useState("move");
   const [selectedId, setSelectedId] = useState(null);
   const [hoveredId, setHoveredId] = useState(null);
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
 
   const countersRef = useRef({ point: 0, line: 0, polygon: 0 });
   const colorIndexRef = useRef({ point: 0, line: 0, polygon: 0 });
@@ -2467,25 +2468,82 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
     });
   };
 
+  const buildDeleteConfirmPayload = (target) => {
+    const kind = target?.kind || "element";
+    const safeName = String(target?.name || "este elemento").trim() || "este elemento";
+
+    if (kind === "polygon") {
+      return {
+        id: target.id,
+        kind,
+        icon: "🧭",
+        title: "Eliminar zona",
+        eyebrow: "Acción destructiva",
+        name: safeName,
+        message:
+          "También se eliminarán sus componentes, procesos y evidencias asociadas.",
+        confirmLabel: "Eliminar zona",
+      };
+    }
+
+    if (kind === "line") {
+      return {
+        id: target.id,
+        kind,
+        icon: "〰️",
+        title: "Eliminar línea",
+        eyebrow: "Acción destructiva",
+        name: safeName,
+        message: "Esta línea se eliminará del mapa de la finca.",
+        confirmLabel: "Eliminar línea",
+      };
+    }
+
+    if (kind === "point") {
+      return {
+        id: target.id,
+        kind,
+        icon: "📍",
+        title: "Eliminar punto",
+        eyebrow: "Acción destructiva",
+        name: safeName,
+        message: "Este punto se eliminará del mapa de la finca.",
+        confirmLabel: "Eliminar punto",
+      };
+    }
+
+    return {
+      id: target?.id,
+      kind,
+      icon: "🗑",
+      title: "Eliminar elemento",
+      eyebrow: "Acción destructiva",
+      name: safeName,
+      message: "Este elemento se eliminará del mapa de la finca.",
+      confirmLabel: "Eliminar elemento",
+    };
+  };
+
   const handleDeleteFeature = (id) => {
     const target =
       (latestFeaturesListRef.current || []).find((item) => item.id === id) ||
       featuresList.find((item) => item.id === id) ||
       null;
 
-    const isZone = target?.kind === "polygon";
+    if (!target?.id) return;
 
-    if (isZone) {
-      const zoneName = String(target?.name || "esta zona").trim() || "esta zona";
-      const ok = window.confirm(
-        `¿Eliminar ${zoneName}?
+    setDeleteConfirm(buildDeleteConfirmPayload(target));
+  };
 
-También se eliminarán sus componentes, procesos y evidencias asociadas.`
-      );
+  const cancelDeleteFeature = () => {
+    setDeleteConfirm(null);
+  };
 
-      if (!ok) return;
-    }
+  const confirmDeleteFeature = () => {
+    const id = deleteConfirm?.id;
+    if (!id) return;
 
+    setDeleteConfirm(null);
     markDirty();
 
     const vectorSource = vectorSourceRef.current;
@@ -2496,7 +2554,8 @@ También se eliminarán sus componentes, procesos y evidencias asociadas.`
 
     setFeaturesList((prev) => {
       const updated = prev.filter((item) => item.id !== id);
-      scheduleAutosave(updated);
+      latestFeaturesListRef.current = updated;
+      scheduleAutosave(updated, { force: true });
       return updated;
     });
 
@@ -3652,6 +3711,162 @@ También se eliminarán sus componentes, procesos y evidencias asociadas.`
           </div>
         </div>
       )}
+
+      {deleteConfirm ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          onClick={cancelDeleteFeature}
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 10030,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "18px",
+            background:
+              "radial-gradient(circle at top, rgba(248,113,113,0.10), transparent 34%), rgba(0,0,0,0.68)",
+            backdropFilter: "blur(6px)",
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: "min(460px, 100%)",
+              borderRadius: "24px",
+              border: "1px solid rgba(248,113,113,0.26)",
+              background:
+                "linear-gradient(145deg, rgba(2,6,23,0.98), rgba(31,41,55,0.96) 56%, rgba(127,29,29,0.22))",
+              boxShadow:
+                "0 28px 90px rgba(0,0,0,0.64), 0 0 0 1px rgba(248,113,113,0.06), inset 0 1px 0 rgba(255,255,255,0.05)",
+              overflow: "hidden",
+            }}
+          >
+            <div
+              style={{
+                padding: "18px 18px 14px",
+                borderBottom: "1px solid rgba(148,163,184,0.14)",
+                display: "flex",
+                alignItems: "flex-start",
+                justifyContent: "space-between",
+                gap: "14px",
+              }}
+            >
+              <div style={{ display: "flex", gap: "12px", minWidth: 0 }}>
+                <span
+                  style={{
+                    width: "44px",
+                    height: "44px",
+                    borderRadius: "16px",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    border: "1px solid rgba(248,113,113,0.30)",
+                    background: "rgba(248,113,113,0.10)",
+                    boxShadow: "0 0 32px rgba(248,113,113,0.12)",
+                    flex: "0 0 auto",
+                    fontSize: "1.12rem",
+                  }}
+                >
+                  {deleteConfirm.icon || "🗑"}
+                </span>
+
+                <div style={{ minWidth: 0 }}>
+                  <div
+                    style={{
+                      color: "#fca5a5",
+                      fontSize: "0.72rem",
+                      fontWeight: 950,
+                      letterSpacing: "0.11em",
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    {deleteConfirm.eyebrow || "Acción destructiva"}
+                  </div>
+                  <h3
+                    style={{
+                      margin: "0.28rem 0 0",
+                      color: "#f8fafc",
+                      fontSize: "1.08rem",
+                      fontWeight: 950,
+                      letterSpacing: "-0.02em",
+                    }}
+                  >
+                    {deleteConfirm.title || "Eliminar elemento"}
+                  </h3>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                className="secondary-btn"
+                onClick={cancelDeleteFeature}
+                style={{ padding: "0.34rem 0.62rem", flex: "0 0 auto" }}
+                title="Cancelar"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div style={{ padding: "16px 18px 18px" }}>
+              <div
+                style={{
+                  padding: "0.72rem 0.82rem",
+                  borderRadius: "16px",
+                  border: "1px solid rgba(148,163,184,0.16)",
+                  background: "rgba(15,23,42,0.52)",
+                  color: "rgba(226,232,240,0.84)",
+                  fontSize: "0.9rem",
+                  lineHeight: 1.55,
+                }}
+              >
+                <strong style={{ color: "#f8fafc" }}>¿Eliminar {deleteConfirm.name}?</strong>
+                <div style={{ marginTop: "0.42rem" }}>{deleteConfirm.message}</div>
+              </div>
+
+              <div
+                style={{
+                  marginTop: "18px",
+                  display: "flex",
+                  justifyContent: "flex-end",
+                  gap: "10px",
+                  flexWrap: "wrap",
+                }}
+              >
+                <button
+                  type="button"
+                  className="secondary-btn"
+                  onClick={cancelDeleteFeature}
+                  style={{ justifyContent: "center" }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmDeleteFeature}
+                  style={{
+                    minHeight: "40px",
+                    padding: "0.55rem 0.86rem",
+                    borderRadius: "999px",
+                    border: "1px solid rgba(248,113,113,0.42)",
+                    background:
+                      "radial-gradient(180px circle at 30% 20%, rgba(248,113,113,0.28), transparent 42%), rgba(127,29,29,0.68)",
+                    color: "#fee2e2",
+                    fontWeight: 950,
+                    cursor: "pointer",
+                    boxShadow:
+                      "0 0 0 1px rgba(248,113,113,0.10), 0 16px 34px rgba(248,113,113,0.16)",
+                  }}
+                >
+                  {deleteConfirm.confirmLabel || "Eliminar"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
     </div>
   );
 }
