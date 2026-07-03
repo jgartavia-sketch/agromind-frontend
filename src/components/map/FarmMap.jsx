@@ -54,6 +54,28 @@ const COMPONENT_TYPES = [
   "Otro",
 ];
 
+function getComponentIcon(type = "Otro") {
+  const value = String(type || "Otro").toLowerCase();
+
+  if (value.includes("cultivo") || value.includes("lote")) return "🌱";
+  if (value.includes("bebedero") || value.includes("riego")) return "💧";
+  if (value.includes("comedero")) return "🌾";
+  if (value.includes("bodega")) return "🏠";
+  if (value.includes("pasillo")) return "↔️";
+  if (value.includes("descanso")) return "🟢";
+  if (value.includes("árbol") || value.includes("arbol")) return "🌳";
+
+  return "📍";
+}
+
+function getComponentDisplayName(component, index = 0) {
+  const name = String(component?.name || "").trim();
+  if (name) return name;
+
+  const type = String(component?.type || "Componente").trim() || "Componente";
+  return `${type} #${index + 1}`;
+}
+
 function nowIso() {
   return new Date().toISOString();
 }
@@ -3122,45 +3144,166 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
                   className="zone-col zone-components"
                   style={{
                     justifyContent: "flex-end",
-                    gap: "0.5rem",
+                    gap: "0.65rem",
                     flexWrap: "wrap",
+                    alignItems: "stretch",
                   }}
                 >
                   {isZone && (
-                    <>
-                      <span
-                        className="components-summary"
-                        style={{ whiteSpace: "nowrap" }}
-                      >
-                        {totalComponents === 0
-                          ? "Sin componentes"
-                          : totalComponents === 1
-                          ? "1 componente"
-                          : `${totalComponents} componentes`}
-                      </span>
-
-                      <button
-                        type="button"
-                        className="secondary-btn"
-                        onClick={(e) => {
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openComponentsModal(item.id, "components");
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
                           e.stopPropagation();
                           openComponentsModal(item.id, "components");
+                        }
+                      }}
+                      title="Administrar componentes de esta zona"
+                      style={{
+                        minWidth: "230px",
+                        maxWidth: "300px",
+                        padding: "0.72rem 0.78rem",
+                        borderRadius: "16px",
+                        border: "1px solid rgba(34,197,94,0.20)",
+                        background:
+                          "linear-gradient(135deg, rgba(15,23,42,0.92), rgba(6,78,59,0.24))",
+                        boxShadow:
+                          selectedId === item.id || hoveredId === item.id
+                            ? "0 0 0 1px rgba(34,197,94,0.28), 0 18px 42px rgba(34,197,94,0.10)"
+                            : "0 12px 30px rgba(0,0,0,0.16)",
+                        cursor: "pointer",
+                        transition:
+                          "transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease",
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          gap: "0.75rem",
                         }}
                       >
-                        Ver componentes
-                      </button>
+                        <div style={{ minWidth: 0 }}>
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "0.45rem",
+                              color: "#e5e7eb",
+                              fontSize: "0.78rem",
+                              fontWeight: 900,
+                              letterSpacing: "0.08em",
+                              textTransform: "uppercase",
+                            }}
+                          >
+                            <span>🌿</span>
+                            <span>Componentes</span>
+                          </div>
 
-                      <button
-                        type="button"
-                        className="secondary-btn"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openComponentsModal(item.id, "processes");
-                        }}
-                      >
-                        Procesos
-                      </button>
-                    </>
+                          <div
+                            style={{
+                              marginTop: "0.22rem",
+                              color: totalComponents > 0 ? "#bbf7d0" : "#94a3b8",
+                              fontSize: "0.82rem",
+                              fontWeight: 800,
+                            }}
+                          >
+                            {totalComponents > 0
+                              ? `${totalComponents} registrado${totalComponents === 1 ? "" : "s"}`
+                              : "Listo para registrar"}
+                          </div>
+                        </div>
+
+                        <span
+                          style={{
+                            width: "34px",
+                            height: "34px",
+                            borderRadius: "999px",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            border: "1px solid rgba(34,197,94,0.26)",
+                            background: "rgba(34,197,94,0.12)",
+                            color: "#86efac",
+                            fontWeight: 900,
+                            flex: "0 0 auto",
+                          }}
+                        >
+                          →
+                        </span>
+                      </div>
+
+                      {totalComponents > 0 ? (
+                        <div
+                          style={{
+                            marginTop: "0.65rem",
+                            paddingTop: "0.58rem",
+                            borderTop: "1px solid rgba(148,163,184,0.14)",
+                            display: "grid",
+                            gap: "0.35rem",
+                          }}
+                        >
+                          {(item.components || []).slice(0, 3).map((component, idx) => (
+                            <div
+                              key={component.id || `${item.id}-comp-preview-${idx}`}
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "0.42rem",
+                                color: "rgba(226,232,240,0.88)",
+                                fontSize: "0.78rem",
+                                minWidth: 0,
+                              }}
+                            >
+                              <span style={{ flex: "0 0 auto" }}>
+                                {getComponentIcon(component.type)}
+                              </span>
+                              <span
+                                style={{
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  whiteSpace: "nowrap",
+                                }}
+                              >
+                                {getComponentDisplayName(component, idx)}
+                              </span>
+                            </div>
+                          ))}
+
+                          {totalComponents > 3 ? (
+                            <div
+                              style={{
+                                color: "rgba(187,247,208,0.78)",
+                                fontSize: "0.76rem",
+                                fontWeight: 800,
+                              }}
+                            >
+                              +{totalComponents - 3} más
+                            </div>
+                          ) : null}
+                        </div>
+                      ) : null}
+                    </div>
+                  )}
+
+                  {isZone && (
+                    <button
+                      type="button"
+                      className="secondary-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openComponentsModal(item.id, "processes");
+                      }}
+                    >
+                      Procesos
+                    </button>
                   )}
 
                   <button
@@ -3303,133 +3446,283 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
                   display: componentsModalView === "components" ? "block" : "none",
                 }}
               >
-                {componentsDraft.length === 0 && (
-                <p className="farm-zone-components-empty" style={{ marginTop: 0 }}>
-                  Aún no has agregado componentes a esta zona. Usa el botón{" "}
-                  <strong>“Agregar componente”</strong>.
-                </p>
-              )}
-
-              {componentsDraft.map((comp) => {
-                const isEditingNote = editingNotesMap?.[comp.id] === true;
-                const noteText = (comp.note || "").trim();
-
-                return (
-                  <div key={comp.id} className="farm-zone-component-row">
-                    <div className="farm-zone-component-icon">
-                      <span className="geom-dot" />
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: "12px",
+                    flexWrap: "wrap",
+                    marginBottom: "14px",
+                  }}
+                >
+                  <div>
+                    <div
+                      style={{
+                        color: "#e5e7eb",
+                        fontSize: "1rem",
+                        fontWeight: 900,
+                      }}
+                    >
+                      Component Lab
                     </div>
+                    <div
+                      style={{
+                        marginTop: "0.25rem",
+                        color: "rgba(226,232,240,0.62)",
+                        fontSize: "0.86rem",
+                      }}
+                    >
+                      Inventario simple de elementos dentro de la zona. Sin etapas, sin fechas, sin ruido.
+                    </div>
+                  </div>
 
-                    <div className="farm-zone-component-body">
+                  <div
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "0.45rem",
+                      padding: "0.48rem 0.72rem",
+                      borderRadius: "999px",
+                      border: "1px solid rgba(34,197,94,0.22)",
+                      background: "rgba(34,197,94,0.10)",
+                      color: "#bbf7d0",
+                      fontSize: "0.82rem",
+                      fontWeight: 900,
+                    }}
+                  >
+                    <span>🌿</span>
+                    <span>
+                      {componentsDraft.length} componente
+                      {componentsDraft.length === 1 ? "" : "s"}
+                    </span>
+                  </div>
+                </div>
+
+                {componentsDraft.length === 0 && (
+                  <div
+                    className="farm-zone-components-empty"
+                    style={{
+                      marginTop: 0,
+                      padding: "18px",
+                      borderRadius: "18px",
+                      border: "1px dashed rgba(34,197,94,0.30)",
+                      background:
+                        "linear-gradient(135deg, rgba(15,23,42,0.90), rgba(6,78,59,0.18))",
+                      color: "rgba(226,232,240,0.72)",
+                    }}
+                  >
+                    <div
+                      style={{
+                        color: "#e5e7eb",
+                        fontWeight: 900,
+                        marginBottom: "0.35rem",
+                      }}
+                    >
+                      Esta zona todavía no tiene componentes registrados.
+                    </div>
+                    <div style={{ fontSize: "0.9rem" }}>
+                      Agrega árboles, camas, bodegas, bebederos, tanques o cualquier elemento que exista en la zona.
+                    </div>
+                  </div>
+                )}
+
+                <div style={{ display: "grid", gap: "12px" }}>
+                  {componentsDraft.map((comp, index) => {
+                    const isEditingNote = editingNotesMap?.[comp.id] === true;
+                    const noteText = (comp.note || "").trim();
+                    const displayName = getComponentDisplayName(comp, index);
+
+                    return (
                       <div
-                        className="farm-zone-component-header"
+                        key={comp.id}
+                        className="farm-zone-component-row"
                         style={{
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "flex-end",
+                          alignItems: "stretch",
+                          borderRadius: "18px",
+                          border: "1px solid rgba(148,163,184,0.18)",
+                          background:
+                            "linear-gradient(135deg, rgba(15,23,42,0.92), rgba(6,78,59,0.18))",
+                          boxShadow: "0 16px 44px rgba(0,0,0,0.20)",
+                          overflow: "hidden",
                         }}
                       >
-                        <button
-                          type="button"
-                          className="danger-link"
-                          onClick={() => draftDeleteComponent(comp.id)}
-                        >
-                          Borrar
-                        </button>
-                      </div>
-
-                      <div className="farm-zone-component-type-row">
-                        <label className="component-type-label">
-                          Tipo de componente
-                        </label>
-                        <select
-                          className="component-type-select"
-                          value={comp.type || "Otro"}
-                          onChange={(e) =>
-                            draftUpdate(comp.id, { type: e.target.value })
-                          }
-                        >
-                          {COMPONENT_TYPES.map((t) => (
-                            <option key={t} value={t}>
-                              {t}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      <input
-                        className="farm-feature-input"
-                        value={comp.name}
-                        onChange={(e) =>
-                          draftUpdate(comp.id, { name: e.target.value })
-                        }
-                        placeholder="Nombre del componente (ej: Gallinero, Bebedero, Bodega)"
-                      />
-
-                      <div style={{ marginTop: "10px" }}>
                         <div
+                          className="farm-zone-component-icon"
                           style={{
+                            width: "54px",
+                            minHeight: "100%",
                             display: "flex",
-                            alignItems: "center",
-                            justifyContent: "space-between",
-                            gap: "10px",
+                            alignItems: "flex-start",
+                            justifyContent: "center",
+                            paddingTop: "18px",
                           }}
                         >
                           <span
                             style={{
-                              fontSize: "0.85rem",
-                              color: "rgba(226,232,240,0.85)",
+                              width: "34px",
+                              height: "34px",
+                              borderRadius: "999px",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              border: "1px solid rgba(34,197,94,0.24)",
+                              background: "rgba(34,197,94,0.12)",
+                              fontSize: "1.05rem",
                             }}
                           >
-                            Nota / comentario
+                            {getComponentIcon(comp.type)}
                           </span>
-
-                          <button
-                            type="button"
-                            className="secondary-btn"
-                            onClick={() => toggleEditNote(comp.id)}
-                            style={{ padding: "0.25rem 0.55rem" }}
-                            title={isEditingNote ? "Cerrar edición" : "Editar nota"}
-                          >
-                            ✏️ {isEditingNote ? "Listo" : "Editar"}
-                          </button>
                         </div>
 
-                        {isEditingNote ? (
-                          <textarea
-                            className="farm-feature-textarea"
-                            value={comp.note}
-                            onChange={(e) =>
-                              draftUpdate(comp.id, { note: e.target.value })
-                            }
-                            placeholder="Notas / detalles (ej: revisar techo, cambiar malla, etc.)"
-                            rows={3}
-                          />
-                        ) : (
+                        <div className="farm-zone-component-body" style={{ flex: 1 }}>
                           <div
+                            className="farm-zone-component-header"
                             style={{
-                              marginTop: "8px",
-                              padding: "10px 12px",
-                              borderRadius: "12px",
-                              border: "1px solid rgba(148,163,184,0.18)",
-                              background: "rgba(2,6,23,0.35)",
-                              color: noteText
-                                ? "#e5e7eb"
-                                : "rgba(226,232,240,0.55)",
-                              whiteSpace: "pre-wrap",
+                              display: "flex",
+                              alignItems: "flex-start",
+                              justifyContent: "space-between",
+                              gap: "12px",
+                              marginBottom: "12px",
                             }}
                           >
-                            {noteText
-                              ? noteText
-                              : "Sin nota. Tocá ✏️ para agregar una."}
+                            <div style={{ minWidth: 0 }}>
+                              <div
+                                style={{
+                                  color: "#e5e7eb",
+                                  fontSize: "0.98rem",
+                                  fontWeight: 900,
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  whiteSpace: "nowrap",
+                                }}
+                              >
+                                {displayName}
+                              </div>
+                              <div
+                                style={{
+                                  marginTop: "0.22rem",
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: "0.4rem",
+                                  padding: "0.25rem 0.52rem",
+                                  borderRadius: "999px",
+                                  border: "1px solid rgba(148,163,184,0.18)",
+                                  background: "rgba(15,23,42,0.55)",
+                                  color: "rgba(226,232,240,0.78)",
+                                  fontSize: "0.74rem",
+                                  fontWeight: 800,
+                                }}
+                              >
+                                <span>{getComponentIcon(comp.type)}</span>
+                                <span>{comp.type || "Otro"}</span>
+                              </div>
+                            </div>
+
+                            <button
+                              type="button"
+                              className="danger-link"
+                              onClick={() => draftDeleteComponent(comp.id)}
+                            >
+                              Borrar
+                            </button>
                           </div>
-                        )}
+
+                          <div
+                            style={{
+                              display: "grid",
+                              gridTemplateColumns: "minmax(180px, 1fr) minmax(160px, 0.6fr)",
+                              gap: "10px",
+                            }}
+                          >
+                            <input
+                              className="farm-feature-input"
+                              value={comp.name}
+                              onChange={(e) =>
+                                draftUpdate(comp.id, { name: e.target.value })
+                              }
+                              placeholder="Nombre del componente (ej: Aguacate #4, Tanque principal)"
+                            />
+
+                            <select
+                              className="component-type-select"
+                              value={comp.type || "Otro"}
+                              onChange={(e) =>
+                                draftUpdate(comp.id, { type: e.target.value })
+                              }
+                            >
+                              {COMPONENT_TYPES.map((t) => (
+                                <option key={t} value={t}>
+                                  {t}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div style={{ marginTop: "10px" }}>
+                            <div
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "space-between",
+                                gap: "10px",
+                              }}
+                            >
+                              <span
+                                style={{
+                                  fontSize: "0.82rem",
+                                  color: "rgba(226,232,240,0.72)",
+                                  fontWeight: 800,
+                                }}
+                              >
+                                Nota simple
+                              </span>
+
+                              <button
+                                type="button"
+                                className="secondary-btn"
+                                onClick={() => toggleEditNote(comp.id)}
+                                style={{ padding: "0.25rem 0.55rem" }}
+                                title={isEditingNote ? "Cerrar edición" : "Editar nota"}
+                              >
+                                ✏️ {isEditingNote ? "Listo" : "Editar"}
+                              </button>
+                            </div>
+
+                            {isEditingNote ? (
+                              <textarea
+                                className="farm-feature-textarea"
+                                value={comp.note}
+                                onChange={(e) =>
+                                  draftUpdate(comp.id, { note: e.target.value })
+                                }
+                                placeholder="Nota breve del componente (ej: árbol joven, pendiente de revisión, cerca del riego...)"
+                                rows={3}
+                              />
+                            ) : (
+                              <div
+                                style={{
+                                  marginTop: "8px",
+                                  padding: "10px 12px",
+                                  borderRadius: "12px",
+                                  border: "1px solid rgba(148,163,184,0.16)",
+                                  background: "rgba(2,6,23,0.35)",
+                                  color: noteText
+                                    ? "#e5e7eb"
+                                    : "rgba(226,232,240,0.50)",
+                                  whiteSpace: "pre-wrap",
+                                }}
+                              >
+                                {noteText || "Sin nota. Podés dejarlo así o agregar una observación rápida."}
+                              </div>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </div>
-                );
-              })}
-              </div>
+                    );
+                  })}
+                </div>
+              </div>              </div>
             </div>
 
             <div
