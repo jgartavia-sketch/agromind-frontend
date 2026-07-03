@@ -23,12 +23,76 @@ function normalizePhotoUrl(url) {
 }
 
 async function readApiError(response) {
+  let rawText = "";
+
   try {
-    const data = await response.json();
-    return data?.error || "Error en request.";
+    rawText = await response.text();
   } catch {
-    return "Error en request.";
+    rawText = "";
   }
+
+  if (rawText) {
+    try {
+      const data = JSON.parse(rawText);
+      return data?.error || data?.message || `Error ${response.status} en request.`;
+    } catch {
+      const cleanText = rawText.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+      if (cleanText) return cleanText.slice(0, 220);
+    }
+  }
+
+  return `Error ${response.status || ""} en request.`.trim();
+}
+
+function isRouteMissingError(response, message = "") {
+  const value = String(message || "").toLowerCase();
+  if (response?.status !== 404) return false;
+
+  return (
+    value.includes("cannot get") ||
+    value.includes("cannot post") ||
+    value.includes("cannot delete") ||
+    value.includes("not found") ||
+    value.includes("failed to load") ||
+    value.includes("error 404") ||
+    value === "error 404 en request." ||
+    value === "error 404 en request"
+  );
+}
+
+const COMPONENT_PHOTO_ENDPOINTS = [
+  "/api/farms/component-photos",
+  "/api/component-photos",
+];
+
+async function fetchComponentPhotoJson({ method = "GET", suffix = "", token = "", bodyFactory = null }) {
+  let lastError = null;
+
+  for (const basePath of COMPONENT_PHOTO_ENDPOINTS) {
+    const response = await fetch(`${API_BASE}${basePath}${suffix}`, {
+      method,
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: typeof bodyFactory === "function" ? bodyFactory() : undefined,
+    });
+
+    if (response.ok) {
+      return response.status === 204 ? null : response.json();
+    }
+
+    const message = await readApiError(response);
+    lastError = new Error(message);
+    lastError.status = response.status;
+    lastError.path = `${basePath}${suffix}`;
+
+    if (!isRouteMissingError(response, message)) {
+      throw lastError;
+    }
+  }
+
+  throw new Error(
+    lastError?.message ||
+      "No se encontró la ruta de fotografías en el backend. Verificá el deploy de Render."
+  );
 }
 
 export default function ComponentModal({
@@ -231,19 +295,11 @@ export default function ComponentModal({
       setPhotoError(componentId, "");
 
       const token = getAuthToken();
-      const response = await fetch(
-        `${API_BASE}/api/farms/component-photos/${modalZone.id}/${componentId}`,
-        {
-          method: "GET",
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error(await readApiError(response));
-      }
-
-      const data = await response.json();
+      const data = await fetchComponentPhotoJson({
+        method: "GET",
+        suffix: `/${modalZone.id}/${componentId}`,
+        token,
+      });
       setPhotosByComponent((prev) => ({
         ...prev,
         [componentId]: Array.isArray(data?.photos) ? data.photos : [],
@@ -274,24 +330,17 @@ export default function ComponentModal({
       setPhotoUploadingMap((prev) => ({ ...prev, [componentId]: true }));
       setPhotoError(componentId, "");
 
-      const formData = new FormData();
-      formData.append("photo", file);
-
       const token = getAuthToken();
-      const response = await fetch(
-        `${API_BASE}/api/farms/component-photos/${modalZone.id}/${componentId}`,
-        {
-          method: "POST",
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-          body: formData,
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error(await readApiError(response));
-      }
-
-      const data = await response.json();
+      const data = await fetchComponentPhotoJson({
+        method: "POST",
+        suffix: `/${modalZone.id}/${componentId}`,
+        token,
+        bodyFactory: () => {
+          const formData = new FormData();
+          formData.append("photo", file);
+          return formData;
+        },
+      });
       if (data?.photo) {
         setPhotosByComponent((prev) => ({
           ...prev,
@@ -319,17 +368,11 @@ export default function ComponentModal({
     try {
       setPhotoError(componentId, "");
       const token = getAuthToken();
-      const response = await fetch(
-        `${API_BASE}/api/farms/component-photos/${photo.id}`,
-        {
-          method: "DELETE",
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error(await readApiError(response));
-      }
+      await fetchComponentPhotoJson({
+        method: "DELETE",
+        suffix: `/${photo.id}`,
+        token,
+      });
 
       setPhotosByComponent((prev) => ({
         ...prev,
@@ -1135,7 +1178,6 @@ export default function ComponentModal({
                               <input
                                 type="file"
                                 accept="image/*"
-                                capture="environment"
                                 disabled={!canAddPhoto}
                                 onChange={(event) => handlePhotoInputChange(comp.id, event)}
                                 style={{ display: "none" }}
