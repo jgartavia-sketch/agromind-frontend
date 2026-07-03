@@ -1762,7 +1762,97 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
 
 
   const geocodeSearch = async (q, signal) => {
-    if (!apiKey || apiKey === "TU_API_KEY_AQUI") {
+    const handleLabLauncherMouseMove = (e) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    e.currentTarget.style.setProperty("--lab-x", `${e.clientX - rect.left}px`);
+    e.currentTarget.style.setProperty("--lab-y", `${e.clientY - rect.top}px`);
+  };
+
+  const handleLabLauncherEnter = (e, variant = "components") => {
+    const isProcess = variant === "processes";
+    e.currentTarget.style.transform = "translateY(-2px)";
+    e.currentTarget.style.borderColor = isProcess
+      ? "rgba(56,189,248,0.48)"
+      : "rgba(34,197,94,0.48)";
+    e.currentTarget.style.boxShadow = isProcess
+      ? "0 0 0 1px rgba(56,189,248,0.18), 0 16px 34px rgba(56,189,248,0.12)"
+      : "0 0 0 1px rgba(34,197,94,0.18), 0 16px 34px rgba(34,197,94,0.12)";
+
+    const arrow = e.currentTarget.querySelector("[data-lab-arrow]");
+    const icon = e.currentTarget.querySelector("[data-lab-icon]");
+
+    if (arrow) arrow.style.transform = "translateX(3px)";
+    if (icon) icon.style.transform = "scale(1.08)";
+  };
+
+  const handleLabLauncherLeave = (e, variant = "components") => {
+    const isProcess = variant === "processes";
+    e.currentTarget.style.transform = "translateY(0)";
+    e.currentTarget.style.borderColor = isProcess
+      ? "rgba(56,189,248,0.22)"
+      : "rgba(34,197,94,0.22)";
+    e.currentTarget.style.boxShadow = "0 10px 26px rgba(0,0,0,0.16)";
+
+    const arrow = e.currentTarget.querySelector("[data-lab-arrow]");
+    const icon = e.currentTarget.querySelector("[data-lab-icon]");
+
+    if (arrow) arrow.style.transform = "translateX(0)";
+    if (icon) icon.style.transform = "scale(1)";
+  };
+
+  const getLabLauncherStyle = (variant = "components") => {
+    const isProcess = variant === "processes";
+
+    return {
+      width: "142px",
+      minWidth: "142px",
+      height: "46px",
+      padding: "0.45rem 0.55rem",
+      borderRadius: "14px",
+      border: isProcess
+        ? "1px solid rgba(56,189,248,0.22)"
+        : "1px solid rgba(34,197,94,0.22)",
+      background: isProcess
+        ? "radial-gradient(220px circle at var(--lab-x, 50%) var(--lab-y, 50%), rgba(56,189,248,0.18), transparent 42%), linear-gradient(135deg, rgba(15,23,42,0.92), rgba(14,116,144,0.13))"
+        : "radial-gradient(220px circle at var(--lab-x, 50%) var(--lab-y, 50%), rgba(34,197,94,0.20), transparent 42%), linear-gradient(135deg, rgba(15,23,42,0.92), rgba(6,78,59,0.18))",
+      color: "#e5e7eb",
+      boxShadow: "0 10px 26px rgba(0,0,0,0.16)",
+      cursor: "pointer",
+      display: "inline-flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: "0.45rem",
+      overflow: "hidden",
+      position: "relative",
+      transition:
+        "transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease, background 160ms ease",
+      outline: "none",
+    };
+  };
+
+  const getLabIconStyle = (variant = "components") => {
+    const isProcess = variant === "processes";
+
+    return {
+      width: "26px",
+      height: "26px",
+      borderRadius: "999px",
+      display: "inline-flex",
+      alignItems: "center",
+      justifyContent: "center",
+      border: isProcess
+        ? "1px solid rgba(56,189,248,0.24)"
+        : "1px solid rgba(34,197,94,0.26)",
+      background: isProcess ? "rgba(56,189,248,0.10)" : "rgba(34,197,94,0.12)",
+      color: isProcess ? "#bae6fd" : "#bbf7d0",
+      fontSize: "0.9rem",
+      flex: "0 0 auto",
+      transition: "transform 160ms ease",
+    };
+  };
+
+
+  if (!apiKey || apiKey === "TU_API_KEY_AQUI") {
       throw new Error("Falta VITE_MAPTILER_KEY para buscar lugares.");
     }
 
@@ -2549,6 +2639,96 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
     return () => document.removeEventListener("click", onDocClick);
   }, []);
 
+  const handleLabLauncherMouseMove = (e) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    e.currentTarget.style.setProperty("--lab-x", `${e.clientX - rect.left}px`);
+    e.currentTarget.style.setProperty("--lab-y", `${e.clientY - rect.top}px`);
+  };
+
+  const handleLabLauncherEnter = (e, variant = "components") => {
+    const isProcess = variant === "processes";
+    e.currentTarget.style.transform = "translateY(-2px)";
+    e.currentTarget.style.borderColor = isProcess
+      ? "rgba(56,189,248,0.48)"
+      : "rgba(34,197,94,0.48)";
+    e.currentTarget.style.boxShadow = isProcess
+      ? "0 0 0 1px rgba(56,189,248,0.18), 0 16px 34px rgba(56,189,248,0.12)"
+      : "0 0 0 1px rgba(34,197,94,0.18), 0 16px 34px rgba(34,197,94,0.12)";
+
+    const arrow = e.currentTarget.querySelector("[data-lab-arrow]");
+    const icon = e.currentTarget.querySelector("[data-lab-icon]");
+
+    if (arrow) arrow.style.transform = "translateX(3px)";
+    if (icon) icon.style.transform = "scale(1.08)";
+  };
+
+  const handleLabLauncherLeave = (e, variant = "components") => {
+    const isProcess = variant === "processes";
+    e.currentTarget.style.transform = "translateY(0)";
+    e.currentTarget.style.borderColor = isProcess
+      ? "rgba(56,189,248,0.22)"
+      : "rgba(34,197,94,0.22)";
+    e.currentTarget.style.boxShadow = "0 10px 26px rgba(0,0,0,0.16)";
+
+    const arrow = e.currentTarget.querySelector("[data-lab-arrow]");
+    const icon = e.currentTarget.querySelector("[data-lab-icon]");
+
+    if (arrow) arrow.style.transform = "translateX(0)";
+    if (icon) icon.style.transform = "scale(1)";
+  };
+
+  const getLabLauncherStyle = (variant = "components") => {
+    const isProcess = variant === "processes";
+
+    return {
+      width: "142px",
+      minWidth: "142px",
+      height: "46px",
+      padding: "0.45rem 0.55rem",
+      borderRadius: "14px",
+      border: isProcess
+        ? "1px solid rgba(56,189,248,0.22)"
+        : "1px solid rgba(34,197,94,0.22)",
+      background: isProcess
+        ? "radial-gradient(220px circle at var(--lab-x, 50%) var(--lab-y, 50%), rgba(56,189,248,0.18), transparent 42%), linear-gradient(135deg, rgba(15,23,42,0.92), rgba(14,116,144,0.13))"
+        : "radial-gradient(220px circle at var(--lab-x, 50%) var(--lab-y, 50%), rgba(34,197,94,0.20), transparent 42%), linear-gradient(135deg, rgba(15,23,42,0.92), rgba(6,78,59,0.18))",
+      color: "#e5e7eb",
+      boxShadow: "0 10px 26px rgba(0,0,0,0.16)",
+      cursor: "pointer",
+      display: "inline-flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: "0.45rem",
+      overflow: "hidden",
+      position: "relative",
+      transition:
+        "transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease, background 160ms ease",
+      outline: "none",
+    };
+  };
+
+  const getLabIconStyle = (variant = "components") => {
+    const isProcess = variant === "processes";
+
+    return {
+      width: "26px",
+      height: "26px",
+      borderRadius: "999px",
+      display: "inline-flex",
+      alignItems: "center",
+      justifyContent: "center",
+      border: isProcess
+        ? "1px solid rgba(56,189,248,0.24)"
+        : "1px solid rgba(34,197,94,0.26)",
+      background: isProcess ? "rgba(56,189,248,0.10)" : "rgba(34,197,94,0.12)",
+      color: isProcess ? "#bae6fd" : "#bbf7d0",
+      fontSize: "0.9rem",
+      flex: "0 0 auto",
+      transition: "transform 160ms ease",
+    };
+  };
+
+
   if (!apiKey || apiKey === "TU_API_KEY_AQUI") {
     return (
       <div className="farm-map-shell farm-map-error">
@@ -3149,131 +3329,130 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
                   className="zone-col zone-components"
                   style={{
                     justifyContent: "flex-end",
-                    gap: "0.65rem",
-                    flexWrap: "wrap",
-                    alignItems: "stretch",
+                    gap: "0.5rem",
+                    flexWrap: "nowrap",
+                    alignItems: "center",
                   }}
                 >
-                  {isZone && (
-                    <div
-                      role="button"
-                      tabIndex={0}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        openComponentsModal(item.id, "components");
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " ") {
-                          e.preventDefault();
+                  {isZone ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={(e) => {
                           e.stopPropagation();
                           openComponentsModal(item.id, "components");
-                        }
-                      }}
-                      title="Administrar componentes de esta zona"
-                      style={{
-                        minWidth: "230px",
-                        maxWidth: "300px",
-                        padding: "0.72rem 0.78rem",
-                        borderRadius: "16px",
-                        border: "1px solid rgba(34,197,94,0.20)",
-                        background:
-                          "linear-gradient(135deg, rgba(15,23,42,0.92), rgba(6,78,59,0.24))",
-                        boxShadow:
-                          selectedId === item.id || hoveredId === item.id
-                            ? "0 0 0 1px rgba(34,197,94,0.28), 0 18px 42px rgba(34,197,94,0.10)"
-                            : "0 12px 30px rgba(0,0,0,0.16)",
-                        cursor: "pointer",
-                        transition:
-                          "transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease",
-                      }}
-                    >
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "space-between",
-                          gap: "0.75rem",
                         }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            openComponentsModal(item.id, "components");
+                          }
+                        }}
+                        onMouseMove={handleLabLauncherMouseMove}
+                        onMouseEnter={(e) => handleLabLauncherEnter(e, "components")}
+                        onMouseLeave={(e) => handleLabLauncherLeave(e, "components")}
+                        title="Abrir Component Lab"
+                        style={getLabLauncherStyle("components")}
                       >
-                        <div style={{ minWidth: 0 }}>
-                          <div
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: "0.45rem",
-                              color: "#e5e7eb",
-                              fontSize: "0.78rem",
-                              fontWeight: 900,
-                              letterSpacing: "0.08em",
-                              textTransform: "uppercase",
-                            }}
-                          >
-                            <span>🌿</span>
-                            <span>Componentes</span>
-                          </div>
-
-                          <div
-                            style={{
-                              marginTop: "0.22rem",
-                              color: totalComponents > 0 ? "#bbf7d0" : "#94a3b8",
-                              fontSize: "0.82rem",
-                              fontWeight: 800,
-                            }}
-                          >
-                            {totalComponents > 0
-                              ? `${totalComponents} registrado${totalComponents === 1 ? "" : "s"}`
-                              : "Listo para registrar"}
-                          </div>
-                        </div>
-
                         <span
                           style={{
-                            width: "34px",
-                            height: "34px",
-                            borderRadius: "999px",
                             display: "inline-flex",
                             alignItems: "center",
-                            justifyContent: "center",
-                            border: "1px solid rgba(34,197,94,0.26)",
-                            background: "rgba(34,197,94,0.12)",
+                            gap: "0.42rem",
+                            minWidth: 0,
+                          }}
+                        >
+                          <span data-lab-icon style={getLabIconStyle("components")}>
+                            🌿
+                          </span>
+                          <span
+                            style={{
+                              minWidth: 0,
+                              color: "#f8fafc",
+                              fontSize: "0.68rem",
+                              fontWeight: 950,
+                              letterSpacing: "0.075em",
+                              textTransform: "uppercase",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            Component
+                          </span>
+                        </span>
+
+                        <span
+                          data-lab-arrow
+                          style={{
                             color: "#86efac",
-                            fontWeight: 900,
+                            fontWeight: 950,
+                            transition: "transform 160ms ease",
                             flex: "0 0 auto",
                           }}
                         >
                           →
                         </span>
-                      </div>
+                      </button>
 
-                      {totalComponents > 0 ? (
-                        <div
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openComponentsModal(item.id, "processes");
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            openComponentsModal(item.id, "processes");
+                          }
+                        }}
+                        onMouseMove={handleLabLauncherMouseMove}
+                        onMouseEnter={(e) => handleLabLauncherEnter(e, "processes")}
+                        onMouseLeave={(e) => handleLabLauncherLeave(e, "processes")}
+                        title="Abrir Process Lab"
+                        style={getLabLauncherStyle("processes")}
+                      >
+                        <span
                           style={{
-                            marginTop: "0.65rem",
-                            paddingTop: "0.58rem",
-                            borderTop: "1px solid rgba(148,163,184,0.14)",
-                            color: "rgba(226,232,240,0.70)",
-                            fontSize: "0.76rem",
-                            lineHeight: 1.35,
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "0.42rem",
+                            minWidth: 0,
                           }}
                         >
-                          Inventario listo para abrir.
-                        </div>
-                      ) : null}
-                    </div>
-                  )}
+                          <span data-lab-icon style={getLabIconStyle("processes")}>
+                            ⚙️
+                          </span>
+                          <span
+                            style={{
+                              minWidth: 0,
+                              color: "#f8fafc",
+                              fontSize: "0.68rem",
+                              fontWeight: 950,
+                              letterSpacing: "0.075em",
+                              textTransform: "uppercase",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            Process
+                          </span>
+                        </span>
 
-                  {isZone && (
-                    <button
-                      type="button"
-                      className="secondary-btn"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        openComponentsModal(item.id, "processes");
-                      }}
-                    >
-                      Procesos
-                    </button>
-                  )}
+                        <span
+                          data-lab-arrow
+                          style={{
+                            color: "#bae6fd",
+                            fontWeight: 950,
+                            transition: "transform 160ms ease",
+                            flex: "0 0 auto",
+                          }}
+                        >
+                          →
+                        </span>
+                      </button>
+                    </>
+                  ) : null}
 
                   <button
                     type="button"
@@ -3282,8 +3461,24 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
                       e.stopPropagation();
                       handleDeleteFeature(item.id);
                     }}
+                    title={isZone ? "Eliminar zona" : "Borrar elemento"}
+                    style={{
+                      width: "34px",
+                      height: "34px",
+                      minWidth: "34px",
+                      borderRadius: "999px",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      padding: 0,
+                      border: "1px solid rgba(248,113,113,0.22)",
+                      background: "rgba(248,113,113,0.06)",
+                      color: "#fca5a5",
+                      textDecoration: "none",
+                      fontSize: "0.9rem",
+                    }}
                   >
-                    Borrar
+                    🗑
                   </button>
                 </div>
               </div>
