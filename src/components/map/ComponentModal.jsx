@@ -1,3 +1,5 @@
+import { useMemo, useState } from "react";
+
 export default function ComponentModal({
   modalZone,
   componentsDraft = [],
@@ -9,18 +11,29 @@ export default function ComponentModal({
   draftUpdate,
   toggleEditNote,
   saveComponentsModal,
-  handleDeleteFeature,
   getComponentIcon,
   getComponentDisplayName,
 }) {
   const safeComponents = Array.isArray(componentsDraft) ? componentsDraft : [];
   const totalComponents = safeComponents.length;
 
+  const [expandedComponentId, setExpandedComponentId] = useState(
+    safeComponents?.[0]?.id || null
+  );
+
   const resolveIcon = (type) => {
     if (typeof getComponentIcon === "function") return getComponentIcon(type);
 
     const value = String(type || "Otro").toLowerCase();
-    if (value.includes("animal") || value.includes("gallina") || value.includes("vaca") || value.includes("cerdo")) return "🐄";
+    if (
+      value.includes("animal") ||
+      value.includes("gallina") ||
+      value.includes("vaca") ||
+      value.includes("cerdo") ||
+      value.includes("pato")
+    ) {
+      return "🐄";
+    }
     if (value.includes("cultivo") || value.includes("lote")) return "🌱";
     if (value.includes("bebedero") || value.includes("riego")) return "💧";
     if (value.includes("comedero")) return "🌾";
@@ -42,13 +55,45 @@ export default function ComponentModal({
     const type = String(component?.type || "Componente").trim() || "Componente";
     return `${type} #${index + 1}`;
   };
-  const componentIconPreview = safeComponents.slice(0, 12).map((component, index) => ({
-    key: component?.id || `component-icon-${index}`,
-    icon: resolveIcon(component?.type),
-    label: resolveDisplayName(component, index),
-  }));
 
-  const remainingIconCount = Math.max(totalComponents - componentIconPreview.length, 0);
+  const componentIconPreview = useMemo(
+    () =>
+      safeComponents.slice(0, 14).map((component, index) => ({
+        key: component?.id || `component-icon-${index}`,
+        icon: resolveIcon(component?.type),
+        label: resolveDisplayName(component, index),
+      })),
+    [safeComponents]
+  );
+
+  const remainingIconCount = Math.max(
+    totalComponents - componentIconPreview.length,
+    0
+  );
+
+  const typeCounts = useMemo(() => {
+    const counts = {};
+    safeComponents.forEach((component) => {
+      const type = String(component?.type || "Otro").trim() || "Otro";
+      counts[type] = (counts[type] || 0) + 1;
+    });
+    return counts;
+  }, [safeComponents]);
+
+  const topTypes = Object.entries(typeCounts).slice(0, 4);
+
+  const handleToggleExpanded = (componentId) => {
+    setExpandedComponentId((prev) => (prev === componentId ? null : componentId));
+  };
+
+  const handleAddComponent = () => {
+    draftAddComponent();
+    setTimeout(() => {
+      const latest = Array.isArray(componentsDraft) ? componentsDraft : [];
+      const fallbackId = latest?.[latest.length - 1]?.id || null;
+      if (fallbackId) setExpandedComponentId(fallbackId);
+    }, 0);
+  };
 
   return (
     <div
@@ -127,7 +172,7 @@ export default function ComponentModal({
             style={{
               border: "1px solid rgba(34,197,94,0.20)",
               background:
-                "linear-gradient(135deg, rgba(6,78,59,0.32), rgba(15,23,42,0.92))",
+                "linear-gradient(135deg, rgba(6,78,59,0.34), rgba(15,23,42,0.92))",
               borderRadius: "20px",
               padding: "18px",
               marginBottom: "16px",
@@ -177,7 +222,7 @@ export default function ComponentModal({
                 </div>
               </div>
 
-              <button type="button" className="primary-btn" onClick={draftAddComponent}>
+              <button type="button" className="primary-btn" onClick={handleAddComponent}>
                 Nuevo componente
               </button>
             </div>
@@ -185,7 +230,7 @@ export default function ComponentModal({
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))",
+                gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
                 gap: "12px",
                 marginTop: "16px",
               }}
@@ -201,7 +246,14 @@ export default function ComponentModal({
                 <div style={{ color: "rgba(226,232,240,0.66)", fontSize: "0.8rem" }}>
                   Componentes
                 </div>
-                <div style={{ marginTop: "0.25rem", color: "#e5e7eb", fontSize: "1.45rem", fontWeight: 900 }}>
+                <div
+                  style={{
+                    marginTop: "0.25rem",
+                    color: "#e5e7eb",
+                    fontSize: "1.45rem",
+                    fontWeight: 900,
+                  }}
+                >
                   {totalComponents}
                 </div>
               </div>
@@ -292,6 +344,39 @@ export default function ComponentModal({
                 </div>
               </div>
             </div>
+
+            {topTypes.length > 0 ? (
+              <div
+                style={{
+                  marginTop: "12px",
+                  display: "flex",
+                  gap: "8px",
+                  flexWrap: "wrap",
+                }}
+              >
+                {topTypes.map(([type, count]) => (
+                  <span
+                    key={type}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "0.38rem",
+                      padding: "0.3rem 0.58rem",
+                      borderRadius: "999px",
+                      border: "1px solid rgba(148,163,184,0.18)",
+                      background: "rgba(15,23,42,0.50)",
+                      color: "rgba(226,232,240,0.82)",
+                      fontSize: "0.76rem",
+                      fontWeight: 800,
+                    }}
+                  >
+                    <span>{resolveIcon(type)}</span>
+                    <span>{type}</span>
+                    <strong style={{ color: "#bbf7d0" }}>{count}</strong>
+                  </span>
+                ))}
+              </div>
+            ) : null}
           </section>
 
           {totalComponents === 0 ? (
@@ -306,7 +391,7 @@ export default function ComponentModal({
             >
               <strong style={{ color: "#e5e7eb" }}>Aún no hay componentes.</strong>
               <div style={{ marginTop: "0.35rem" }}>
-                Agregá árboles, camas, tanques, bodegas, pasillos o cualquier elemento que exista en la zona.
+                Agregá árboles, animales, camas, tanques, bodegas, pasillos o cualquier elemento que exista en la zona.
               </div>
             </div>
           ) : (
@@ -316,73 +401,91 @@ export default function ComponentModal({
                 const noteText = String(comp.note || "").trim();
                 const displayName = resolveDisplayName(comp, index);
                 const icon = resolveIcon(comp.type);
+                const isExpanded = expandedComponentId === comp.id;
 
                 return (
                   <article
                     key={comp.id}
-                    className="farm-zone-component-row"
                     style={{
                       margin: 0,
                       borderRadius: "18px",
-                      border: "1px solid rgba(148,163,184,0.18)",
-                      background:
-                        "linear-gradient(135deg, rgba(15,23,42,0.94), rgba(8,47,73,0.24))",
-                      boxShadow: "0 14px 34px rgba(0,0,0,0.20)",
+                      border: isExpanded
+                        ? "1px solid rgba(34,197,94,0.32)"
+                        : "1px solid rgba(148,163,184,0.18)",
+                      background: isExpanded
+                        ? "linear-gradient(135deg, rgba(15,23,42,0.96), rgba(6,78,59,0.28))"
+                        : "linear-gradient(135deg, rgba(15,23,42,0.94), rgba(8,47,73,0.18))",
+                      boxShadow: isExpanded
+                        ? "0 18px 42px rgba(0,0,0,0.26), inset 0 0 0 1px rgba(34,197,94,0.04)"
+                        : "0 12px 30px rgba(0,0,0,0.18)",
+                      overflow: "hidden",
+                      transition: "transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease",
                     }}
                   >
-                    <div
-                      className="farm-zone-component-icon"
-                      style={{ alignSelf: "flex-start", paddingTop: "4px" }}
+                    <button
+                      type="button"
+                      onClick={() => handleToggleExpanded(comp.id)}
+                      style={{
+                        width: "100%",
+                        border: "none",
+                        background: "transparent",
+                        color: "inherit",
+                        cursor: "pointer",
+                        padding: "14px",
+                        display: "grid",
+                        gridTemplateColumns: "auto minmax(0, 1fr) auto",
+                        gap: "12px",
+                        alignItems: "center",
+                        textAlign: "left",
+                      }}
                     >
                       <span
                         style={{
-                          width: "38px",
-                          height: "38px",
+                          width: "40px",
+                          height: "40px",
                           borderRadius: "999px",
                           display: "inline-flex",
                           alignItems: "center",
                           justifyContent: "center",
                           border: "1px solid rgba(34,197,94,0.24)",
                           background: "rgba(34,197,94,0.12)",
-                          fontSize: "1.05rem",
+                          fontSize: "1.06rem",
+                          boxShadow: isExpanded ? "0 0 24px rgba(34,197,94,0.12)" : "none",
                         }}
                       >
                         {icon}
                       </span>
-                    </div>
 
-                    <div className="farm-zone-component-body" style={{ flex: 1 }}>
-                      <div
-                        className="farm-zone-component-header"
-                        style={{
-                          display: "flex",
-                          alignItems: "flex-start",
-                          justifyContent: "space-between",
-                          gap: "12px",
-                          marginBottom: "12px",
-                        }}
-                      >
-                        <div style={{ minWidth: 0 }}>
-                          <div
-                            style={{
-                              color: "#e5e7eb",
-                              fontSize: "0.98rem",
-                              fontWeight: 900,
-                              overflow: "hidden",
-                              textOverflow: "ellipsis",
-                              whiteSpace: "nowrap",
-                            }}
-                          >
-                            {displayName}
-                          </div>
+                      <span style={{ minWidth: 0 }}>
+                        <span
+                          style={{
+                            display: "block",
+                            color: "#e5e7eb",
+                            fontSize: "0.98rem",
+                            fontWeight: 900,
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {displayName}
+                        </span>
 
-                          <div
+                        <span
+                          style={{
+                            marginTop: "0.28rem",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "0.45rem",
+                            flexWrap: "wrap",
+                          }}
+                        >
+                          <span
                             style={{
-                              marginTop: "0.22rem",
                               display: "inline-flex",
                               alignItems: "center",
-                              gap: "0.4rem",
-                              padding: "0.25rem 0.52rem",
+                              gap: "0.34rem",
+                              padding: "0.24rem 0.52rem",
                               borderRadius: "999px",
                               border: "1px solid rgba(148,163,184,0.18)",
                               background: "rgba(15,23,42,0.55)",
@@ -393,100 +496,151 @@ export default function ComponentModal({
                           >
                             <span>{icon}</span>
                             <span>{comp.type || "Otro"}</span>
-                          </div>
-                        </div>
+                          </span>
 
-                        <button
-                          type="button"
-                          className="danger-link"
-                          onClick={() => draftDeleteComponent(comp.id)}
-                        >
-                          Borrar
-                        </button>
-                      </div>
+                          <span
+                            style={{
+                              color: noteText ? "rgba(187,247,208,0.82)" : "rgba(226,232,240,0.48)",
+                              fontSize: "0.76rem",
+                              fontWeight: 700,
+                            }}
+                          >
+                            {noteText ? "Con nota" : "Sin nota"}
+                          </span>
+                        </span>
+                      </span>
 
+                      <span
+                        style={{
+                          width: "34px",
+                          height: "34px",
+                          borderRadius: "999px",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          border: isExpanded
+                            ? "1px solid rgba(34,197,94,0.36)"
+                            : "1px solid rgba(148,163,184,0.16)",
+                          background: isExpanded
+                            ? "rgba(34,197,94,0.13)"
+                            : "rgba(15,23,42,0.52)",
+                          color: isExpanded ? "#86efac" : "#cbd5e1",
+                          fontWeight: 900,
+                        }}
+                        title={isExpanded ? "Contraer" : "Expandir"}
+                      >
+                        {isExpanded ? "⌃" : "›"}
+                      </span>
+                    </button>
+
+                    {isExpanded ? (
                       <div
                         style={{
-                          display: "grid",
-                          gridTemplateColumns: "minmax(180px, 1fr) minmax(160px, 0.6fr)",
-                          gap: "10px",
+                          padding: "0 14px 14px",
+                          borderTop: "1px dashed rgba(148,163,184,0.18)",
                         }}
                       >
-                        <input
-                          className="farm-feature-input"
-                          value={comp.name}
-                          onChange={(e) => draftUpdate(comp.id, { name: e.target.value })}
-                          placeholder="Nombre del componente (ej: Aguacate #4, Tanque principal)"
-                        />
-
-                        <select
-                          className="component-type-select"
-                          value={comp.type || "Otro"}
-                          onChange={(e) => draftUpdate(comp.id, { type: e.target.value })}
-                        >
-                          {COMPONENT_TYPES.map((t) => (
-                            <option key={t} value={t}>
-                              {t}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      <div style={{ marginTop: "10px" }}>
                         <div
                           style={{
                             display: "flex",
-                            alignItems: "center",
-                            justifyContent: "space-between",
-                            gap: "10px",
+                            justifyContent: "flex-end",
+                            paddingTop: "12px",
+                            marginBottom: "10px",
                           }}
                         >
-                          <span
-                            style={{
-                              fontSize: "0.82rem",
-                              color: "rgba(226,232,240,0.72)",
-                              fontWeight: 800,
-                            }}
-                          >
-                            Nota simple
-                          </span>
-
                           <button
                             type="button"
-                            className="secondary-btn"
-                            onClick={() => toggleEditNote(comp.id)}
-                            style={{ padding: "0.25rem 0.55rem" }}
-                            title={isEditingNote ? "Cerrar edición" : "Editar nota"}
+                            className="danger-link"
+                            onClick={() => draftDeleteComponent(comp.id)}
                           >
-                            ✏️ {isEditingNote ? "Listo" : "Editar"}
+                            Borrar componente
                           </button>
                         </div>
 
-                        {isEditingNote ? (
-                          <textarea
-                            className="farm-feature-textarea"
-                            value={comp.note}
-                            onChange={(e) => draftUpdate(comp.id, { note: e.target.value })}
-                            placeholder="Nota breve del componente (ej: árbol joven, pendiente de revisión, cerca del riego...)"
-                            rows={3}
+                        <div
+                          style={{
+                            display: "grid",
+                            gridTemplateColumns: "minmax(180px, 1fr) minmax(160px, 0.6fr)",
+                            gap: "10px",
+                          }}
+                        >
+                          <input
+                            className="farm-feature-input"
+                            value={comp.name}
+                            onChange={(e) => draftUpdate(comp.id, { name: e.target.value })}
+                            placeholder="Nombre del componente (ej: Aguacate #4, Tanque principal)"
                           />
-                        ) : (
+
+                          <select
+                            className="component-type-select"
+                            value={comp.type || "Otro"}
+                            onChange={(e) => draftUpdate(comp.id, { type: e.target.value })}
+                          >
+                            {COMPONENT_TYPES.map((t) => (
+                              <option key={t} value={t}>
+                                {t}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div style={{ marginTop: "10px" }}>
                           <div
                             style={{
-                              marginTop: "8px",
-                              padding: "10px 12px",
-                              borderRadius: "12px",
-                              border: "1px solid rgba(148,163,184,0.16)",
-                              background: "rgba(2,6,23,0.35)",
-                              color: noteText ? "#e5e7eb" : "rgba(226,232,240,0.50)",
-                              whiteSpace: "pre-wrap",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              gap: "10px",
                             }}
                           >
-                            {noteText || "Sin nota. Podés dejarlo así o agregar una observación rápida."}
+                            <span
+                              style={{
+                                fontSize: "0.82rem",
+                                color: "rgba(226,232,240,0.72)",
+                                fontWeight: 800,
+                              }}
+                            >
+                              Nota simple
+                            </span>
+
+                            <button
+                              type="button"
+                              className="secondary-btn"
+                              onClick={() => toggleEditNote(comp.id)}
+                              style={{ padding: "0.25rem 0.55rem" }}
+                              title={isEditingNote ? "Cerrar edición" : "Editar nota"}
+                            >
+                              ✏️ {isEditingNote ? "Listo" : "Editar"}
+                            </button>
                           </div>
-                        )}
+
+                          {isEditingNote ? (
+                            <textarea
+                              className="farm-feature-textarea"
+                              value={comp.note}
+                              onChange={(e) => draftUpdate(comp.id, { note: e.target.value })}
+                              placeholder="Nota breve del componente (ej: árbol joven, pendiente de revisión, cerca del riego...)"
+                              rows={3}
+                            />
+                          ) : (
+                            <div
+                              style={{
+                                marginTop: "8px",
+                                padding: "10px 12px",
+                                borderRadius: "12px",
+                                border: "1px solid rgba(148,163,184,0.16)",
+                                background: "rgba(2,6,23,0.35)",
+                                color: noteText ? "#e5e7eb" : "rgba(226,232,240,0.50)",
+                                whiteSpace: "pre-wrap",
+                              }}
+                            >
+                              {noteText ||
+                                "Sin nota. Podés dejarlo así o agregar una observación rápida."}
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </div>
+                    ) : null}
                   </article>
                 );
               })}
@@ -506,16 +660,8 @@ export default function ComponentModal({
           }}
         >
           <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
-            <button type="button" className="primary-btn" onClick={draftAddComponent}>
+            <button type="button" className="primary-btn" onClick={handleAddComponent}>
               Agregar componente
-            </button>
-
-            <button
-              type="button"
-              className="danger-link"
-              onClick={() => handleDeleteFeature(modalZone.id)}
-            >
-              Borrar zona
             </button>
           </div>
 
