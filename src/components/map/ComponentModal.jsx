@@ -81,7 +81,7 @@ function getAuthHeaders(token = getAuthToken()) {
 
   return {
     Authorization: `Bearer ${token}`,
-    "x-auth-token": token,
+    
   };
 }
 
@@ -130,7 +130,7 @@ function isRouteMissingError(response, message = "") {
 }
 
 const COMPONENT_PHOTO_ENDPOINTS = [
-  "/api/farms/component-photos",
+  "/api/component-photos",
   "/api/component-photos",
 ];
 
