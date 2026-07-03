@@ -3400,46 +3400,48 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
             </div>
 
             <div style={{ padding: "14px", overflow: "auto" }}>
-              <ProcessModal
-                componentsModalView={componentsModalView}
-                modalZone={modalZone}
-                modalZoneProcesses={modalZoneProcesses}
-                processesLoading={processesLoading}
-                processesError={processesError}
-                processActionLoading={processActionLoading}
-                showCreateProcessForm={showCreateProcessForm}
-                setShowCreateProcessForm={setShowCreateProcessForm}
-                newProcessName={newProcessName}
-                setNewProcessName={setNewProcessName}
-                newProcessDescription={newProcessDescription}
-                setNewProcessDescription={setNewProcessDescription}
-                newProcessOwner={newProcessOwner}
-                setNewProcessOwner={setNewProcessOwner}
-                newProcessPriority={newProcessPriority}
-                setNewProcessPriority={setNewProcessPriority}
-                newProcessStartDate={newProcessStartDate}
-                setNewProcessStartDate={setNewProcessStartDate}
-                newProcessTargetDate={newProcessTargetDate}
-                setNewProcessTargetDate={setNewProcessTargetDate}
-                createProcessForZone={createProcessForZone}
-                updateProcessStatus={updateProcessStatus}
-                deleteProcess={deleteProcess}
-                openStepFormByProcess={openStepFormByProcess}
-                setOpenStepFormByProcess={setOpenStepFormByProcess}
-                newStepByProcess={newStepByProcess}
-                updateStepDraftField={updateStepDraftField}
-                createStepForProcess={createStepForProcess}
-                toggleStepCompletion={toggleStepCompletion}
-                PROCESS_PRIORITIES={PROCESS_PRIORITIES}
-                getEmptyStepDraft={getEmptyStepDraft}
-                getProgressFromSteps={getProgressFromSteps}
-                getPriorityPillStyle={getPriorityPillStyle}
-                getStatusPillStyle={getStatusPillStyle}
-                addDaysToYYYYMMDD={addDaysToYYYYMMDD}
-                formatProcessDate={formatProcessDate}
-                getDurationDays={getDurationDays}
-                nowIso={nowIso}
-              />
+              {componentsModalView === "processes" && (
+                <ProcessModal
+                  componentsModalView={componentsModalView}
+                  modalZone={modalZone}
+                  modalZoneProcesses={modalZoneProcesses}
+                  processesLoading={processesLoading}
+                  processesError={processesError}
+                  processActionLoading={processActionLoading}
+                  showCreateProcessForm={showCreateProcessForm}
+                  setShowCreateProcessForm={setShowCreateProcessForm}
+                  newProcessName={newProcessName}
+                  setNewProcessName={setNewProcessName}
+                  newProcessDescription={newProcessDescription}
+                  setNewProcessDescription={setNewProcessDescription}
+                  newProcessOwner={newProcessOwner}
+                  setNewProcessOwner={setNewProcessOwner}
+                  newProcessPriority={newProcessPriority}
+                  setNewProcessPriority={setNewProcessPriority}
+                  newProcessStartDate={newProcessStartDate}
+                  setNewProcessStartDate={setNewProcessStartDate}
+                  newProcessTargetDate={newProcessTargetDate}
+                  setNewProcessTargetDate={setNewProcessTargetDate}
+                  createProcessForZone={createProcessForZone}
+                  updateProcessStatus={updateProcessStatus}
+                  deleteProcess={deleteProcess}
+                  openStepFormByProcess={openStepFormByProcess}
+                  setOpenStepFormByProcess={setOpenStepFormByProcess}
+                  newStepByProcess={newStepByProcess}
+                  updateStepDraftField={updateStepDraftField}
+                  createStepForProcess={createStepForProcess}
+                  toggleStepCompletion={toggleStepCompletion}
+                  PROCESS_PRIORITIES={PROCESS_PRIORITIES}
+                  getEmptyStepDraft={getEmptyStepDraft}
+                  getProgressFromSteps={getProgressFromSteps}
+                  getPriorityPillStyle={getPriorityPillStyle}
+                  getStatusPillStyle={getStatusPillStyle}
+                  addDaysToYYYYMMDD={addDaysToYYYYMMDD}
+                  formatProcessDate={formatProcessDate}
+                  getDurationDays={getDurationDays}
+                  nowIso={nowIso}
+                />
+              )}
 
               <div
                 style={{
@@ -3774,7 +3776,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
                   className="secondary-btn"
                   onClick={closeComponentsModal}
                 >
-                  Cancelar
+                  {componentsModalView === "components" ? "Cancelar" : "Cerrar"}
                 </button>
                 {componentsModalView === "components" && (
                   <button
