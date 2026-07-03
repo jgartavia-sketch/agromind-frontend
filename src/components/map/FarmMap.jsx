@@ -24,6 +24,7 @@ import LineString from "ol/geom/LineString";
 import Polygon from "ol/geom/Polygon";
 import { useFarm } from "../../context/FarmContext";
 import ProcessModal from "./ProcessModal";
+import ComponentModal from "./ComponentModal";
 
 const VIEW_KEY = "agromind_farm_view";
 const DRAWINGS_KEY = "agromind_farm_drawings";
@@ -3323,7 +3324,25 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
         </div>
       )}
 
-      {componentsModalOpen && modalZone && (
+      {componentsModalOpen && modalZone && componentsModalView === "components" && (
+        <ComponentModal
+          modalZone={modalZone}
+          componentsDraft={componentsDraft}
+          COMPONENT_TYPES={COMPONENT_TYPES}
+          editingNotesMap={editingNotesMap}
+          closeComponentsModal={closeComponentsModal}
+          draftAddComponent={draftAddComponent}
+          draftDeleteComponent={draftDeleteComponent}
+          draftUpdate={draftUpdate}
+          toggleEditNote={toggleEditNote}
+          saveComponentsModal={saveComponentsModal}
+          handleDeleteFeature={handleDeleteFeature}
+          getComponentIcon={getComponentIcon}
+          getComponentDisplayName={getComponentDisplayName}
+        />
+      )}
+
+      {componentsModalOpen && modalZone && componentsModalView === "processes" && (
         <div
           role="dialog"
           aria-modal="true"
@@ -3380,11 +3399,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
                   flexWrap: "wrap",
                 }}
               >
-                <h4 style={{ margin: 0, color: "#e5e7eb" }}>
-                  {componentsModalView === "processes"
-                    ? "Procesos de la zona"
-                    : "Componentes de la zona"}
-                </h4>
+                <h4 style={{ margin: 0, color: "#e5e7eb" }}>Procesos de la zona</h4>
                 <span className="zone-tag">{modalZone.name}</span>
               </div>
 
@@ -3400,331 +3415,46 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
             </div>
 
             <div style={{ padding: "14px", overflow: "auto" }}>
-              {componentsModalView === "processes" && (
-                <ProcessModal
-                  componentsModalView={componentsModalView}
-                  modalZone={modalZone}
-                  modalZoneProcesses={modalZoneProcesses}
-                  processesLoading={processesLoading}
-                  processesError={processesError}
-                  processActionLoading={processActionLoading}
-                  showCreateProcessForm={showCreateProcessForm}
-                  setShowCreateProcessForm={setShowCreateProcessForm}
-                  newProcessName={newProcessName}
-                  setNewProcessName={setNewProcessName}
-                  newProcessDescription={newProcessDescription}
-                  setNewProcessDescription={setNewProcessDescription}
-                  newProcessOwner={newProcessOwner}
-                  setNewProcessOwner={setNewProcessOwner}
-                  newProcessPriority={newProcessPriority}
-                  setNewProcessPriority={setNewProcessPriority}
-                  newProcessStartDate={newProcessStartDate}
-                  setNewProcessStartDate={setNewProcessStartDate}
-                  newProcessTargetDate={newProcessTargetDate}
-                  setNewProcessTargetDate={setNewProcessTargetDate}
-                  createProcessForZone={createProcessForZone}
-                  updateProcessStatus={updateProcessStatus}
-                  deleteProcess={deleteProcess}
-                  openStepFormByProcess={openStepFormByProcess}
-                  setOpenStepFormByProcess={setOpenStepFormByProcess}
-                  newStepByProcess={newStepByProcess}
-                  updateStepDraftField={updateStepDraftField}
-                  createStepForProcess={createStepForProcess}
-                  toggleStepCompletion={toggleStepCompletion}
-                  PROCESS_PRIORITIES={PROCESS_PRIORITIES}
-                  getEmptyStepDraft={getEmptyStepDraft}
-                  getProgressFromSteps={getProgressFromSteps}
-                  getPriorityPillStyle={getPriorityPillStyle}
-                  getStatusPillStyle={getStatusPillStyle}
-                  addDaysToYYYYMMDD={addDaysToYYYYMMDD}
-                  formatProcessDate={formatProcessDate}
-                  getDurationDays={getDurationDays}
-                  nowIso={nowIso}
-                />
-              )}
-
-              <div
-                style={{
-                  display: componentsModalView === "components" ? "block" : "none",
-                }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    gap: "12px",
-                    flexWrap: "wrap",
-                    marginBottom: "14px",
-                  }}
-                >
-                  <div>
-                    <div
-                      style={{
-                        color: "#e5e7eb",
-                        fontSize: "1rem",
-                        fontWeight: 900,
-                      }}
-                    >
-                      Component Lab
-                    </div>
-                    <div
-                      style={{
-                        marginTop: "0.25rem",
-                        color: "rgba(226,232,240,0.62)",
-                        fontSize: "0.86rem",
-                      }}
-                    >
-                      Inventario simple de elementos dentro de la zona. Sin etapas, sin fechas, sin ruido.
-                    </div>
-                  </div>
-
-                  <div
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: "0.45rem",
-                      padding: "0.48rem 0.72rem",
-                      borderRadius: "999px",
-                      border: "1px solid rgba(34,197,94,0.22)",
-                      background: "rgba(34,197,94,0.10)",
-                      color: "#bbf7d0",
-                      fontSize: "0.82rem",
-                      fontWeight: 900,
-                    }}
-                  >
-                    <span>🌿</span>
-                    <span>
-                      {componentsDraft.length} componente
-                      {componentsDraft.length === 1 ? "" : "s"}
-                    </span>
-                  </div>
-                </div>
-
-                {componentsDraft.length === 0 && (
-                  <div
-                    className="farm-zone-components-empty"
-                    style={{
-                      marginTop: 0,
-                      padding: "18px",
-                      borderRadius: "18px",
-                      border: "1px dashed rgba(34,197,94,0.30)",
-                      background:
-                        "linear-gradient(135deg, rgba(15,23,42,0.90), rgba(6,78,59,0.18))",
-                      color: "rgba(226,232,240,0.72)",
-                    }}
-                  >
-                    <div
-                      style={{
-                        color: "#e5e7eb",
-                        fontWeight: 900,
-                        marginBottom: "0.35rem",
-                      }}
-                    >
-                      Esta zona todavía no tiene componentes registrados.
-                    </div>
-                    <div style={{ fontSize: "0.9rem" }}>
-                      Agrega árboles, camas, bodegas, bebederos, tanques o cualquier elemento que exista en la zona.
-                    </div>
-                  </div>
-                )}
-
-                <div style={{ display: "grid", gap: "12px" }}>
-                  {componentsDraft.map((comp, index) => {
-                    const isEditingNote = editingNotesMap?.[comp.id] === true;
-                    const noteText = (comp.note || "").trim();
-                    const displayName = getComponentDisplayName(comp, index);
-
-                    return (
-                      <div
-                        key={comp.id}
-                        className="farm-zone-component-row"
-                        style={{
-                          alignItems: "stretch",
-                          borderRadius: "18px",
-                          border: "1px solid rgba(148,163,184,0.18)",
-                          background:
-                            "linear-gradient(135deg, rgba(15,23,42,0.92), rgba(6,78,59,0.18))",
-                          boxShadow: "0 16px 44px rgba(0,0,0,0.20)",
-                          overflow: "hidden",
-                        }}
-                      >
-                        <div
-                          className="farm-zone-component-icon"
-                          style={{
-                            width: "54px",
-                            minHeight: "100%",
-                            display: "flex",
-                            alignItems: "flex-start",
-                            justifyContent: "center",
-                            paddingTop: "18px",
-                          }}
-                        >
-                          <span
-                            style={{
-                              width: "34px",
-                              height: "34px",
-                              borderRadius: "999px",
-                              display: "inline-flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              border: "1px solid rgba(34,197,94,0.24)",
-                              background: "rgba(34,197,94,0.12)",
-                              fontSize: "1.05rem",
-                            }}
-                          >
-                            {getComponentIcon(comp.type)}
-                          </span>
-                        </div>
-
-                        <div className="farm-zone-component-body" style={{ flex: 1 }}>
-                          <div
-                            className="farm-zone-component-header"
-                            style={{
-                              display: "flex",
-                              alignItems: "flex-start",
-                              justifyContent: "space-between",
-                              gap: "12px",
-                              marginBottom: "12px",
-                            }}
-                          >
-                            <div style={{ minWidth: 0 }}>
-                              <div
-                                style={{
-                                  color: "#e5e7eb",
-                                  fontSize: "0.98rem",
-                                  fontWeight: 900,
-                                  overflow: "hidden",
-                                  textOverflow: "ellipsis",
-                                  whiteSpace: "nowrap",
-                                }}
-                              >
-                                {displayName}
-                              </div>
-                              <div
-                                style={{
-                                  marginTop: "0.22rem",
-                                  display: "inline-flex",
-                                  alignItems: "center",
-                                  gap: "0.4rem",
-                                  padding: "0.25rem 0.52rem",
-                                  borderRadius: "999px",
-                                  border: "1px solid rgba(148,163,184,0.18)",
-                                  background: "rgba(15,23,42,0.55)",
-                                  color: "rgba(226,232,240,0.78)",
-                                  fontSize: "0.74rem",
-                                  fontWeight: 800,
-                                }}
-                              >
-                                <span>{getComponentIcon(comp.type)}</span>
-                                <span>{comp.type || "Otro"}</span>
-                              </div>
-                            </div>
-
-                            <button
-                              type="button"
-                              className="danger-link"
-                              onClick={() => draftDeleteComponent(comp.id)}
-                            >
-                              Borrar
-                            </button>
-                          </div>
-
-                          <div
-                            style={{
-                              display: "grid",
-                              gridTemplateColumns: "minmax(180px, 1fr) minmax(160px, 0.6fr)",
-                              gap: "10px",
-                            }}
-                          >
-                            <input
-                              className="farm-feature-input"
-                              value={comp.name}
-                              onChange={(e) =>
-                                draftUpdate(comp.id, { name: e.target.value })
-                              }
-                              placeholder="Nombre del componente (ej: Aguacate #4, Tanque principal)"
-                            />
-
-                            <select
-                              className="component-type-select"
-                              value={comp.type || "Otro"}
-                              onChange={(e) =>
-                                draftUpdate(comp.id, { type: e.target.value })
-                              }
-                            >
-                              {COMPONENT_TYPES.map((t) => (
-                                <option key={t} value={t}>
-                                  {t}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-
-                          <div style={{ marginTop: "10px" }}>
-                            <div
-                              style={{
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "space-between",
-                                gap: "10px",
-                              }}
-                            >
-                              <span
-                                style={{
-                                  fontSize: "0.82rem",
-                                  color: "rgba(226,232,240,0.72)",
-                                  fontWeight: 800,
-                                }}
-                              >
-                                Nota simple
-                              </span>
-
-                              <button
-                                type="button"
-                                className="secondary-btn"
-                                onClick={() => toggleEditNote(comp.id)}
-                                style={{ padding: "0.25rem 0.55rem" }}
-                                title={isEditingNote ? "Cerrar edición" : "Editar nota"}
-                              >
-                                ✏️ {isEditingNote ? "Listo" : "Editar"}
-                              </button>
-                            </div>
-
-                            {isEditingNote ? (
-                              <textarea
-                                className="farm-feature-textarea"
-                                value={comp.note}
-                                onChange={(e) =>
-                                  draftUpdate(comp.id, { note: e.target.value })
-                                }
-                                placeholder="Nota breve del componente (ej: árbol joven, pendiente de revisión, cerca del riego...)"
-                                rows={3}
-                              />
-                            ) : (
-                              <div
-                                style={{
-                                  marginTop: "8px",
-                                  padding: "10px 12px",
-                                  borderRadius: "12px",
-                                  border: "1px solid rgba(148,163,184,0.16)",
-                                  background: "rgba(2,6,23,0.35)",
-                                  color: noteText
-                                    ? "#e5e7eb"
-                                    : "rgba(226,232,240,0.50)",
-                                  whiteSpace: "pre-wrap",
-                                }}
-                              >
-                                {noteText || "Sin nota. Podés dejarlo así o agregar una observación rápida."}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>              </div>
+              <ProcessModal
+                componentsModalView={componentsModalView}
+                modalZone={modalZone}
+                modalZoneProcesses={modalZoneProcesses}
+                processesLoading={processesLoading}
+                processesError={processesError}
+                processActionLoading={processActionLoading}
+                showCreateProcessForm={showCreateProcessForm}
+                setShowCreateProcessForm={setShowCreateProcessForm}
+                newProcessName={newProcessName}
+                setNewProcessName={setNewProcessName}
+                newProcessDescription={newProcessDescription}
+                setNewProcessDescription={setNewProcessDescription}
+                newProcessOwner={newProcessOwner}
+                setNewProcessOwner={setNewProcessOwner}
+                newProcessPriority={newProcessPriority}
+                setNewProcessPriority={setNewProcessPriority}
+                newProcessStartDate={newProcessStartDate}
+                setNewProcessStartDate={setNewProcessStartDate}
+                newProcessTargetDate={newProcessTargetDate}
+                setNewProcessTargetDate={setNewProcessTargetDate}
+                createProcessForZone={createProcessForZone}
+                updateProcessStatus={updateProcessStatus}
+                deleteProcess={deleteProcess}
+                openStepFormByProcess={openStepFormByProcess}
+                setOpenStepFormByProcess={setOpenStepFormByProcess}
+                newStepByProcess={newStepByProcess}
+                updateStepDraftField={updateStepDraftField}
+                createStepForProcess={createStepForProcess}
+                toggleStepCompletion={toggleStepCompletion}
+                PROCESS_PRIORITIES={PROCESS_PRIORITIES}
+                getEmptyStepDraft={getEmptyStepDraft}
+                getProgressFromSteps={getProgressFromSteps}
+                getPriorityPillStyle={getPriorityPillStyle}
+                getStatusPillStyle={getStatusPillStyle}
+                addDaysToYYYYMMDD={addDaysToYYYYMMDD}
+                formatProcessDate={formatProcessDate}
+                getDurationDays={getDurationDays}
+                nowIso={nowIso}
+              />
             </div>
 
             <div
@@ -3733,61 +3463,18 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
                 borderTop: "1px solid rgba(148,163,184,0.18)",
                 display: "flex",
                 alignItems: "center",
-                justifyContent: "space-between",
+                justifyContent: "flex-end",
                 gap: "10px",
                 flexWrap: "wrap",
               }}
             >
-              <div
-                style={{
-                  display: componentsModalView === "components" ? "flex" : "none",
-                  gap: "10px",
-                  alignItems: "center",
-                  flexWrap: "wrap",
-                }}
+              <button
+                type="button"
+                className="secondary-btn"
+                onClick={closeComponentsModal}
               >
-                <button
-                  type="button"
-                  className="primary-btn"
-                  onClick={draftAddComponent}
-                >
-                  Agregar componente
-                </button>
-
-                <button
-                  type="button"
-                  className="danger-link"
-                  onClick={() => handleDeleteFeature(modalZone.id)}
-                >
-                  Borrar zona
-                </button>
-              </div>
-
-              <div
-                style={{
-                  display: "flex",
-                  gap: "10px",
-                  alignItems: "center",
-                  flexWrap: "wrap",
-                }}
-              >
-                <button
-                  type="button"
-                  className="secondary-btn"
-                  onClick={closeComponentsModal}
-                >
-                  {componentsModalView === "components" ? "Cancelar" : "Cerrar"}
-                </button>
-                {componentsModalView === "components" && (
-                  <button
-                    type="button"
-                    className="primary-btn"
-                    onClick={saveComponentsModal}
-                  >
-                    Guardar
-                  </button>
-                )}
-              </div>
+                Cerrar
+              </button>
             </div>
           </div>
         </div>
