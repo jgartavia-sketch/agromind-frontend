@@ -309,6 +309,30 @@ export default function ComponentModal({
   const topTypes = Object.entries(typeCounts).slice(0, 6);
   const hasActiveFilters = searchTerm.trim() || activeTypeFilter !== "Todos";
 
+  const componentIdsSignature = useMemo(
+    () =>
+      safeComponents
+        .map((component) => String(component?.id || ""))
+        .filter(Boolean)
+        .sort()
+        .join("|"),
+    [safeComponents]
+  );
+
+  const totalZonePhotos = useMemo(() => {
+    return safeComponents.reduce((total, component) => {
+      const componentId = component?.id;
+      if (!componentId) return total;
+      const photos = photosByComponent[componentId];
+      return total + (Array.isArray(photos) ? photos.length : 0);
+    }, 0);
+  }, [safeComponents, photosByComponent]);
+
+  const totalZonePhotosLabel =
+    totalZonePhotos === 0
+      ? "Sin fotografías"
+      : `${totalZonePhotos} ${totalZonePhotos === 1 ? "fotografía" : "fotografías"}`;
+
   useEffect(() => {
     if (safeComponents.length === 0) {
       setExpandedComponentId(null);
@@ -382,6 +406,49 @@ export default function ComponentModal({
       setPhotosLoadingMap((prev) => ({ ...prev, [componentId]: false }));
     }
   };
+
+  useEffect(() => {
+    if (!modalZone?.id || !componentIdsSignature) return undefined;
+
+    let cancelled = false;
+    const token = getAuthToken();
+    const componentIds = componentIdsSignature.split("|").filter(Boolean);
+
+    componentIds.forEach(async (componentId) => {
+      if (photosByComponent[componentId]) return;
+
+      try {
+        setPhotosLoadingMap((prev) => ({ ...prev, [componentId]: true }));
+
+        const data = await fetchComponentPhotoJson({
+          method: "GET",
+          suffix: `/${modalZone.id}/${componentId}`,
+          token,
+        });
+
+        if (cancelled) return;
+
+        setPhotosByComponent((prev) => ({
+          ...prev,
+          [componentId]: Array.isArray(data?.photos) ? data.photos : [],
+        }));
+      } catch {
+        if (cancelled) return;
+
+        setPhotosByComponent((prev) =>
+          prev[componentId] ? prev : { ...prev, [componentId]: [] }
+        );
+      } finally {
+        if (!cancelled) {
+          setPhotosLoadingMap((prev) => ({ ...prev, [componentId]: false }));
+        }
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [modalZone?.id, componentIdsSignature]);
 
   const handlePhotoInputChange = async (componentId, event) => {
     const file = event.target.files?.[0] || null;
@@ -758,7 +825,7 @@ export default function ComponentModal({
                 }}
               >
                 <div style={{ color: "rgba(226,232,240,0.62)", fontSize: "0.78rem" }}>
-                  Futuro
+                  Zona actual
                 </div>
                 <div
                   style={{
@@ -768,7 +835,17 @@ export default function ComponentModal({
                     fontWeight: 900,
                   }}
                 >
-                  📷 Registro fotográfico
+                  📸 Registro fotográfico
+                </div>
+                <div
+                  style={{
+                    marginTop: "0.28rem",
+                    color: totalZonePhotos > 0 ? "#bbf7d0" : "rgba(226,232,240,0.58)",
+                    fontSize: "0.82rem",
+                    fontWeight: 800,
+                  }}
+                >
+                  {totalZonePhotosLabel}
                 </div>
               </div>
             </div>
