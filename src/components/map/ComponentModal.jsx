@@ -6,14 +6,83 @@ const API_BASE =
   import.meta.env.VITE_API_URL || "https://agromind-backend-slem.onrender.com";
 
 function getAuthToken() {
-  return (
-    localStorage.getItem("agromind_token") ||
-    localStorage.getItem("token") ||
-    localStorage.getItem("agromind_auth_token") ||
-    localStorage.getItem("auth_token") ||
-    localStorage.getItem("jwt") ||
-    ""
-  );
+  if (typeof window === "undefined" || !window.localStorage) return "";
+
+  const directKeys = [
+    "agromind_token",
+    "token",
+    "agromind_auth_token",
+    "auth_token",
+    "jwt",
+    "accessToken",
+    "access_token",
+    "idToken",
+    "id_token",
+  ];
+
+  for (const key of directKeys) {
+    const value = localStorage.getItem(key);
+    if (value && value !== "undefined" && value !== "null") {
+      return value.replace(/^Bearer\s+/i, "").trim();
+    }
+  }
+
+  const tokenFieldNames = [
+    "token",
+    "accessToken",
+    "access_token",
+    "authToken",
+    "auth_token",
+    "jwt",
+  ];
+
+  for (let index = 0; index < localStorage.length; index += 1) {
+    const key = localStorage.key(index);
+    if (!key) continue;
+
+    const rawValue = localStorage.getItem(key);
+    if (!rawValue || rawValue === "undefined" || rawValue === "null") continue;
+
+    const trimmed = rawValue.replace(/^Bearer\s+/i, "").trim();
+
+    if (/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(trimmed)) {
+      return trimmed;
+    }
+
+    try {
+      const parsed = JSON.parse(rawValue);
+      if (!parsed || typeof parsed !== "object") continue;
+
+      for (const field of tokenFieldNames) {
+        const possibleToken = parsed[field];
+        if (typeof possibleToken === "string" && possibleToken.trim()) {
+          return possibleToken.replace(/^Bearer\s+/i, "").trim();
+        }
+      }
+
+      if (parsed.user && typeof parsed.user === "object") {
+        for (const field of tokenFieldNames) {
+          const possibleToken = parsed.user[field];
+          if (typeof possibleToken === "string" && possibleToken.trim()) {
+            return possibleToken.replace(/^Bearer\s+/i, "").trim();
+          }
+        }
+      }
+    } catch {
+      // no-op
+    }
+  }
+
+  return "";
+}
+
+function getAuthHeaders(token = getAuthToken()) {
+  if (!token) return {};
+
+  return {
+    Authorization: `Bearer ${token}`,
+    "x-auth-token": token,
+  };
 }
 
 function normalizePhotoUrl(url) {
@@ -71,7 +140,7 @@ async function fetchComponentPhotoJson({ method = "GET", suffix = "", token = ""
   for (const basePath of COMPONENT_PHOTO_ENDPOINTS) {
     const response = await fetch(`${API_BASE}${basePath}${suffix}`, {
       method,
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      headers: getAuthHeaders(token),
       body: typeof bodyFactory === "function" ? bodyFactory() : undefined,
     });
 
