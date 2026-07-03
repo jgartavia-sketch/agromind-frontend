@@ -1,5 +1,36 @@
 import { useEffect, useMemo, useState } from "react";
 
+
+const MAX_COMPONENT_PHOTOS = 5;
+const API_BASE =
+  import.meta.env.VITE_API_URL || "https://agromind-backend-slem.onrender.com";
+
+function getAuthToken() {
+  return (
+    localStorage.getItem("agromind_token") ||
+    localStorage.getItem("token") ||
+    localStorage.getItem("agromind_auth_token") ||
+    localStorage.getItem("auth_token") ||
+    localStorage.getItem("jwt") ||
+    ""
+  );
+}
+
+function normalizePhotoUrl(url) {
+  if (!url) return "";
+  if (/^https?:\/\//i.test(url)) return url;
+  return `${API_BASE}${url.startsWith("/") ? url : `/${url}`}`;
+}
+
+async function readApiError(response) {
+  try {
+    const data = await response.json();
+    return data?.error || "Error en request.";
+  } catch {
+    return "Error en request.";
+  }
+}
+
 export default function ComponentModal({
   modalZone,
   componentsDraft = [],
@@ -24,6 +55,11 @@ export default function ComponentModal({
   const [viewportWidth, setViewportWidth] = useState(() =>
     typeof window === "undefined" ? 1200 : window.innerWidth
   );
+  const [photosByComponent, setPhotosByComponent] = useState({});
+  const [photosLoadingMap, setPhotosLoadingMap] = useState({});
+  const [photoUploadingMap, setPhotoUploadingMap] = useState({});
+  const [photoErrorMap, setPhotoErrorMap] = useState({});
+  const [previewPhoto, setPreviewPhoto] = useState(null);
 
   const isTabletLayout = viewportWidth <= 920;
   const isMobileLayout = viewportWidth <= 640;
@@ -158,7 +194,11 @@ export default function ComponentModal({
   }, [safeComponents, expandedComponentId]);
 
   const handleToggleExpanded = (componentId) => {
-    setExpandedComponentId((prev) => (prev === componentId ? null : componentId));
+    setExpandedComponentId((prev) => {
+      const next = prev === componentId ? null : componentId;
+      if (next) loadComponentPhotos(next);
+      return next;
+    });
   };
 
   const handleAddComponent = () => {
@@ -176,6 +216,130 @@ export default function ComponentModal({
   const resetFilters = () => {
     setSearchTerm("");
     setActiveTypeFilter("Todos");
+  };
+
+  const setPhotoError = (componentId, message = "") => {
+    setPhotoErrorMap((prev) => ({ ...prev, [componentId]: message }));
+  };
+
+  const loadComponentPhotos = async (componentId, options = {}) => {
+    if (!modalZone?.id || !componentId) return;
+    if (!options.force && photosByComponent[componentId]) return;
+
+    try {
+      setPhotosLoadingMap((prev) => ({ ...prev, [componentId]: true }));
+      setPhotoError(componentId, "");
+
+      const token = getAuthToken();
+      const response = await fetch(
+        `${API_BASE}/api/farms/component-photos/${modalZone.id}/${componentId}`,
+        {
+          method: "GET",
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(await readApiError(response));
+      }
+
+      const data = await response.json();
+      setPhotosByComponent((prev) => ({
+        ...prev,
+        [componentId]: Array.isArray(data?.photos) ? data.photos : [],
+      }));
+    } catch (error) {
+      setPhotoError(
+        componentId,
+        error?.message || "No se pudieron cargar las fotografías."
+      );
+    } finally {
+      setPhotosLoadingMap((prev) => ({ ...prev, [componentId]: false }));
+    }
+  };
+
+  const handlePhotoInputChange = async (componentId, event) => {
+    const file = event.target.files?.[0] || null;
+    event.target.value = "";
+
+    if (!file || !modalZone?.id || !componentId) return;
+
+    const currentPhotos = photosByComponent[componentId] || [];
+    if (currentPhotos.length >= MAX_COMPONENT_PHOTOS) {
+      setPhotoError(componentId, `Máximo ${MAX_COMPONENT_PHOTOS} fotos por componente.`);
+      return;
+    }
+
+    try {
+      setPhotoUploadingMap((prev) => ({ ...prev, [componentId]: true }));
+      setPhotoError(componentId, "");
+
+      const formData = new FormData();
+      formData.append("photo", file);
+
+      const token = getAuthToken();
+      const response = await fetch(
+        `${API_BASE}/api/farms/component-photos/${modalZone.id}/${componentId}`,
+        {
+          method: "POST",
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          body: formData,
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(await readApiError(response));
+      }
+
+      const data = await response.json();
+      if (data?.photo) {
+        setPhotosByComponent((prev) => ({
+          ...prev,
+          [componentId]: [data.photo, ...(prev[componentId] || [])].slice(
+            0,
+            MAX_COMPONENT_PHOTOS
+          ),
+        }));
+      } else {
+        await loadComponentPhotos(componentId, { force: true });
+      }
+    } catch (error) {
+      setPhotoError(componentId, error?.message || "No se pudo subir la foto.");
+    } finally {
+      setPhotoUploadingMap((prev) => ({ ...prev, [componentId]: false }));
+    }
+  };
+
+  const handleDeletePhoto = async (componentId, photo) => {
+    if (!componentId || !photo?.id) return;
+
+    const ok = window.confirm("¿Eliminar esta fotografía del componente?");
+    if (!ok) return;
+
+    try {
+      setPhotoError(componentId, "");
+      const token = getAuthToken();
+      const response = await fetch(
+        `${API_BASE}/api/farms/component-photos/${photo.id}`,
+        {
+          method: "DELETE",
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(await readApiError(response));
+      }
+
+      setPhotosByComponent((prev) => ({
+        ...prev,
+        [componentId]: (prev[componentId] || []).filter((item) => item.id !== photo.id),
+      }));
+
+      setPreviewPhoto((current) => (current?.id === photo.id ? null : current));
+    } catch (error) {
+      setPhotoError(componentId, error?.message || "No se pudo eliminar la foto.");
+    }
   };
 
   const handleComponentCardMouseMove = (event) => {
@@ -673,6 +837,12 @@ export default function ComponentModal({
                 const icon = resolveIcon(comp.type);
                 const isExpanded = expandedComponentId === comp.id;
                 const isHovered = hoveredComponentId === comp.id;
+                const compPhotos = photosByComponent[comp.id] || [];
+                const compPhotosCount = compPhotos.length;
+                const isPhotosLoading = photosLoadingMap[comp.id] === true;
+                const isPhotoUploading = photoUploadingMap[comp.id] === true;
+                const photoError = photoErrorMap[comp.id] || "";
+                const canAddPhoto = compPhotosCount < MAX_COMPONENT_PHOTOS && !isPhotoUploading;
 
                 return (
                   <article
@@ -820,7 +990,7 @@ export default function ComponentModal({
                               fontWeight: 750,
                             }}
                           >
-                            📷 preparado
+                            📷 {compPhotosCount}/{MAX_COMPONENT_PHOTOS}
                           </span>
                         </span>
                       </span>
@@ -889,27 +1059,200 @@ export default function ComponentModal({
                           </select>
                         </div>
 
-                        <div
+                        <section
                           style={{
                             marginTop: "12px",
-                            border: "1px dashed rgba(148,163,184,0.17)",
-                            background: "rgba(2,6,23,0.26)",
-                            borderRadius: "15px",
-                            padding: "11px 12px",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "space-between",
-                            gap: "10px",
-                            flexWrap: "wrap",
+                            border: "1px solid rgba(34,197,94,0.18)",
+                            background:
+                              "linear-gradient(135deg, rgba(2,6,23,0.40), rgba(6,78,59,0.16))",
+                            borderRadius: "16px",
+                            padding: "12px",
                           }}
                         >
-                          <span style={{ color: "rgba(226,232,240,0.72)", fontSize: "0.82rem" }}>
-                            📷 Espacio preparado para fotografías del componente.
-                          </span>
-                          <span style={{ color: "rgba(187,247,208,0.72)", fontSize: "0.78rem", fontWeight: 850 }}>
-                            Próxima iteración
-                          </span>
-                        </div>
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: isMobileLayout ? "stretch" : "center",
+                              justifyContent: "space-between",
+                              gap: "10px",
+                              flexDirection: isMobileLayout ? "column" : "row",
+                            }}
+                          >
+                            <div style={{ minWidth: 0 }}>
+                              <div
+                                style={{
+                                  color: "#e5e7eb",
+                                  fontSize: "0.86rem",
+                                  fontWeight: 950,
+                                }}
+                              >
+                                📷 Evidencia fotográfica
+                              </div>
+                              <div
+                                style={{
+                                  marginTop: "0.2rem",
+                                  color: "rgba(226,232,240,0.58)",
+                                  fontSize: "0.76rem",
+                                }}
+                              >
+                                {isPhotosLoading
+                                  ? "Cargando fotografías..."
+                                  : `${compPhotosCount}/${MAX_COMPONENT_PHOTOS} fotografías guardadas`}
+                              </div>
+                            </div>
+
+                            <label
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                minHeight: "40px",
+                                padding: "0.48rem 0.72rem",
+                                borderRadius: "999px",
+                                border: canAddPhoto
+                                  ? "1px solid rgba(34,197,94,0.36)"
+                                  : "1px solid rgba(148,163,184,0.18)",
+                                background: canAddPhoto
+                                  ? "rgba(34,197,94,0.12)"
+                                  : "rgba(15,23,42,0.55)",
+                                color: canAddPhoto ? "#bbf7d0" : "rgba(226,232,240,0.48)",
+                                fontSize: "0.8rem",
+                                fontWeight: 900,
+                                cursor: canAddPhoto ? "pointer" : "not-allowed",
+                                width: isMobileLayout ? "100%" : "auto",
+                              }}
+                              title={
+                                canAddPhoto
+                                  ? "Tomar o subir fotografía"
+                                  : "Máximo de fotografías alcanzado"
+                              }
+                            >
+                              {isPhotoUploading
+                                ? "Subiendo..."
+                                : canAddPhoto
+                                ? "+ Agregar fotografía"
+                                : "Máximo alcanzado"}
+                              <input
+                                type="file"
+                                accept="image/*"
+                                capture="environment"
+                                disabled={!canAddPhoto}
+                                onChange={(event) => handlePhotoInputChange(comp.id, event)}
+                                style={{ display: "none" }}
+                              />
+                            </label>
+                          </div>
+
+                          {photoError ? (
+                            <div
+                              style={{
+                                marginTop: "10px",
+                                padding: "0.58rem 0.7rem",
+                                borderRadius: "12px",
+                                border: "1px solid rgba(248,113,113,0.24)",
+                                background: "rgba(248,113,113,0.08)",
+                                color: "#fecaca",
+                                fontSize: "0.78rem",
+                              }}
+                            >
+                              {photoError}
+                            </div>
+                          ) : null}
+
+                          {compPhotos.length > 0 ? (
+                            <div
+                              style={{
+                                marginTop: "12px",
+                                display: "grid",
+                                gridTemplateColumns: isMobileLayout
+                                  ? "repeat(2, minmax(0, 1fr))"
+                                  : "repeat(auto-fill, minmax(112px, 1fr))",
+                                gap: "10px",
+                              }}
+                            >
+                              {compPhotos.map((photo) => {
+                                const photoUrl = normalizePhotoUrl(photo.url);
+                                return (
+                                  <div
+                                    key={photo.id}
+                                    style={{
+                                      position: "relative",
+                                      borderRadius: "14px",
+                                      overflow: "hidden",
+                                      border: "1px solid rgba(148,163,184,0.18)",
+                                      background: "rgba(2,6,23,0.44)",
+                                      aspectRatio: "1 / 1",
+                                    }}
+                                  >
+                                    <button
+                                      type="button"
+                                      onClick={() => setPreviewPhoto(photo)}
+                                      style={{
+                                        width: "100%",
+                                        height: "100%",
+                                        padding: 0,
+                                        border: "none",
+                                        background: "transparent",
+                                        cursor: "zoom-in",
+                                      }}
+                                      title="Ver fotografía"
+                                    >
+                                      <img
+                                        src={photoUrl}
+                                        alt="Evidencia del componente"
+                                        loading="lazy"
+                                        style={{
+                                          width: "100%",
+                                          height: "100%",
+                                          display: "block",
+                                          objectFit: "cover",
+                                        }}
+                                      />
+                                    </button>
+
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeletePhoto(comp.id, photo)}
+                                      style={{
+                                        position: "absolute",
+                                        top: "7px",
+                                        right: "7px",
+                                        width: "30px",
+                                        height: "30px",
+                                        borderRadius: "999px",
+                                        border: "1px solid rgba(248,113,113,0.32)",
+                                        background: "rgba(2,6,23,0.76)",
+                                        color: "#fecaca",
+                                        cursor: "pointer",
+                                        display: "inline-flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        boxShadow: "0 10px 22px rgba(0,0,0,0.32)",
+                                      }}
+                                      title="Eliminar fotografía"
+                                    >
+                                      🗑
+                                    </button>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          ) : !isPhotosLoading ? (
+                            <div
+                              style={{
+                                marginTop: "12px",
+                                border: "1px dashed rgba(148,163,184,0.20)",
+                                background: "rgba(2,6,23,0.25)",
+                                borderRadius: "14px",
+                                padding: "11px 12px",
+                                color: "rgba(226,232,240,0.58)",
+                                fontSize: "0.8rem",
+                              }}
+                            >
+                              Sin fotos todavía. Desde celular podés tomar una foto directa.
+                            </div>
+                          ) : null}
+                        </section>
 
                         <div style={{ marginTop: "12px" }}>
                           <div
@@ -1016,6 +1359,72 @@ export default function ComponentModal({
           </div>
         </div>
       </div>
+
+      {previewPhoto ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setPreviewPhoto(null)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 10020,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: isMobileLayout ? "12px" : "24px",
+            background: "rgba(0,0,0,0.78)",
+            backdropFilter: "blur(6px)",
+          }}
+        >
+          <div
+            onClick={(event) => event.stopPropagation()}
+            style={{
+              width: "min(920px, 100%)",
+              maxHeight: "92dvh",
+              borderRadius: "20px",
+              overflow: "hidden",
+              border: "1px solid rgba(148,163,184,0.22)",
+              background: "rgba(2,6,23,0.96)",
+              boxShadow: "0 28px 90px rgba(0,0,0,0.66)",
+            }}
+          >
+            <div
+              style={{
+                padding: "10px 12px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: "10px",
+                borderBottom: "1px solid rgba(148,163,184,0.16)",
+              }}
+            >
+              <span style={{ color: "#e5e7eb", fontWeight: 900, fontSize: "0.86rem" }}>
+                Evidencia fotográfica
+              </span>
+              <button
+                type="button"
+                className="secondary-btn"
+                onClick={() => setPreviewPhoto(null)}
+                style={{ padding: "0.32rem 0.62rem" }}
+              >
+                ✕
+              </button>
+            </div>
+            <img
+              src={normalizePhotoUrl(previewPhoto.url)}
+              alt="Evidencia ampliada del componente"
+              style={{
+                width: "100%",
+                maxHeight: "calc(92dvh - 54px)",
+                display: "block",
+                objectFit: "contain",
+                background: "#020617",
+              }}
+            />
+          </div>
+        </div>
+      ) : null}
 
       <style>{`
         @keyframes componentLabFadeIn {

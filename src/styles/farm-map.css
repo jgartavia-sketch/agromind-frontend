@@ -1247,3 +1247,57 @@
     font-size: 0.84rem;
   }
 }
+/* ===========================================================
+   iPhone / Safari Responsive
+   =========================================================== */
+
+@media (max-width: 768px) {
+
+  .farm-map-toolbar{
+    flex-direction:column;
+    align-items:stretch;
+    border-radius:18px;
+    padding:.75rem;
+  }
+
+  .farm-map-tools-left{
+    flex-wrap:wrap;
+    justify-content:center;
+  }
+
+  .tool-btn,
+  .primary-btn,
+  .secondary-btn{
+    flex:1 1 calc(50% - .5rem);
+    white-space:normal;
+    min-height:44px;
+  }
+
+  .farm-map{
+    height:55svh;
+    min-height:320px;
+  }
+
+  .farm-zones-table-wrapper{
+    overflow-x:auto;
+    -webkit-overflow-scrolling:touch;
+    padding:.5rem;
+  }
+
+  .farm-zones-header-row,
+  .farm-zones-row{
+    min-width:900px;
+  }
+
+  .farm-map-summary{
+    justify-content:center;
+  }
+
+}
+@supports (height:100svh){
+
+  .farm-map{
+    height:55svh;
+  }
+
+}

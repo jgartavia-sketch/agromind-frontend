@@ -917,16 +917,23 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
 
     const safe = Array.isArray(zone.components) ? zone.components : [];
 
+    let normalizedChanged = false;
+
     const cloned = safe.map((c, idx) => {
       const createdAt = c?.createdAt || nowIso();
       const updatedAt = c?.updatedAt || createdAt;
+      const stableId =
+        c.id ||
+        `comp-${idx}-${Date.now().toString(36)}${Math.random()
+          .toString(36)
+          .slice(2, 6)}`;
+
+      if (!c?.id || !c?.createdAt || !c?.updatedAt) {
+        normalizedChanged = true;
+      }
 
       return {
-        id:
-          c.id ||
-          `comp-${idx}-${Date.now().toString(36)}${Math.random()
-            .toString(36)
-            .slice(2, 6)}`,
+        id: stableId,
         name: c.name || "",
         note: c.note || "",
         type: c.type || "Otro",
@@ -934,6 +941,30 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
         updatedAt,
       };
     });
+
+    let listToSync = latestFeaturesListRef.current || [];
+
+    if (normalizedChanged) {
+      markDirty();
+
+      const nextUpdatedAt = nowIso();
+      const feature = featuresMapRef.current[zoneId];
+
+      if (feature) {
+        feature.set("components", cloned);
+        feature.set("updatedAt", nextUpdatedAt);
+      }
+
+      listToSync = listToSync.map((item) =>
+        item.id === zoneId
+          ? { ...item, components: cloned, updatedAt: nextUpdatedAt }
+          : item
+      );
+
+      latestFeaturesListRef.current = listToSync;
+      setFeaturesList(listToSync);
+      scheduleAutosave(listToSync, { force: true });
+    }
 
     setComponentsModalZoneId(zoneId);
     setComponentsModalView(view === "processes" ? "processes" : "components");
@@ -954,9 +985,9 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
     setTimeout(() => forceMapResize(), 0);
 
     try {
-      await saveMapNow(latestFeaturesListRef.current || []);
+      await saveMapNow(listToSync);
     } catch (err) {
-      console.warn("No se pudo sincronizar la zona antes de cargar procesos:", err);
+      console.warn("No se pudo sincronizar la zona antes de cargar procesos o fotos:", err);
     }
 
     await loadZoneProcesses(zoneId);
