@@ -1762,97 +1762,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
 
 
   const geocodeSearch = async (q, signal) => {
-    const handleLabLauncherMouseMove = (e) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    e.currentTarget.style.setProperty("--lab-x", `${e.clientX - rect.left}px`);
-    e.currentTarget.style.setProperty("--lab-y", `${e.clientY - rect.top}px`);
-  };
-
-  const handleLabLauncherEnter = (e, variant = "components") => {
-    const isProcess = variant === "processes";
-    e.currentTarget.style.transform = "translateY(-2px)";
-    e.currentTarget.style.borderColor = isProcess
-      ? "rgba(56,189,248,0.48)"
-      : "rgba(34,197,94,0.48)";
-    e.currentTarget.style.boxShadow = isProcess
-      ? "0 0 0 1px rgba(56,189,248,0.18), 0 16px 34px rgba(56,189,248,0.12)"
-      : "0 0 0 1px rgba(34,197,94,0.18), 0 16px 34px rgba(34,197,94,0.12)";
-
-    const arrow = e.currentTarget.querySelector("[data-lab-arrow]");
-    const icon = e.currentTarget.querySelector("[data-lab-icon]");
-
-    if (arrow) arrow.style.transform = "translateX(3px)";
-    if (icon) icon.style.transform = "scale(1.08)";
-  };
-
-  const handleLabLauncherLeave = (e, variant = "components") => {
-    const isProcess = variant === "processes";
-    e.currentTarget.style.transform = "translateY(0)";
-    e.currentTarget.style.borderColor = isProcess
-      ? "rgba(56,189,248,0.22)"
-      : "rgba(34,197,94,0.22)";
-    e.currentTarget.style.boxShadow = "0 10px 26px rgba(0,0,0,0.16)";
-
-    const arrow = e.currentTarget.querySelector("[data-lab-arrow]");
-    const icon = e.currentTarget.querySelector("[data-lab-icon]");
-
-    if (arrow) arrow.style.transform = "translateX(0)";
-    if (icon) icon.style.transform = "scale(1)";
-  };
-
-  const getLabLauncherStyle = (variant = "components") => {
-    const isProcess = variant === "processes";
-
-    return {
-      width: "142px",
-      minWidth: "142px",
-      height: "46px",
-      padding: "0.45rem 0.55rem",
-      borderRadius: "14px",
-      border: isProcess
-        ? "1px solid rgba(56,189,248,0.22)"
-        : "1px solid rgba(34,197,94,0.22)",
-      background: isProcess
-        ? "radial-gradient(220px circle at var(--lab-x, 50%) var(--lab-y, 50%), rgba(56,189,248,0.18), transparent 42%), linear-gradient(135deg, rgba(15,23,42,0.92), rgba(14,116,144,0.13))"
-        : "radial-gradient(220px circle at var(--lab-x, 50%) var(--lab-y, 50%), rgba(34,197,94,0.20), transparent 42%), linear-gradient(135deg, rgba(15,23,42,0.92), rgba(6,78,59,0.18))",
-      color: "#e5e7eb",
-      boxShadow: "0 10px 26px rgba(0,0,0,0.16)",
-      cursor: "pointer",
-      display: "inline-flex",
-      alignItems: "center",
-      justifyContent: "space-between",
-      gap: "0.45rem",
-      overflow: "hidden",
-      position: "relative",
-      transition:
-        "transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease, background 160ms ease",
-      outline: "none",
-    };
-  };
-
-  const getLabIconStyle = (variant = "components") => {
-    const isProcess = variant === "processes";
-
-    return {
-      width: "26px",
-      height: "26px",
-      borderRadius: "999px",
-      display: "inline-flex",
-      alignItems: "center",
-      justifyContent: "center",
-      border: isProcess
-        ? "1px solid rgba(56,189,248,0.24)"
-        : "1px solid rgba(34,197,94,0.26)",
-      background: isProcess ? "rgba(56,189,248,0.10)" : "rgba(34,197,94,0.12)",
-      color: isProcess ? "#bae6fd" : "#bbf7d0",
-      fontSize: "0.9rem",
-      flex: "0 0 auto",
-      transition: "transform 160ms ease",
-    };
-  };
-
-
-  if (!apiKey || apiKey === "TU_API_KEY_AQUI") {
+    if (!apiKey || apiKey === "TU_API_KEY_AQUI") {
       throw new Error("Falta VITE_MAPTILER_KEY para buscar lugares.");
     }
 
@@ -2681,10 +2591,10 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
     const isProcess = variant === "processes";
 
     return {
-      width: "142px",
-      minWidth: "142px",
+      width: "212px",
+      minWidth: "212px",
       height: "46px",
-      padding: "0.45rem 0.55rem",
+      padding: "0.45rem 0.62rem",
       borderRadius: "14px",
       border: isProcess
         ? "1px solid rgba(56,189,248,0.22)"
@@ -2698,7 +2608,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
       display: "inline-flex",
       alignItems: "center",
       justifyContent: "space-between",
-      gap: "0.45rem",
+      gap: "0.62rem",
       overflow: "hidden",
       position: "relative",
       transition:
@@ -2727,6 +2637,56 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
       transition: "transform 160ms ease",
     };
   };
+
+
+  const handleDeleteLauncherMouseMove = (e) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    e.currentTarget.style.setProperty("--delete-x", `${e.clientX - rect.left}px`);
+    e.currentTarget.style.setProperty("--delete-y", `${e.clientY - rect.top}px`);
+  };
+
+  const handleDeleteLauncherEnter = (e) => {
+    e.currentTarget.style.transform = "translateY(-2px)";
+    e.currentTarget.style.borderColor = "rgba(248,113,113,0.52)";
+    e.currentTarget.style.boxShadow =
+      "0 0 0 1px rgba(248,113,113,0.18), 0 16px 34px rgba(248,113,113,0.14)";
+
+    const icon = e.currentTarget.querySelector("[data-delete-icon]");
+    if (icon) icon.style.transform = "scale(1.1)";
+  };
+
+  const handleDeleteLauncherLeave = (e) => {
+    e.currentTarget.style.transform = "translateY(0)";
+    e.currentTarget.style.borderColor = "rgba(248,113,113,0.24)";
+    e.currentTarget.style.boxShadow = "0 10px 26px rgba(0,0,0,0.16)";
+
+    const icon = e.currentTarget.querySelector("[data-delete-icon]");
+    if (icon) icon.style.transform = "scale(1)";
+  };
+
+  const getDeleteLauncherStyle = () => ({
+    width: "42px",
+    height: "42px",
+    minWidth: "42px",
+    borderRadius: "999px",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 0,
+    border: "1px solid rgba(248,113,113,0.24)",
+    background:
+      "radial-gradient(160px circle at var(--delete-x, 50%) var(--delete-y, 50%), rgba(248,113,113,0.22), transparent 46%), rgba(248,113,113,0.06)",
+    color: "#fca5a5",
+    textDecoration: "none",
+    fontSize: "0.9rem",
+    cursor: "pointer",
+    boxShadow: "0 10px 26px rgba(0,0,0,0.16)",
+    transition:
+      "transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease, background 160ms ease",
+    outline: "none",
+    position: "relative",
+    overflow: "hidden",
+  });
 
 
   if (!apiKey || apiKey === "TU_API_KEY_AQUI") {
@@ -3345,6 +3305,8 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
                             alignItems: "center",
                             gap: "0.42rem",
                             minWidth: 0,
+                            flex: "1 1 auto",
+                            overflow: "hidden",
                           }}
                         >
                           <span data-lab-icon style={getLabIconStyle("components")}>
@@ -3353,6 +3315,9 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
                           <span
                             style={{
                               minWidth: 0,
+                              flex: "1 1 auto",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
                               color: "#f8fafc",
                               fontSize: "0.68rem",
                               fontWeight: 950,
@@ -3368,6 +3333,10 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
                         <span
                           data-lab-arrow
                           style={{
+                            width: "24px",
+                            minWidth: "24px",
+                            display: "inline-flex",
+                            justifyContent: "flex-end",
                             color: "#86efac",
                             fontWeight: 950,
                             transition: "transform 160ms ease",
@@ -3403,6 +3372,8 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
                             alignItems: "center",
                             gap: "0.42rem",
                             minWidth: 0,
+                            flex: "1 1 auto",
+                            overflow: "hidden",
                           }}
                         >
                           <span data-lab-icon style={getLabIconStyle("processes")}>
@@ -3411,6 +3382,9 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
                           <span
                             style={{
                               minWidth: 0,
+                              flex: "1 1 auto",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
                               color: "#f8fafc",
                               fontSize: "0.68rem",
                               fontWeight: 950,
@@ -3426,6 +3400,10 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
                         <span
                           data-lab-arrow
                           style={{
+                            width: "24px",
+                            minWidth: "24px",
+                            display: "inline-flex",
+                            justifyContent: "flex-end",
                             color: "#bae6fd",
                             fontWeight: 950,
                             transition: "transform 160ms ease",
@@ -3445,24 +3423,23 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
                       e.stopPropagation();
                       handleDeleteFeature(item.id);
                     }}
+                    onMouseMove={handleDeleteLauncherMouseMove}
+                    onMouseEnter={handleDeleteLauncherEnter}
+                    onMouseLeave={handleDeleteLauncherLeave}
                     title={isZone ? "Eliminar zona" : "Borrar elemento"}
-                    style={{
-                      width: "34px",
-                      height: "34px",
-                      minWidth: "34px",
-                      borderRadius: "999px",
-                      display: "inline-flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      padding: 0,
-                      border: "1px solid rgba(248,113,113,0.22)",
-                      background: "rgba(248,113,113,0.06)",
-                      color: "#fca5a5",
-                      textDecoration: "none",
-                      fontSize: "0.9rem",
-                    }}
+                    style={getDeleteLauncherStyle()}
                   >
-                    🗑
+                    <span
+                      data-delete-icon
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        transition: "transform 160ms ease",
+                      }}
+                    >
+                      🗑
+                    </span>
                   </button>
                 </div>
               </div>
