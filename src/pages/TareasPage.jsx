@@ -245,28 +245,108 @@ function getZoneLabelFromMapItem(item) {
   ).trim();
 }
 
-function extractMapZoneNames(payload) {
-  const source = payload?.zones ||
-    payload?.mapZones ||
-    payload?.items ||
-    payload?.elements ||
-    payload?.mapElements ||
-    payload?.data?.zones ||
-    payload?.data?.items ||
-    payload?.data?.elements ||
-    payload?.farm?.zones ||
-    payload?.farm?.map?.zones ||
-    payload?.farmMap?.zones ||
-    payload;
+function getAnyZoneLabel(item, force = false) {
+  if (!item || typeof item !== "object") return "";
 
-  const rawList = Array.isArray(source) ? source : [];
+  const directName = String(
+    item.name ||
+      item.title ||
+      item.label ||
+      item.zoneName ||
+      item.zone ||
+      item.area ||
+      item.zoneLabel ||
+      ""
+  ).trim();
+
+  if (force && directName) return directName;
+
+  const mapLabel = getZoneLabelFromMapItem(item);
+  if (mapLabel) return mapLabel;
+
+  const hasGeometry =
+    Array.isArray(item.points) ||
+    Array.isArray(item.polygon) ||
+    Array.isArray(item.coordinates) ||
+    Array.isArray(item.paths) ||
+    Array.isArray(item.vertices) ||
+    item.geometry ||
+    item.geojson ||
+    item.geoJson;
+
+  if (hasGeometry && directName) return directName;
+
+  return "";
+}
+
+function collectZoneNames(source, bucket = [], force = false, depth = 0) {
+  if (!source || depth > 6) return bucket;
+
+  if (typeof source === "string") {
+    const clean = source.trim();
+    if (clean) bucket.push(clean);
+    return bucket;
+  }
+
+  if (Array.isArray(source)) {
+    source.forEach((item) => collectZoneNames(item, bucket, force, depth + 1));
+    return bucket;
+  }
+
+  if (typeof source !== "object") return bucket;
+
+  const label = getAnyZoneLabel(source, force);
+  if (label) bucket.push(label);
+
+  const zoneContainers = [
+    "zones",
+    "mapZones",
+    "areas",
+    "plots",
+    "polygons",
+    "mapElements",
+    "elements",
+    "items",
+    "features",
+    "shapes",
+    "layers",
+  ];
+
+  zoneContainers.forEach((key) => {
+    if (source[key]) {
+      collectZoneNames(source[key], bucket, true, depth + 1);
+    }
+  });
+
+  const nestedContainers = [
+    "data",
+    "farm",
+    "map",
+    "farmMap",
+    "mapData",
+    "layout",
+    "payload",
+    "result",
+    "properties",
+    "geojson",
+    "geoJson",
+    "geometry",
+  ];
+
+  nestedContainers.forEach((key) => {
+    if (source[key]) {
+      collectZoneNames(source[key], bucket, force, depth + 1);
+    }
+  });
+
+  return bucket;
+}
+
+function extractMapZoneNames(payload) {
   const seen = new Set();
 
-  return rawList
-    .map((item) => {
-      if (typeof item === "string") return item.trim();
-      return getZoneLabelFromMapItem(item);
-    })
+  return collectZoneNames(payload, [], false)
+    .map((name) => String(name || "").trim())
     .filter(Boolean)
     .filter((name) => {
       const key = normalizeZoneName(name);
@@ -276,120 +356,55 @@ function extractMapZoneNames(payload) {
     });
 }
 
-function getWeatherSeverityLevel(risks) {
-  if (risks.some((r) => r.level === "alert")) return "alert";
-  if (risks.some((r) => r.level === "warning")) return "warning";
-  return "info";
-}
+function readStoredMapZones(farmId) {
+  if (typeof window === "undefined" || !window.localStorage) return [];
 
-function buildWeatherRisk(weather) {
-  if (!weather) return null;
-
-  const risks = [];
-  const recommendations = [];
-
-  const temp = Number(weather.temperature ?? 0);
-  const wind = Number(weather.windSpeed ?? 0);
-  const humidity = Number(weather.humidity ?? 0);
-  const uv = Number(weather.uvIndex ?? 0);
-  const precipProb = Number(weather.precipitationProbability ?? 0);
-  const precip = Number(weather.precipitation ?? 0);
-  const weatherCode = Number(weather.weatherCode ?? -1);
-
-  const rainyCodes = [
-    51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82, 95, 96, 99,
+  const candidates = [];
+  const activeFarmKeys = [
+    "agromind_active_farm",
+    "activeFarm",
+    "selectedFarm",
+    "farm",
   ];
 
-  const hasRainRisk =
-    precipProb >= 55 || precip >= 0.8 || rainyCodes.includes(weatherCode);
+  activeFarmKeys.forEach((key) => {
+    const raw = localStorage.getItem(key);
+    if (!raw) return;
+    try {
+      const parsed = JSON.parse(raw);
+      if (!farmId || String(parsed?.id || parsed?._id || parsed?.farmId || "") === String(farmId)) {
+        candidates.push(parsed);
+      }
+    } catch {}
+  });
 
-  if (hasRainRisk) {
-    const strongRain =
-      precipProb >= 75 || precip >= 3 || [65, 82, 95, 96, 99].includes(weatherCode);
+  for (let i = 0; i < localStorage.length; i += 1) {
+    const key = localStorage.key(i) || "";
+    const lowerKey = key.toLowerCase();
+    if (!lowerKey.includes("agromind") && !lowerKey.includes("farm") && !lowerKey.includes("map")) {
+      continue;
+    }
 
-    risks.push({
-      key: "rain",
-      label: strongRain ? "Riesgo alto de lluvia" : "Probabilidad de lluvia",
-      level: strongRain ? "alert" : "warning",
+    const raw = localStorage.getItem(key);
+    if (!raw || raw.length > 700000) continue;
+
+    try {
+      const parsed = JSON.parse(raw);
+      candidates.push(parsed);
+    } catch {}
+  }
+
+  const seen = new Set();
+  return candidates
+    .flatMap((candidate) => extractMapZoneNames(candidate))
+    .filter((name) => {
+      const clean = normalizeZoneName(name);
+      if (!clean || seen.has(clean)) return false;
+      seen.add(clean);
+      return true;
     });
-
-    recommendations.push(
-      strongRain
-        ? "Evita programar cosecha, aplicaciones foliares o secado al aire libre."
-        : "Revisa tareas de campo sensibles al agua antes de ejecutarlas."
-    );
-  }
-
-  if (wind >= 30) {
-    const strongWind = wind >= 45;
-    risks.push({
-      key: "wind",
-      label: strongWind ? "Viento fuerte" : "Viento elevado",
-      level: strongWind ? "alert" : "warning",
-    });
-
-    recommendations.push(
-      strongWind
-        ? "Pausa fumigación, trabajos en altura y manejo liviano de materiales."
-        : "Toma precaución con aplicaciones y labores expuestas."
-    );
-  }
-
-  if (humidity >= 88) {
-    risks.push({
-      key: "humidity",
-      label: "Humedad alta",
-      level: humidity >= 94 ? "warning" : "info",
-    });
-
-    recommendations.push(
-      "La humedad favorece hongos, barro y retrasos operativos; prioriza revisión de drenajes y ventilación."
-    );
-  }
-
-  if (uv >= 8) {
-    risks.push({
-      key: "uv",
-      label: uv >= 11 ? "UV extremo" : "UV alto",
-      level: uv >= 11 ? "alert" : "warning",
-    });
-
-    recommendations.push(
-      "Programa labores pesadas temprano o al final de la tarde y protege al personal."
-    );
-  }
-
-  if (temp >= 32) {
-    recommendations.push(
-      "La temperatura está alta; hidrata al personal y vigila animales, viveros y riegos."
-    );
-  }
-
-  if (risks.length === 0) {
-    recommendations.push(
-      "Condiciones relativamente favorables para operación normal, con monitoreo básico."
-    );
-  }
-
-  const level = getWeatherSeverityLevel(risks);
-
-  let title = "Ventana operativa favorable";
-  if (level === "warning") title = "Clima con atención operativa";
-  if (level === "alert") title = "Clima con riesgo operativo";
-
-  const summary =
-    risks.length > 0
-      ? risks.map((r) => r.label).join(" · ")
-      : "Sin señales fuertes de riesgo inmediato";
-
-  return {
-    level,
-    title,
-    summary,
-    recommendations,
-    risks,
-  };
 }
+
 
 async function reverseGeocodeName(latitude, longitude) {
   try {
@@ -589,30 +604,53 @@ export default function TareasPage({
   }, [fetchFarms]);
 
   const fetchMapZones = useCallback(async () => {
-    if (!farmId || !token) {
-      setFetchedMapZones([]);
-      return;
-    }
-
-    const ts = Date.now();
-    const endpoints = [
-      `/api/farms/${farmId}/map?ts=${ts}`,
-      `/api/farms/${farmId}/zones?ts=${ts}`,
+    const localCandidates = [
+      contextActiveFarm,
+      activeFarm,
+      ...(Array.isArray(farms) ? farms : []),
     ];
 
-    for (const endpoint of endpoints) {
-      try {
-        const data = await apiFetch(endpoint);
-        const zones = extractMapZoneNames(data);
-        if (zones.length > 0) {
-          setFetchedMapZones(zones);
-          return;
-        }
-      } catch {}
+    const localZones = localCandidates
+      .filter(Boolean)
+      .filter((farm) => {
+        if (!farmId) return true;
+        const candidateId = farm?.id || farm?._id || farm?.farmId;
+        return !candidateId || String(candidateId) === String(farmId);
+      })
+      .flatMap((farm) => extractMapZoneNames(farm));
+
+    const storedZones = readStoredMapZones(farmId);
+    const collected = [...localZones, ...storedZones];
+
+    if (farmId && token) {
+      const ts = Date.now();
+      const endpoints = [
+        `/api/farms/${farmId}/map?ts=${ts}`,
+        `/api/farms/${farmId}/zones?ts=${ts}`,
+        `/api/map/${farmId}?ts=${ts}`,
+      ];
+
+      for (const endpoint of endpoints) {
+        try {
+          const data = await apiFetch(endpoint);
+          collected.push(...extractMapZoneNames(data));
+        } catch {}
+      }
     }
 
-    setFetchedMapZones([]);
-  }, [farmId, token, API_BASE]); // eslint-disable-line react-hooks/exhaustive-deps
+    const seen = new Set();
+    const cleanZones = collected
+      .map((zone) => String(zone || "").trim())
+      .filter(Boolean)
+      .filter((zone) => {
+        const key = normalizeZoneName(zone);
+        if (!key || seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+
+    setFetchedMapZones(cleanZones);
+  }, [farmId, token, contextActiveFarm, activeFarm, farms, API_BASE]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchWeather = useCallback(async () => {
     setWeatherLoading(true);
