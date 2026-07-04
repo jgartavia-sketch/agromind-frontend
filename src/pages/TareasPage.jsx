@@ -5,7 +5,7 @@ import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import listPlugin from "@fullcalendar/list";
 
-import { useEffect, useMemo, useState, useCallback, useRef } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { useFarm } from "../context/FarmContext";
 import { loadCalendarItems } from "../services/calendarService";
 import "../styles/tasks.css";
@@ -493,10 +493,6 @@ export default function TareasPage({
   const [editingId, setEditingId] = useState(null);
   const [fetchedMapZones, setFetchedMapZones] = useState([]);
 
-  const bootRequestKeyRef = useRef("");
-  const refreshInFlightRef = useRef(false);
-  const suggestionsUnavailableRef = useRef(false);
-
   const mapZones = useMemo(() => {
     const seen = new Set();
     return [...(Array.isArray(zonesFromMap) ? zonesFromMap : []), ...fetchedMapZones]
@@ -604,9 +600,6 @@ export default function TareasPage({
     }
   }, [token, API_BASE, contextFarmId, contextActiveFarm?.id, setActiveFarm]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => {
-    fetchFarms();
-  }, [fetchFarms]);
 
   const fetchMapZones = useCallback(async () => {
     const localCandidates = [
@@ -628,18 +621,13 @@ export default function TareasPage({
     const collected = [...localZones, ...storedZones];
 
     if (farmId && token) {
-      const ts = Date.now();
-      const endpoints = [
-        `/api/farms/${farmId}/map?ts=${ts}`,
-        `/api/farms/${farmId}/zones?ts=${ts}`,
-        `/api/map/${farmId}?ts=${ts}`,
-      ];
-
-      for (const endpoint of endpoints) {
-        try {
-          const data = await apiFetch(endpoint);
-          collected.push(...extractMapZoneNames(data));
-        } catch {}
+      try {
+        const ts = Date.now();
+        const data = await apiFetch(`/api/farms/${farmId}/map?ts=${ts}`);
+        collected.push(...extractMapZoneNames(data));
+      } catch {
+        // Si el mapa aún no existe para la finca, usamos únicamente zonas locales/guardadas.
+        // No probamos rutas alternativas porque generan 404 repetidos y parpadeo visual.
       }
     }
 
@@ -756,36 +744,21 @@ export default function TareasPage({
   }, [farmId, token, API_BASE]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchSuggestions = useCallback(async () => {
-    if (!farmId || !token || suggestionsUnavailableRef.current) {
-      setSuggestions([]);
-      return [];
-    }
-
-    setLoadingSuggestions(true);
-    try {
-      const ts = Date.now();
-      const data = await apiFetch(
-        `/api/farms/${farmId}/tasks/suggestions?ts=${ts}`
-      );
-      const list = Array.isArray(data?.suggestions) ? data.suggestions : [];
-      setSuggestions(list);
-      return list;
-    } catch (err) {
-      if (String(err?.message || "").includes("404")) {
-        suggestionsUnavailableRef.current = true;
-      }
-      setSuggestions([]);
-      return [];
-    } finally {
-      setLoadingSuggestions(false);
-    }
-  }, [farmId, token, API_BASE]); // eslint-disable-line react-hooks/exhaustive-deps
+    // El backend actual no expone /tasks/suggestions.
+    // Mantener esta función sin llamar endpoints evita 404 repetidos y ciclos visuales.
+    setLoadingSuggestions(false);
+    setSuggestions([]);
+    return [];
+  }, []);
 
   const fetchCalendarItems = useCallback(async () => {
     if (!farmId) {
       setCalendarItems([]);
+      setCalendarLoading(false);
       return [];
     }
+
+    setCalendarLoading(true);
 
     try {
       const payload = await loadCalendarItems(farmId);
@@ -795,57 +768,45 @@ export default function TareasPage({
     } catch {
       setCalendarItems([]);
       return [];
+    } finally {
+      setCalendarLoading(false);
     }
   }, [farmId]);
 
   const refreshCalendarBundle = useCallback(async () => {
-    if (refreshInFlightRef.current) return;
-
-    refreshInFlightRef.current = true;
+    setCalendarLoading(true);
 
     try {
-      await Promise.allSettled([
+      await Promise.all([
         fetchTasks(),
         fetchCalendarItems(),
-        fetchSuggestions(),
         fetchMapZones(),
       ]);
     } finally {
-      refreshInFlightRef.current = false;
+      setCalendarLoading(false);
     }
-  }, [fetchTasks, fetchCalendarItems, fetchSuggestions, fetchMapZones]);
+  }, [fetchTasks, fetchCalendarItems, fetchMapZones]);
 
   useEffect(() => {
     let cancelled = false;
-    const requestKey = `${farmId || "no-farm"}:${token ? "auth" : "guest"}`;
-
-    if (bootRequestKeyRef.current === requestKey) return;
-    bootRequestKeyRef.current = requestKey;
 
     async function loadAll() {
       if (cancelled) return;
+        setCalendarLoading(true);
 
-      setCalendarLoading(true);
+      await fetchFarms();
+      if (cancelled) return;
 
-      try {
-        await fetchFarms();
-        if (cancelled) return;
+      await Promise.all([
+        fetchTasks(),
+        fetchCalendarItems(),
+        fetchMapZones(),
+      ]);
 
-        await Promise.allSettled([
-          fetchTasks(),
-          fetchCalendarItems(),
-          fetchSuggestions(),
-          fetchMapZones(),
-        ]);
+      if (cancelled) return;
+      setCalendarLoading(false);
 
-        if (!cancelled) {
-          fetchWeather();
-        }
-      } finally {
-        if (!cancelled) {
-          setCalendarLoading(false);
-        }
-      }
+      fetchWeather();
     }
 
     loadAll();
@@ -853,9 +814,7 @@ export default function TareasPage({
     return () => {
       cancelled = true;
     };
-    // Carga inicial controlada solo por finca/token.
-    // Evita que cambios internos de farms, activeFarm o zonas vuelvan a disparar toda la sincronización.
-  }, [farmId, token]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [fetchFarms, fetchTasks, fetchCalendarItems, fetchMapZones, fetchWeather]);
 
   useEffect(() => {
     function onRefreshEvent(e) {
@@ -1096,9 +1055,8 @@ export default function TareasPage({
 
   const fireTasksRefresh = () => {
     try {
-      window.dispatchEvent(
-        new CustomEvent("agromind:tasks:refresh", { detail: { farmId } })
-      );
+      // No disparamos el evento en esta misma pestaña: la tarea ya se actualiza en estado local.
+      // El storage queda solo como señal para otras pestañas abiertas.
       localStorage.setItem("agromind_tasks_refresh", String(Date.now()));
     } catch {
       // no-op
@@ -1771,7 +1729,11 @@ export default function TareasPage({
               <button
                 type="button"
                 className="master-ghost-btn"
-                onClick={refreshCalendarBundle}
+                onClick={() => {
+                  fetchTasks();
+                  fetchSuggestions();
+                  fetchCalendarItems();
+                }}
                 disabled={loading || saving}
               >
                 Actualizar
