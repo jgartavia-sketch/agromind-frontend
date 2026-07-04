@@ -52,10 +52,11 @@ function getSuggestionClass(level) {
 const PRIORIDADES = ["Alta", "Media", "Baja"];
 const TIPOS = ["Riego", "Alimentación", "Mantenimiento", "Cosecha"];
 const ESTADOS = ["Pendiente", "En progreso", "Completada"];
+const GENERAL_ZONE_OPTION = "Zona general";
 
 const EMPTY_FORM = {
   title: "",
-  zone: "",
+  zone: GENERAL_ZONE_OPTION,
   type: "Mantenimiento",
   priority: "Media",
   start: "",
@@ -208,6 +209,71 @@ function getWeatherCodeLabel(code) {
 
 function normalizeZoneName(value) {
   return String(value || "").trim().toLowerCase();
+}
+
+function getZoneLabelFromMapItem(item) {
+  if (!item || typeof item !== "object") return "";
+
+  const typeText = String(
+    item.type ||
+      item.kind ||
+      item.category ||
+      item.mapType ||
+      item.elementType ||
+      item.objectType ||
+      ""
+  ).toLowerCase();
+
+  const looksLikeZone =
+    typeText.includes("zone") ||
+    typeText.includes("zona") ||
+    item.isZone === true ||
+    Array.isArray(item.points) ||
+    Array.isArray(item.polygon) ||
+    Array.isArray(item.coordinates);
+
+  if (!looksLikeZone) return "";
+
+  return String(
+    item.name ||
+      item.title ||
+      item.label ||
+      item.zoneName ||
+      item.zone ||
+      item.area ||
+      ""
+  ).trim();
+}
+
+function extractMapZoneNames(payload) {
+  const source = payload?.zones ||
+    payload?.mapZones ||
+    payload?.items ||
+    payload?.elements ||
+    payload?.mapElements ||
+    payload?.data?.zones ||
+    payload?.data?.items ||
+    payload?.data?.elements ||
+    payload?.farm?.zones ||
+    payload?.farm?.map?.zones ||
+    payload?.farmMap?.zones ||
+    payload;
+
+  const rawList = Array.isArray(source) ? source : [];
+  const seen = new Set();
+
+  return rawList
+    .map((item) => {
+      if (typeof item === "string") return item.trim();
+      return getZoneLabelFromMapItem(item);
+    })
+    .filter(Boolean)
+    .filter((name) => {
+      const key = normalizeZoneName(name);
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
 }
 
 function getWeatherSeverityLevel(risks) {
@@ -409,8 +475,20 @@ export default function TareasPage({
 
   const [formData, setFormData] = useState(EMPTY_FORM);
   const [editingId, setEditingId] = useState(null);
+  const [fetchedMapZones, setFetchedMapZones] = useState([]);
 
-  const mapZones = Array.isArray(zonesFromMap) ? zonesFromMap : [];
+  const mapZones = useMemo(() => {
+    const seen = new Set();
+    return [...(Array.isArray(zonesFromMap) ? zonesFromMap : []), ...fetchedMapZones]
+      .map((zone) => String(zone || "").trim())
+      .filter(Boolean)
+      .filter((zone) => {
+        const key = normalizeZoneName(zone);
+        if (!key || seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+  }, [zonesFromMap, fetchedMapZones]);
 
   const API_BASE =
     import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || "";
@@ -509,6 +587,32 @@ export default function TareasPage({
   useEffect(() => {
     fetchFarms();
   }, [fetchFarms]);
+
+  const fetchMapZones = useCallback(async () => {
+    if (!farmId || !token) {
+      setFetchedMapZones([]);
+      return;
+    }
+
+    const ts = Date.now();
+    const endpoints = [
+      `/api/farms/${farmId}/map?ts=${ts}`,
+      `/api/farms/${farmId}/zones?ts=${ts}`,
+    ];
+
+    for (const endpoint of endpoints) {
+      try {
+        const data = await apiFetch(endpoint);
+        const zones = extractMapZoneNames(data);
+        if (zones.length > 0) {
+          setFetchedMapZones(zones);
+          return;
+        }
+      } catch {}
+    }
+
+    setFetchedMapZones([]);
+  }, [farmId, token, API_BASE]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchWeather = useCallback(async () => {
     setWeatherLoading(true);
@@ -654,6 +758,8 @@ export default function TareasPage({
       if (cancelled) return;
       await fetchCalendarItems();
       if (cancelled) return;
+      await fetchMapZones();
+      if (cancelled) return;
       await fetchWeather();
     }
 
@@ -662,7 +768,7 @@ export default function TareasPage({
     return () => {
       cancelled = true;
     };
-  }, [fetchFarms, fetchTasks, fetchSuggestions, fetchCalendarItems, fetchWeather]);
+  }, [fetchFarms, fetchTasks, fetchSuggestions, fetchCalendarItems, fetchMapZones, fetchWeather]);
 
   useEffect(() => {
     function onRefreshEvent(e) {
@@ -671,6 +777,7 @@ export default function TareasPage({
       fetchTasks();
       fetchSuggestions();
       fetchCalendarItems();
+      fetchMapZones();
     }
 
     function onStorage(e) {
@@ -678,6 +785,7 @@ export default function TareasPage({
       fetchTasks();
       fetchSuggestions();
       fetchCalendarItems();
+      fetchMapZones();
     }
 
     window.addEventListener("agromind:tasks:refresh", onRefreshEvent);
@@ -687,7 +795,7 @@ export default function TareasPage({
       window.removeEventListener("agromind:tasks:refresh", onRefreshEvent);
       window.removeEventListener("storage", onStorage);
     };
-  }, [farmId, fetchTasks, fetchSuggestions, fetchCalendarItems]);
+  }, [farmId, fetchTasks, fetchSuggestions, fetchCalendarItems, fetchMapZones]);
 
   useEffect(() => {
     setStatusFilter("Todas");
@@ -724,6 +832,27 @@ export default function TareasPage({
     mapZones.forEach((z) => z && set.add(z));
     return Array.from(set);
   }, [tasks, mapZones]);
+
+  const taskZoneOptions = useMemo(() => {
+    const seen = new Set([normalizeZoneName(GENERAL_ZONE_OPTION)]);
+    const currentZone = String(formData.zone || "").trim();
+    const list = [GENERAL_ZONE_OPTION];
+
+    if (currentZone && normalizeZoneName(currentZone) !== normalizeZoneName(GENERAL_ZONE_OPTION)) {
+      list.push(currentZone);
+      seen.add(normalizeZoneName(currentZone));
+    }
+
+    mapZones.forEach((zone) => {
+      const clean = String(zone || "").trim();
+      const key = normalizeZoneName(clean);
+      if (!clean || seen.has(key)) return;
+      seen.add(key);
+      list.push(clean);
+    });
+
+    return list;
+  }, [formData.zone, mapZones]);
 
   const filteredTasks = tasks.filter((task) => {
     const matchStatus =
@@ -835,7 +964,7 @@ export default function TareasPage({
       id: `weather-${task.id}`,
       level,
       title: `Clima puede afectar: ${task.title}`,
-      zone: task.zone || "",
+      zone: task.zone || GENERAL_ZONE_OPTION,
       message: `${weatherRisk.summary}. ${weatherRisk.recommendations?.[0] || "Revisa si conviene ajustar la fecha o preparar condiciones de protección."}`,
       actionPayload: null,
       source: "weather",
@@ -906,7 +1035,7 @@ export default function TareasPage({
     const next = {
       ...EMPTY_FORM,
       title: (payload.title || "").toString(),
-      zone: (payload.zone || "").toString(),
+      zone: (payload.zone || GENERAL_ZONE_OPTION).toString(),
       type: payload.type || "Mantenimiento",
       priority: payload.priority || "Media",
       start: toYYYYMMDD(payload.start),
@@ -1016,7 +1145,7 @@ export default function TareasPage({
     setEditingId(task.id);
     setFormData({
       title: task.title || "",
-      zone: task.zone || "",
+      zone: task.zone || GENERAL_ZONE_OPTION,
       type: task.type || "Mantenimiento",
       priority: task.priority || "Media",
       start: task.start || "",
@@ -1633,33 +1762,17 @@ export default function TareasPage({
 
               <div className="task-field">
                 <label>Zona / elemento</label>
-                <div className="task-zone-input-row">
-                  <input
-                    type="text"
-                    value={formData.zone}
-                    onChange={(e) => handleFormChange("zone", e.target.value)}
-                    placeholder="Ej: Zona de vivero, Calle 1..."
-                    disabled={saving}
-                  />
-                  {mapZones.length > 0 && (
-                    <select
-                      value=""
-                      disabled={saving}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        if (!value) return;
-                        handleFormChange("zone", value);
-                      }}
-                    >
-                      <option value="">Zonas del mapa</option>
-                      {mapZones.map((z) => (
-                        <option key={z} value={z}>
-                          {z}
-                        </option>
-                      ))}
-                    </select>
-                  )}
-                </div>
+                <select
+                  value={formData.zone || GENERAL_ZONE_OPTION}
+                  onChange={(e) => handleFormChange("zone", e.target.value)}
+                  disabled={saving}
+                >
+                  {taskZoneOptions.map((zone) => (
+                    <option key={zone} value={zone}>
+                      {zone}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div className="task-field">
