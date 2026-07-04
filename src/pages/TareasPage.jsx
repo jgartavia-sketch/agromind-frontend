@@ -7,6 +7,7 @@ import listPlugin from "@fullcalendar/list";
 
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { useFarm } from "../context/FarmContext";
+import { loadCalendarItems } from "../services/calendarService";
 import "../styles/tasks.css";
 
 function getPriorityClass(priority) {
@@ -109,106 +110,39 @@ function addDaysYYYYMMDD(dateStr, days) {
 }
 
 
-function parsePossibleJson(value) {
-  if (!value || typeof value !== "string") return null;
-  try {
-    return JSON.parse(value);
-  } catch {
-    return null;
-  }
-}
+function normalizeCalendarServiceItems(payload) {
+  const rawItems = Array.isArray(payload)
+    ? payload
+    : Array.isArray(payload?.items)
+    ? payload.items
+    : Array.isArray(payload?.calendarItems)
+    ? payload.calendarItems
+    : Array.isArray(payload?.data)
+    ? payload.data
+    : [];
 
-function collectArrayDeep(value, depth = 0) {
-  if (depth > 3 || !value) return [];
-  if (Array.isArray(value)) return value;
-  if (typeof value !== "object") return [];
+  return rawItems
+    .map((item, index) => {
+      const itemType = item?.itemType || item?.type || item?.source || "event";
+      const start = toYYYYMMDD(item?.start || item?.startDate || item?.date);
+      const due = toYYYYMMDD(
+        item?.due || item?.end || item?.endDate || item?.estimatedEndDate || start
+      );
 
-  const preferredKeys = [
-    "processes",
-    "items",
-    "data",
-    "records",
-    "list",
-    "activeProcesses",
-  ];
+      if (!start || !item?.title) return null;
 
-  for (const key of preferredKeys) {
-    const nested = collectArrayDeep(value[key], depth + 1);
-    if (nested.length) return nested;
-  }
-
-  return [];
-}
-
-function normalizeProcessCalendarItem(process, index = 0) {
-  const rawStart =
-    process?.startDate ||
-    process?.start ||
-    process?.initialDate ||
-    process?.fechaInicio ||
-    process?.createdAt ||
-    "";
-
-  const rawEnd =
-    process?.endDate ||
-    process?.due ||
-    process?.estimatedEndDate ||
-    process?.finalDate ||
-    process?.fechaFinal ||
-    process?.completedAt ||
-    rawStart;
-
-  const start = toYYYYMMDD(rawStart);
-  const due = toYYYYMMDD(rawEnd || rawStart);
-
-  if (!start) return null;
-
-  return {
-    id: process?.id || process?._id || `process-${index}`,
-    title:
-      process?.title ||
-      process?.name ||
-      process?.processName ||
-      process?.label ||
-      "Proceso en marcha",
-    start,
-    due: due || start,
-    status: process?.status || process?.state || "Activo",
-    zone: process?.zone || process?.zoneName || process?.area || "",
-    owner: process?.owner || process?.responsible || process?.responsibleName || "",
-  };
-}
-
-function readProcessCalendarItems(farmId) {
-  if (typeof window === "undefined" || !window.localStorage) return [];
-
-  const keys = [
-    `agromind_processes_${farmId}`,
-    `agromind:processes:${farmId}`,
-    `process_lab_${farmId}`,
-    "agromind_processes",
-    "agromind:processes",
-    "process_lab_items",
-  ];
-
-  const collected = [];
-
-  keys.forEach((key) => {
-    const parsed = parsePossibleJson(window.localStorage.getItem(key));
-    const list = collectArrayDeep(parsed);
-    list.forEach((item, index) => {
-      const normalized = normalizeProcessCalendarItem(item, index);
-      if (normalized) collected.push(normalized);
-    });
-  });
-
-  const unique = new Map();
-  collected.forEach((item) => {
-    const id = String(item.id || `${item.title}-${item.start}-${item.due}`);
-    if (!unique.has(id)) unique.set(id, item);
-  });
-
-  return Array.from(unique.values());
+      return {
+        ...item,
+        id: item?.id || item?._id || `${itemType}-${index}`,
+        itemType,
+        title: item.title,
+        start,
+        due: due || start,
+        status: item?.status || item?.state || "Activo",
+        editableFromCalendar: itemType === "task",
+      };
+    })
+    .filter(Boolean);
 }
 
 function getTodayYYYYMMDD() {
@@ -453,7 +387,7 @@ export default function TareasPage({
   token: tokenProp,
 }) {
   const [tasks, setTasks] = useState([]);
-  const [processCalendarItems, setProcessCalendarItems] = useState([]);
+  const [calendarItems, setCalendarItems] = useState([]);
 
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -693,6 +627,20 @@ export default function TareasPage({
     }
   }, [farmId, token, API_BASE]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const fetchCalendarItems = useCallback(async () => {
+    if (!farmId) {
+      setCalendarItems([]);
+      return;
+    }
+
+    try {
+      const payload = await loadCalendarItems(farmId);
+      setCalendarItems(normalizeCalendarServiceItems(payload));
+    } catch {
+      setCalendarItems([]);
+    }
+  }, [farmId]);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -704,6 +652,8 @@ export default function TareasPage({
       if (cancelled) return;
       await fetchSuggestions();
       if (cancelled) return;
+      await fetchCalendarItems();
+      if (cancelled) return;
       await fetchWeather();
     }
 
@@ -712,7 +662,7 @@ export default function TareasPage({
     return () => {
       cancelled = true;
     };
-  }, [fetchFarms, fetchTasks, fetchSuggestions, fetchWeather]);
+  }, [fetchFarms, fetchTasks, fetchSuggestions, fetchCalendarItems, fetchWeather]);
 
   useEffect(() => {
     function onRefreshEvent(e) {
@@ -720,12 +670,14 @@ export default function TareasPage({
       if (targetFarmId && farmId && String(farmId) !== targetFarmId) return;
       fetchTasks();
       fetchSuggestions();
+      fetchCalendarItems();
     }
 
     function onStorage(e) {
       if (e?.key !== "agromind_tasks_refresh") return;
       fetchTasks();
       fetchSuggestions();
+      fetchCalendarItems();
     }
 
     window.addEventListener("agromind:tasks:refresh", onRefreshEvent);
@@ -735,7 +687,7 @@ export default function TareasPage({
       window.removeEventListener("agromind:tasks:refresh", onRefreshEvent);
       window.removeEventListener("storage", onStorage);
     };
-  }, [farmId, fetchTasks, fetchSuggestions]);
+  }, [farmId, fetchTasks, fetchSuggestions, fetchCalendarItems]);
 
   useEffect(() => {
     setStatusFilter("Todas");
@@ -748,8 +700,8 @@ export default function TareasPage({
   }, [farmId]);
 
   useEffect(() => {
-    setProcessCalendarItems(readProcessCalendarItems(farmId));
-  }, [farmId, tasks.length]);
+    fetchCalendarItems();
+  }, [fetchCalendarItems, tasks.length]);
 
   const summary = useMemo(() => {
     const total = tasks.length;
@@ -758,11 +710,13 @@ export default function TareasPage({
     const done = tasks.filter((t) => t.status === "Completada").length;
     const overdue = tasks.filter(isTaskOverdue).length;
     const week = tasks.filter((t) => isWithinNextDays(t.start) || isWithinNextDays(t.due)).length;
-    const activeProcesses = processCalendarItems.filter(
-      (p) => !["Finalizado", "Completado", "Cancelado"].includes(p.status)
+    const activeProcesses = calendarItems.filter(
+      (p) =>
+        p.itemType === "process" &&
+        !["Finalizado", "Completado", "Cancelado"].includes(p.status)
     ).length;
     return { total, pending, inProgress, done, overdue, week, activeProcesses };
-  }, [tasks, processCalendarItems]);
+  }, [tasks, calendarItems]);
 
   const zoneOptions = useMemo(() => {
     const set = new Set();
@@ -1120,8 +1074,8 @@ export default function TareasPage({
         },
       }));
 
-    const processEvents = processCalendarItems
-      .filter((p) => p?.start && p?.title)
+    const processEvents = calendarItems
+      .filter((p) => p?.itemType === "process" && p?.start && p?.title)
       .map((p) => ({
         id: `process-${p.id}`,
         title: `Proceso · ${p.title}`,
@@ -1137,7 +1091,7 @@ export default function TareasPage({
       }));
 
     return [...processEvents, ...taskEvents];
-  }, [tasks, processCalendarItems]);
+  }, [tasks, calendarItems]);
 
   const handleCalendarEventClick = (info) => {
     const item = info?.event?.extendedProps || null;
@@ -1572,7 +1526,7 @@ export default function TareasPage({
                 onClick={() => {
                   fetchTasks();
                   fetchSuggestions();
-                  setProcessCalendarItems(readProcessCalendarItems(farmId));
+                  fetchCalendarItems();
                 }}
                 disabled={loading || saving}
               >
