@@ -10,6 +10,11 @@
   color: #e5e7eb;
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   box-sizing: border-box;
+  overflow-x: hidden;
+}
+
+* {
+  box-sizing: border-box;
 }
 
 /* =========================
@@ -98,12 +103,13 @@
   color: #e5e7eb;
   cursor: pointer;
   white-space: nowrap;
-  transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  will-change: background, border-color, box-shadow;
 }
 
 .nav-tab:hover {
-  transform: translateY(-1px);
   border-color: rgba(34, 197, 94, 0.45);
+  box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.08);
 }
 
 .nav-tab-active {
@@ -149,6 +155,7 @@
   width: 100%;
   max-width: 1280px;
   margin: 0 auto;
+  contain: layout paint;
 }
 
 .farm-shell-map-card {
@@ -159,6 +166,56 @@
   padding: clamp(0.75rem, 2vw, 1.25rem);
   box-shadow: 0 24px 60px rgba(15, 23, 42, 0.9);
   overflow: hidden;
+  min-height: 760px;
+  contain: layout paint;
+}
+
+/* =========================
+   FullCalendar: estabilizador visual
+   Evita brincos por hover/reflow.
+   ========================= */
+.farm-shell-map-card .fc {
+  width: 100%;
+  max-width: 100%;
+  min-height: 660px;
+  isolation: isolate;
+}
+
+.farm-shell-map-card .fc-view-harness,
+.farm-shell-map-card .fc-view-harness-active {
+  min-height: 620px !important;
+}
+
+.farm-shell-map-card .fc-scrollgrid,
+.farm-shell-map-card .fc-daygrid,
+.farm-shell-map-card .fc-daygrid-body,
+.farm-shell-map-card .fc-daygrid-body table {
+  width: 100% !important;
+}
+
+.farm-shell-map-card .fc-daygrid-day-frame {
+  min-height: 96px;
+}
+
+.farm-shell-map-card .fc-event,
+.farm-shell-map-card .fc-daygrid-event,
+.farm-shell-map-card .fc-h-event {
+  transform: none !important;
+  transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease !important;
+  will-change: background-color, border-color, box-shadow, opacity;
+}
+
+.farm-shell-map-card .fc-event:hover,
+.farm-shell-map-card .fc-daygrid-event:hover,
+.farm-shell-map-card .fc-h-event:hover {
+  transform: none !important;
+  margin: inherit !important;
+  box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.25), 0 0 16px rgba(34, 197, 94, 0.18);
+}
+
+.farm-shell-map-card .fc-daygrid-event-harness,
+.farm-shell-map-card .fc-daygrid-event-harness-abs {
+  transform: none !important;
 }
 
 /* =========================
@@ -196,6 +253,19 @@
 
   .farm-shell-right {
     grid-area: logout;
+  }
+
+  .farm-shell-map-card {
+    min-height: 720px;
+  }
+
+  .farm-shell-map-card .fc {
+    min-height: 620px;
+  }
+
+  .farm-shell-map-card .fc-view-harness,
+  .farm-shell-map-card .fc-view-harness-active {
+    min-height: 580px !important;
   }
 }
 
@@ -238,6 +308,20 @@
 
   .farm-shell-map-card {
     border-radius: 1rem;
+    min-height: 690px;
+  }
+
+  .farm-shell-map-card .fc {
+    min-height: 590px;
+  }
+
+  .farm-shell-map-card .fc-view-harness,
+  .farm-shell-map-card .fc-view-harness-active {
+    min-height: 550px !important;
+  }
+
+  .farm-shell-map-card .fc-daygrid-day-frame {
+    min-height: 82px;
   }
 }
 
