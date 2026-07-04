@@ -471,6 +471,7 @@ export default function TareasPage({
   const [calendarItems, setCalendarItems] = useState([]);
 
   const [loading, setLoading] = useState(false);
+  const [calendarLoading, setCalendarLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
@@ -772,14 +773,19 @@ export default function TareasPage({
   const fetchCalendarItems = useCallback(async () => {
     if (!farmId) {
       setCalendarItems([]);
+      setCalendarLoading(false);
       return;
     }
+
+    setCalendarLoading(true);
 
     try {
       const payload = await loadCalendarItems(farmId);
       setCalendarItems(normalizeCalendarServiceItems(payload));
     } catch {
       setCalendarItems([]);
+    } finally {
+      setCalendarLoading(false);
     }
   }, [farmId]);
 
@@ -1467,15 +1473,19 @@ export default function TareasPage({
         }
 
         .calendar-shell-pro {
+          position: relative;
           border-radius: 24px;
           overflow: hidden;
           border: 1px solid rgba(148,163,184,0.14);
           background: rgba(15,23,42,0.54);
           padding: 0.85rem;
+          min-height: 760px;
+          contain: layout paint;
         }
 
         .calendar-shell-pro .fc {
           color: #e5e7eb;
+          min-height: 720px;
         }
 
         .calendar-shell-pro .fc-toolbar-title {
@@ -1498,7 +1508,6 @@ export default function TareasPage({
 
         .calendar-shell-pro .fc-button:hover,
         .calendar-shell-pro .fc-button-active {
-          transform: translateY(-1px);
           border-color: rgba(34,197,94,0.36) !important;
           background: rgba(22,163,74,0.24) !important;
         }
@@ -1531,6 +1540,37 @@ export default function TareasPage({
           padding: 0.08rem 0.24rem !important;
           cursor: pointer;
           box-shadow: 0 10px 24px rgba(0,0,0,0.18);
+          transform: none !important;
+          transition: border-color .16s ease, background .16s ease, box-shadow .16s ease !important;
+        }
+
+        .calendar-shell-pro .fc-event:hover {
+          transform: none !important;
+          box-shadow: 0 10px 24px rgba(0,0,0,0.18);
+        }
+
+        .calendar-loading-layer {
+          position: absolute;
+          inset: 0;
+          z-index: 5;
+          display: grid;
+          place-items: center;
+          background: linear-gradient(180deg, rgba(2,6,23,0.74), rgba(15,23,42,0.66));
+          backdrop-filter: blur(8px);
+          pointer-events: none;
+        }
+
+        .calendar-loading-card {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.65rem;
+          padding: 0.75rem 0.95rem;
+          border-radius: 999px;
+          border: 1px solid rgba(34,197,94,0.22);
+          background: rgba(15,23,42,0.88);
+          color: #e5e7eb;
+          font-weight: 800;
+          box-shadow: 0 18px 48px rgba(0,0,0,0.28);
         }
 
         .calendar-event-task {
@@ -1647,6 +1687,14 @@ export default function TareasPage({
             grid-template-columns: 1fr;
           }
 
+          .calendar-shell-pro {
+            min-height: 680px;
+          }
+
+          .calendar-shell-pro .fc {
+            min-height: 640px;
+          }
+
           .calendar-shell-pro .fc-header-toolbar {
             display: grid;
             grid-template-columns: 1fr;
@@ -1756,7 +1804,11 @@ export default function TareasPage({
                 list: "Agenda",
               }}
               locale="es"
-              height="auto"
+              height={720}
+              contentHeight={650}
+              expandRows={true}
+              handleWindowResize={false}
+              stickyHeaderDates={true}
               events={calendarEvents}
               eventClick={handleCalendarEventClick}
               eventContent={(arg) => {
@@ -1772,6 +1824,14 @@ export default function TareasPage({
                 );
               }}
             />
+
+            {calendarLoading && (
+              <div className="calendar-loading-layer" aria-live="polite">
+                <div className="calendar-loading-card">
+                  <span>Sincronizando calendario...</span>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </section>
