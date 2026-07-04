@@ -472,7 +472,6 @@ export default function TareasPage({
 
   const [loading, setLoading] = useState(false);
   const [calendarLoading, setCalendarLoading] = useState(false);
-  const [calendarReady, setCalendarReady] = useState(false);
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
@@ -796,7 +795,6 @@ export default function TareasPage({
   }, [farmId]);
 
   const refreshCalendarBundle = useCallback(async () => {
-    setCalendarReady(false);
     setCalendarLoading(true);
 
     try {
@@ -808,7 +806,6 @@ export default function TareasPage({
       ]);
     } finally {
       setCalendarLoading(false);
-      setCalendarReady(true);
     }
   }, [fetchTasks, fetchCalendarItems, fetchSuggestions, fetchMapZones]);
 
@@ -817,8 +814,7 @@ export default function TareasPage({
 
     async function loadAll() {
       if (cancelled) return;
-      setCalendarReady(false);
-      setCalendarLoading(true);
+        setCalendarLoading(true);
 
       await fetchFarms();
       if (cancelled) return;
@@ -832,7 +828,6 @@ export default function TareasPage({
 
       if (cancelled) return;
       setCalendarLoading(false);
-      setCalendarReady(true);
 
       fetchWeather();
     }
@@ -1808,57 +1803,45 @@ export default function TareasPage({
           </div>
 
           <div className="calendar-shell-pro">
-            {calendarReady ? (
-              <FullCalendar
-                key={`calendar-${farmId || "no-farm"}`}
-                plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin, listPlugin]}
-                initialView="dayGridMonth"
-                headerToolbar={{
-                  left: "prev,next today",
-                  center: "title",
-                  right: "dayGridMonth,timeGridWeek,timeGridDay,listWeek",
-                }}
-                buttonText={{
-                  today: "Hoy",
-                  month: "Mes",
-                  week: "Semana",
-                  day: "Día",
-                  list: "Agenda",
-                }}
-                locale="es"
-                height={720}
-                contentHeight={650}
-                expandRows={true}
-                handleWindowResize={false}
-                stickyHeaderDates={true}
-                events={calendarEvents}
-                eventClick={handleCalendarEventClick}
-                eventContent={(arg) => {
-                  const itemType = arg?.event?.extendedProps?.itemType;
-                  return (
-                    <div className="calendar-event-inner-pro">
-                      <span className="calendar-event-dot" />
-                      <span className="calendar-event-title-pro">
-                        {itemType === "process" ? "Proceso · " : ""}
-                        {arg.event.title.replace(/^Proceso · /, "")}
-                      </span>
-                    </div>
-                  );
-                }}
-              />
-            ) : (
-              <div
-                className="calendar-stable-loader"
-                aria-live="polite"
-                style={{ minHeight: 720, display: "grid", placeItems: "center" }}
-              >
-                <div className="calendar-loading-card">
-                  <span>Sincronizando calendario...</span>
-                </div>
-              </div>
-            )}
+            <FullCalendar
+              key={`calendar-${farmId || "no-farm"}`}
+              plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin, listPlugin]}
+              initialView="dayGridMonth"
+              headerToolbar={{
+                left: "prev,next today",
+                center: "title",
+                right: "dayGridMonth,timeGridWeek,timeGridDay,listWeek",
+              }}
+              buttonText={{
+                today: "Hoy",
+                month: "Mes",
+                week: "Semana",
+                day: "Día",
+                list: "Agenda",
+              }}
+              locale="es"
+              height={720}
+              contentHeight={650}
+              expandRows={true}
+              handleWindowResize={false}
+              stickyHeaderDates={true}
+              events={calendarEvents}
+              eventClick={handleCalendarEventClick}
+              eventContent={(arg) => {
+                const itemType = arg?.event?.extendedProps?.itemType;
+                return (
+                  <div className="calendar-event-inner-pro">
+                    <span className="calendar-event-dot" />
+                    <span className="calendar-event-title-pro">
+                      {itemType === "process" ? "Proceso · " : ""}
+                      {arg.event.title.replace(/^Proceso · /, "")}
+                    </span>
+                  </div>
+                );
+              }}
+            />
 
-            {calendarLoading && calendarReady && (
+            {calendarLoading && (
               <div className="calendar-loading-layer" aria-live="polite">
                 <div className="calendar-loading-card">
                   <span>Sincronizando calendario...</span>
