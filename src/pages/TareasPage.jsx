@@ -5,7 +5,7 @@ import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import listPlugin from "@fullcalendar/list";
 
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { useFarm } from "../context/FarmContext";
 import { loadCalendarItems } from "../services/calendarService";
 import "../styles/tasks.css";
@@ -493,6 +493,10 @@ export default function TareasPage({
   const [editingId, setEditingId] = useState(null);
   const [fetchedMapZones, setFetchedMapZones] = useState([]);
 
+  const bootRequestKeyRef = useRef("");
+  const refreshInFlightRef = useRef(false);
+  const suggestionsUnavailableRef = useRef(false);
+
   const mapZones = useMemo(() => {
     const seen = new Set();
     return [...(Array.isArray(zonesFromMap) ? zonesFromMap : []), ...fetchedMapZones]
@@ -752,9 +756,9 @@ export default function TareasPage({
   }, [farmId, token, API_BASE]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchSuggestions = useCallback(async () => {
-    if (!farmId || !token) {
+    if (!farmId || !token || suggestionsUnavailableRef.current) {
       setSuggestions([]);
-      return;
+      return [];
     }
 
     setLoadingSuggestions(true);
@@ -765,8 +769,13 @@ export default function TareasPage({
       );
       const list = Array.isArray(data?.suggestions) ? data.suggestions : [];
       setSuggestions(list);
-    } catch {
+      return list;
+    } catch (err) {
+      if (String(err?.message || "").includes("404")) {
+        suggestionsUnavailableRef.current = true;
+      }
       setSuggestions([]);
+      return [];
     } finally {
       setLoadingSuggestions(false);
     }
@@ -775,11 +784,8 @@ export default function TareasPage({
   const fetchCalendarItems = useCallback(async () => {
     if (!farmId) {
       setCalendarItems([]);
-      setCalendarLoading(false);
       return [];
     }
-
-    setCalendarLoading(true);
 
     try {
       const payload = await loadCalendarItems(farmId);
@@ -789,47 +795,57 @@ export default function TareasPage({
     } catch {
       setCalendarItems([]);
       return [];
-    } finally {
-      setCalendarLoading(false);
     }
   }, [farmId]);
 
   const refreshCalendarBundle = useCallback(async () => {
-    setCalendarLoading(true);
+    if (refreshInFlightRef.current) return;
+
+    refreshInFlightRef.current = true;
 
     try {
-      await Promise.all([
+      await Promise.allSettled([
         fetchTasks(),
         fetchCalendarItems(),
         fetchSuggestions(),
         fetchMapZones(),
       ]);
     } finally {
-      setCalendarLoading(false);
+      refreshInFlightRef.current = false;
     }
   }, [fetchTasks, fetchCalendarItems, fetchSuggestions, fetchMapZones]);
 
   useEffect(() => {
     let cancelled = false;
+    const requestKey = `${farmId || "no-farm"}:${token ? "auth" : "guest"}`;
+
+    if (bootRequestKeyRef.current === requestKey) return;
+    bootRequestKeyRef.current = requestKey;
 
     async function loadAll() {
       if (cancelled) return;
-        setCalendarLoading(true);
 
-      await fetchFarms();
-      if (cancelled) return;
+      setCalendarLoading(true);
 
-      await Promise.all([
-        fetchTasks(),
-        fetchCalendarItems(),
-        fetchSuggestions(),
-        fetchMapZones(),
-      ]);
+      try {
+        await fetchFarms();
+        if (cancelled) return;
 
-      if (cancelled) return;
-      setCalendarLoading(false);
+        await Promise.allSettled([
+          fetchTasks(),
+          fetchCalendarItems(),
+          fetchSuggestions(),
+          fetchMapZones(),
+        ]);
 
-      fetchWeather();
+        if (!cancelled) {
+          fetchWeather();
+        }
+      } finally {
+        if (!cancelled) {
+          setCalendarLoading(false);
+        }
+      }
     }
 
     loadAll();
@@ -837,7 +853,9 @@ export default function TareasPage({
     return () => {
       cancelled = true;
     };
-  }, [fetchFarms, fetchTasks, fetchSuggestions, fetchCalendarItems, fetchMapZones, fetchWeather]);
+    // Carga inicial controlada solo por finca/token.
+    // Evita que cambios internos de farms, activeFarm o zonas vuelvan a disparar toda la sincronización.
+  }, [farmId, token]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     function onRefreshEvent(e) {
@@ -1753,11 +1771,7 @@ export default function TareasPage({
               <button
                 type="button"
                 className="master-ghost-btn"
-                onClick={() => {
-                  fetchTasks();
-                  fetchSuggestions();
-                  fetchCalendarItems();
-                }}
+                onClick={refreshCalendarBundle}
                 disabled={loading || saving}
               >
                 Actualizar
