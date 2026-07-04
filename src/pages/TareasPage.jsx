@@ -472,6 +472,7 @@ export default function TareasPage({
 
   const [loading, setLoading] = useState(false);
   const [calendarLoading, setCalendarLoading] = useState(false);
+  const [calendarReady, setCalendarReady] = useState(false);
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
@@ -722,12 +723,12 @@ export default function TareasPage({
       setErrorMsg(
         "No se detectó una finca activa. Selecciona/crea una finca primero."
       );
-      return;
+      return [];
     }
     if (!token) {
       setTasks([]);
       setErrorMsg("No hay token. Inicia sesión nuevamente.");
-      return;
+      return [];
     }
 
     setLoading(true);
@@ -741,9 +742,11 @@ export default function TareasPage({
         due: toYYYYMMDD(t.due),
       }));
       setTasks(normalized);
+      return normalized;
     } catch (err) {
       setErrorMsg(err?.message || "No se pudieron cargar las tareas.");
       setTasks([]);
+      return [];
     } finally {
       setLoading(false);
     }
@@ -774,37 +777,64 @@ export default function TareasPage({
     if (!farmId) {
       setCalendarItems([]);
       setCalendarLoading(false);
-      return;
+      return [];
     }
 
     setCalendarLoading(true);
 
     try {
       const payload = await loadCalendarItems(farmId);
-      setCalendarItems(normalizeCalendarServiceItems(payload));
+      const normalized = normalizeCalendarServiceItems(payload);
+      setCalendarItems(normalized);
+      return normalized;
     } catch {
       setCalendarItems([]);
+      return [];
     } finally {
       setCalendarLoading(false);
     }
   }, [farmId]);
+
+  const refreshCalendarBundle = useCallback(async () => {
+    setCalendarReady(false);
+    setCalendarLoading(true);
+
+    try {
+      await Promise.all([
+        fetchTasks(),
+        fetchCalendarItems(),
+        fetchSuggestions(),
+        fetchMapZones(),
+      ]);
+    } finally {
+      setCalendarLoading(false);
+      setCalendarReady(true);
+    }
+  }, [fetchTasks, fetchCalendarItems, fetchSuggestions, fetchMapZones]);
 
   useEffect(() => {
     let cancelled = false;
 
     async function loadAll() {
       if (cancelled) return;
+      setCalendarReady(false);
+      setCalendarLoading(true);
+
       await fetchFarms();
       if (cancelled) return;
-      await fetchTasks();
+
+      await Promise.all([
+        fetchTasks(),
+        fetchCalendarItems(),
+        fetchSuggestions(),
+        fetchMapZones(),
+      ]);
+
       if (cancelled) return;
-      await fetchSuggestions();
-      if (cancelled) return;
-      await fetchCalendarItems();
-      if (cancelled) return;
-      await fetchMapZones();
-      if (cancelled) return;
-      await fetchWeather();
+      setCalendarLoading(false);
+      setCalendarReady(true);
+
+      fetchWeather();
     }
 
     loadAll();
@@ -818,18 +848,12 @@ export default function TareasPage({
     function onRefreshEvent(e) {
       const targetFarmId = e?.detail?.farmId ? String(e.detail.farmId) : "";
       if (targetFarmId && farmId && String(farmId) !== targetFarmId) return;
-      fetchTasks();
-      fetchSuggestions();
-      fetchCalendarItems();
-      fetchMapZones();
+      refreshCalendarBundle();
     }
 
     function onStorage(e) {
       if (e?.key !== "agromind_tasks_refresh") return;
-      fetchTasks();
-      fetchSuggestions();
-      fetchCalendarItems();
-      fetchMapZones();
+      refreshCalendarBundle();
     }
 
     window.addEventListener("agromind:tasks:refresh", onRefreshEvent);
@@ -839,7 +863,7 @@ export default function TareasPage({
       window.removeEventListener("agromind:tasks:refresh", onRefreshEvent);
       window.removeEventListener("storage", onStorage);
     };
-  }, [farmId, fetchTasks, fetchSuggestions, fetchCalendarItems, fetchMapZones]);
+  }, [farmId, refreshCalendarBundle]);
 
   useEffect(() => {
     setStatusFilter("Todas");
@@ -850,10 +874,6 @@ export default function TareasPage({
     setFormData(EMPTY_FORM);
     setIgnoredSuggestions(new Set());
   }, [farmId]);
-
-  useEffect(() => {
-    fetchCalendarItems();
-  }, [fetchCalendarItems, tasks.length]);
 
   const summary = useMemo(() => {
     const total = tasks.length;
@@ -1788,44 +1808,57 @@ export default function TareasPage({
           </div>
 
           <div className="calendar-shell-pro">
-            <FullCalendar
-              plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin, listPlugin]}
-              initialView="dayGridMonth"
-              headerToolbar={{
-                left: "prev,next today",
-                center: "title",
-                right: "dayGridMonth,timeGridWeek,timeGridDay,listWeek",
-              }}
-              buttonText={{
-                today: "Hoy",
-                month: "Mes",
-                week: "Semana",
-                day: "Día",
-                list: "Agenda",
-              }}
-              locale="es"
-              height={720}
-              contentHeight={650}
-              expandRows={true}
-              handleWindowResize={false}
-              stickyHeaderDates={true}
-              events={calendarEvents}
-              eventClick={handleCalendarEventClick}
-              eventContent={(arg) => {
-                const itemType = arg?.event?.extendedProps?.itemType;
-                return (
-                  <div className="calendar-event-inner-pro">
-                    <span className="calendar-event-dot" />
-                    <span className="calendar-event-title-pro">
-                      {itemType === "process" ? "Proceso · " : ""}
-                      {arg.event.title.replace(/^Proceso · /, "")}
-                    </span>
-                  </div>
-                );
-              }}
-            />
+            {calendarReady ? (
+              <FullCalendar
+                key={`calendar-${farmId || "no-farm"}`}
+                plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin, listPlugin]}
+                initialView="dayGridMonth"
+                headerToolbar={{
+                  left: "prev,next today",
+                  center: "title",
+                  right: "dayGridMonth,timeGridWeek,timeGridDay,listWeek",
+                }}
+                buttonText={{
+                  today: "Hoy",
+                  month: "Mes",
+                  week: "Semana",
+                  day: "Día",
+                  list: "Agenda",
+                }}
+                locale="es"
+                height={720}
+                contentHeight={650}
+                expandRows={true}
+                handleWindowResize={false}
+                stickyHeaderDates={true}
+                events={calendarEvents}
+                eventClick={handleCalendarEventClick}
+                eventContent={(arg) => {
+                  const itemType = arg?.event?.extendedProps?.itemType;
+                  return (
+                    <div className="calendar-event-inner-pro">
+                      <span className="calendar-event-dot" />
+                      <span className="calendar-event-title-pro">
+                        {itemType === "process" ? "Proceso · " : ""}
+                        {arg.event.title.replace(/^Proceso · /, "")}
+                      </span>
+                    </div>
+                  );
+                }}
+              />
+            ) : (
+              <div
+                className="calendar-stable-loader"
+                aria-live="polite"
+                style={{ minHeight: 720, display: "grid", placeItems: "center" }}
+              >
+                <div className="calendar-loading-card">
+                  <span>Sincronizando calendario...</span>
+                </div>
+              </div>
+            )}
 
-            {calendarLoading && (
+            {calendarLoading && calendarReady && (
               <div className="calendar-loading-layer" aria-live="polite">
                 <div className="calendar-loading-card">
                   <span>Sincronizando calendario...</span>
