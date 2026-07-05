@@ -112,6 +112,22 @@ function addDaysYYYYMMDD(dateStr, days) {
   return d.toISOString().slice(0, 10);
 }
 
+function formatCalendarDate(dateStr) {
+  if (!dateStr) return "—";
+  const normalized = toYYYYMMDD(dateStr);
+  if (!normalized) return "—";
+
+  try {
+    return new Date(`${normalized}T12:00:00`).toLocaleDateString("es-CR", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  } catch {
+    return normalized;
+  }
+}
+
 const PROCESS_START_DATE_KEYS = [
   "start",
   "startDate",
@@ -686,6 +702,8 @@ export default function TareasPage({
   const [formData, setFormData] = useState(EMPTY_FORM);
   const [editingId, setEditingId] = useState(null);
   const [fetchedMapZones, setFetchedMapZones] = useState([]);
+  const [selectedProcessNotice, setSelectedProcessNotice] = useState(null);
+  const [pendingDeleteTaskId, setPendingDeleteTaskId] = useState(null);
 
   const mapZones = useMemo(() => {
     const seen = new Set();
@@ -1373,18 +1391,29 @@ export default function TareasPage({
     scrollToEditor();
   };
 
-  const handleDeleteClick = async (id) => {
-    const ok = window.confirm("¿Eliminar esta tarea?");
-    if (!ok) return;
+  const handleDeleteClick = (id) => {
+    setPendingDeleteTaskId(id);
+  };
+
+  const closeDeleteModal = () => {
+    if (saving) return;
+    setPendingDeleteTaskId(null);
+  };
+
+  const confirmDeleteTask = async () => {
+    const id = pendingDeleteTaskId;
+    if (!id) return;
 
     setErrorMsg("");
 
     if (!farmId) {
       setErrorMsg("No hay finca activa.");
+      setPendingDeleteTaskId(null);
       return;
     }
     if (!token) {
       setErrorMsg("No hay token. Inicia sesión nuevamente.");
+      setPendingDeleteTaskId(null);
       return;
     }
 
@@ -1395,6 +1424,7 @@ export default function TareasPage({
       setTasks((prev) => prev.filter((t) => t.id !== id));
       if (editingId === id) handleResetForm();
 
+      setPendingDeleteTaskId(null);
       fireTasksRefresh();
     } catch (err) {
       setErrorMsg(err?.message || "No se pudo eliminar la tarea.");
@@ -1402,6 +1432,11 @@ export default function TareasPage({
       setSaving(false);
     }
   };
+
+  const pendingDeleteTask = useMemo(() => {
+    if (!pendingDeleteTaskId) return null;
+    return tasks.find((task) => String(task.id) === String(pendingDeleteTaskId)) || null;
+  }, [pendingDeleteTaskId, tasks]);
 
   const calendarEvents = useMemo(() => {
     const taskEvents = tasks
@@ -1455,9 +1490,7 @@ export default function TareasPage({
     if (!item) return;
 
     if (item.itemType === "process") {
-      alert(
-        "Este proceso se muestra solo como referencia operativa. Para editarlo, abre Process Lab."
-      );
+      setSelectedProcessNotice(item);
       return;
     }
 
@@ -1850,6 +1883,250 @@ export default function TareasPage({
 
         .fc .fc-list-event.calendar-event-high td {
           background: rgba(127,29,29,0.22) !important;
+        }
+
+        .tareas-master-page,
+        .calendar-shell-pro,
+        .calendar-shell-pro .fc-scroller,
+        .table-pro,
+        .filters-pro,
+        .task-editor-pro {
+          scrollbar-width: thin;
+          scrollbar-color: rgba(34,197,94,0.55) rgba(15,23,42,0.26);
+        }
+
+        .tareas-master-page ::-webkit-scrollbar,
+        .calendar-shell-pro ::-webkit-scrollbar,
+        .table-pro ::-webkit-scrollbar,
+        .filters-pro ::-webkit-scrollbar,
+        .task-editor-pro ::-webkit-scrollbar {
+          width: 9px;
+          height: 9px;
+        }
+
+        .tareas-master-page ::-webkit-scrollbar-track,
+        .calendar-shell-pro ::-webkit-scrollbar-track,
+        .table-pro ::-webkit-scrollbar-track,
+        .filters-pro ::-webkit-scrollbar-track,
+        .task-editor-pro ::-webkit-scrollbar-track {
+          background: rgba(15,23,42,0.22);
+          border-radius: 999px;
+        }
+
+        .tareas-master-page ::-webkit-scrollbar-thumb,
+        .calendar-shell-pro ::-webkit-scrollbar-thumb,
+        .table-pro ::-webkit-scrollbar-thumb,
+        .filters-pro ::-webkit-scrollbar-thumb,
+        .task-editor-pro ::-webkit-scrollbar-thumb {
+          border-radius: 999px;
+          background: linear-gradient(180deg, rgba(34,197,94,0.78), rgba(20,184,166,0.64));
+          border: 2px solid rgba(15,23,42,0.55);
+          box-shadow: 0 0 14px rgba(34,197,94,0.12);
+        }
+
+        .tareas-master-page ::-webkit-scrollbar-thumb:hover,
+        .calendar-shell-pro ::-webkit-scrollbar-thumb:hover,
+        .table-pro ::-webkit-scrollbar-thumb:hover,
+        .filters-pro ::-webkit-scrollbar-thumb:hover,
+        .task-editor-pro ::-webkit-scrollbar-thumb:hover {
+          background: linear-gradient(180deg, rgba(34,197,94,0.96), rgba(20,184,166,0.84));
+          box-shadow: 0 0 20px rgba(34,197,94,0.22);
+        }
+
+        .calendar-shell-pro .fc-event.calendar-event-process-readonly {
+          transition: transform .16s ease, box-shadow .16s ease, filter .16s ease !important;
+        }
+
+        .calendar-shell-pro .fc-event.calendar-event-process-readonly:hover {
+          transform: translateY(-1px) !important;
+          filter: brightness(1.08);
+          box-shadow: 0 14px 30px rgba(88,28,135,0.30), 0 0 22px rgba(168,85,247,0.20) !important;
+        }
+
+        .agro-modal-backdrop {
+          position: fixed;
+          inset: 0;
+          z-index: 9999;
+          display: grid;
+          place-items: center;
+          padding: 1rem;
+          background:
+            radial-gradient(circle at 50% 18%, rgba(34,197,94,0.16), transparent 26%),
+            rgba(2,6,23,0.72);
+          backdrop-filter: blur(12px);
+          animation: agroModalFade .16s ease both;
+        }
+
+        .agro-modal-card {
+          width: min(520px, 100%);
+          border-radius: 26px;
+          border: 1px solid rgba(34,197,94,0.24);
+          background:
+            radial-gradient(circle at 12% 0%, rgba(34,197,94,0.18), transparent 32%),
+            radial-gradient(circle at 90% 12%, rgba(168,85,247,0.14), transparent 28%),
+            linear-gradient(160deg, rgba(15,23,42,0.98), rgba(2,6,23,0.98));
+          box-shadow: 0 28px 84px rgba(0,0,0,0.48), inset 0 1px 0 rgba(255,255,255,0.04);
+          overflow: hidden;
+          animation: agroModalPop .18s ease both;
+        }
+
+        .agro-modal-head {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 1rem;
+          padding: 1.15rem 1.15rem 0.85rem;
+        }
+
+        .agro-modal-title-row {
+          display: flex;
+          align-items: center;
+          gap: 0.8rem;
+          min-width: 0;
+        }
+
+        .agro-modal-icon {
+          width: 42px;
+          height: 42px;
+          border-radius: 16px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          border: 1px solid rgba(34,197,94,0.26);
+          background: rgba(34,197,94,0.13);
+          color: #bbf7d0;
+          font-weight: 900;
+          box-shadow: 0 0 28px rgba(34,197,94,0.12);
+          flex: 0 0 auto;
+        }
+
+        .agro-modal-title {
+          margin: 0;
+          color: #f8fafc;
+          font-size: 1.05rem;
+          letter-spacing: -0.03em;
+        }
+
+        .agro-modal-subtitle {
+          margin: 0.25rem 0 0;
+          color: rgba(203,213,225,0.76);
+          font-size: 0.84rem;
+          line-height: 1.35;
+        }
+
+        .agro-modal-close {
+          width: 34px;
+          height: 34px;
+          border-radius: 999px;
+          border: 1px solid rgba(148,163,184,0.18);
+          background: rgba(15,23,42,0.72);
+          color: rgba(226,232,240,0.85);
+          cursor: pointer;
+          transition: transform .16s ease, border-color .16s ease, background .16s ease;
+        }
+
+        .agro-modal-close:hover {
+          transform: translateY(-1px);
+          border-color: rgba(34,197,94,0.34);
+          background: rgba(34,197,94,0.12);
+        }
+
+        .agro-modal-body {
+          padding: 0 1.15rem 1rem;
+        }
+
+        .agro-modal-metrics {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 0.7rem;
+          margin-top: 0.8rem;
+        }
+
+        .agro-modal-metric {
+          border-radius: 18px;
+          border: 1px solid rgba(148,163,184,0.14);
+          background: rgba(15,23,42,0.62);
+          padding: 0.78rem;
+        }
+
+        .agro-modal-metric span {
+          display: block;
+          color: rgba(148,163,184,0.84);
+          font-size: 0.72rem;
+          text-transform: uppercase;
+          letter-spacing: 0.06em;
+        }
+
+        .agro-modal-metric strong {
+          display: block;
+          margin-top: 0.36rem;
+          color: #f8fafc;
+          font-size: 0.96rem;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .agro-modal-progress {
+          margin-top: 1rem;
+          padding: 0.85rem;
+          border-radius: 18px;
+          border: 1px solid rgba(34,197,94,0.16);
+          background: rgba(2,6,23,0.42);
+        }
+
+        .agro-modal-progress-head {
+          display: flex;
+          justify-content: space-between;
+          gap: 1rem;
+          color: rgba(226,232,240,0.84);
+          font-size: 0.78rem;
+          font-weight: 800;
+          margin-bottom: 0.48rem;
+        }
+
+        .agro-modal-progress-track {
+          height: 9px;
+          border-radius: 999px;
+          background: rgba(148,163,184,0.16);
+          overflow: hidden;
+        }
+
+        .agro-modal-progress-fill {
+          height: 100%;
+          border-radius: inherit;
+          background: linear-gradient(90deg, rgba(34,197,94,0.96), rgba(20,184,166,0.86));
+          box-shadow: 0 0 18px rgba(34,197,94,0.24);
+        }
+
+        .agro-modal-note {
+          margin: 0.9rem 0 0;
+          color: rgba(226,232,240,0.72);
+          line-height: 1.5;
+          font-size: 0.88rem;
+        }
+
+        .agro-modal-actions {
+          display: flex;
+          justify-content: flex-end;
+          gap: 0.65rem;
+          flex-wrap: wrap;
+          padding: 0 1.15rem 1.15rem;
+        }
+
+        .agro-modal-danger {
+          border-color: rgba(248,113,113,0.35) !important;
+          background: linear-gradient(135deg, rgba(220,38,38,0.95), rgba(244,63,94,0.75)) !important;
+        }
+
+        @keyframes agroModalFade {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+
+        @keyframes agroModalPop {
+          from { opacity: 0; transform: translateY(10px) scale(.98); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
         }
 
         @media (max-width: 980px) {
@@ -2308,6 +2585,142 @@ export default function TareasPage({
           </tbody>
         </table>
       </section>
+
+      {selectedProcessNotice && (
+        <div className="agro-modal-backdrop" role="dialog" aria-modal="true">
+          <div className="agro-modal-card">
+            <div className="agro-modal-head">
+              <div className="agro-modal-title-row">
+                <span className="agro-modal-icon">PL</span>
+                <div>
+                  <h3 className="agro-modal-title">Proceso de solo lectura</h3>
+                  <p className="agro-modal-subtitle">
+                    Este evento viene desde Process Lab y se muestra aquí como referencia estratégica.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="agro-modal-close"
+                onClick={() => setSelectedProcessNotice(null)}
+                aria-label="Cerrar"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="agro-modal-body">
+              <div className="agro-modal-metrics">
+                <div className="agro-modal-metric">
+                  <span>Proceso</span>
+                  <strong>{selectedProcessNotice.title?.replace(/^Proceso · /, "") || "Proceso"}</strong>
+                </div>
+                <div className="agro-modal-metric">
+                  <span>Zona</span>
+                  <strong>{selectedProcessNotice.zoneName || selectedProcessNotice.zone || "—"}</strong>
+                </div>
+                <div className="agro-modal-metric">
+                  <span>Inicio</span>
+                  <strong>{formatCalendarDate(selectedProcessNotice.start)}</strong>
+                </div>
+                <div className="agro-modal-metric">
+                  <span>Final</span>
+                  <strong>{formatCalendarDate(selectedProcessNotice.due)}</strong>
+                </div>
+              </div>
+
+              <div className="agro-modal-progress">
+                <div className="agro-modal-progress-head">
+                  <span>Estado operativo</span>
+                  <span>{selectedProcessNotice.status || "Activo"}</span>
+                </div>
+                <div className="agro-modal-progress-track">
+                  <div
+                    className="agro-modal-progress-fill"
+                    style={{ width: selectedProcessNotice.status === "Completado" ? "100%" : "64%" }}
+                  />
+                </div>
+              </div>
+
+              <p className="agro-modal-note">
+                Para editar etapas, fechas o avance, abrí el proceso desde Process Lab.
+                El Calendario Maestro mantiene esta información como lectura segura para evitar cambios accidentales.
+              </p>
+            </div>
+
+            <div className="agro-modal-actions">
+              {onOpenZoneInMap && selectedProcessNotice.zoneName && (
+                <button
+                  type="button"
+                  className="master-ghost-btn"
+                  onClick={() => {
+                    onOpenZoneInMap(selectedProcessNotice.zoneName);
+                    setSelectedProcessNotice(null);
+                  }}
+                >
+                  Abrir zona
+                </button>
+              )}
+              <button
+                type="button"
+                className="master-btn"
+                onClick={() => setSelectedProcessNotice(null)}
+              >
+                Entendido
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {pendingDeleteTaskId && (
+        <div className="agro-modal-backdrop" role="dialog" aria-modal="true">
+          <div className="agro-modal-card">
+            <div className="agro-modal-head">
+              <div className="agro-modal-title-row">
+                <span className="agro-modal-icon">!</span>
+                <div>
+                  <h3 className="agro-modal-title">Eliminar tarea</h3>
+                  <p className="agro-modal-subtitle">
+                    Esta acción quitará la tarea del Calendario Maestro. No vamos a hacer magia negra: si se elimina, se elimina.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="agro-modal-close"
+                onClick={closeDeleteModal}
+                aria-label="Cerrar"
+                disabled={saving}
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="agro-modal-body">
+              <div className="agro-modal-metrics">
+                <div className="agro-modal-metric">
+                  <span>Tarea</span>
+                  <strong>{pendingDeleteTask?.title || "Tarea"}</strong>
+                </div>
+                <div className="agro-modal-metric">
+                  <span>Vence</span>
+                  <strong>{formatCalendarDate(pendingDeleteTask?.due)}</strong>
+                </div>
+              </div>
+            </div>
+
+            <div className="agro-modal-actions">
+              <button type="button" className="master-ghost-btn" onClick={closeDeleteModal} disabled={saving}>
+                Cancelar
+              </button>
+              <button type="button" className="master-btn agro-modal-danger" onClick={confirmDeleteTask} disabled={saving}>
+                {saving ? "Eliminando…" : "Eliminar tarea"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

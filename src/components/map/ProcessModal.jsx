@@ -551,6 +551,65 @@ export default function ProcessModal({
           outline: none;
         }
 
+        #zone-processes-section,
+        #zone-processes-section *,
+        .agromind-process-modal,
+        .agromind-process-modal *,
+        .agromind-modal,
+        .agromind-modal *,
+        .agromind-modal-backdrop,
+        .agromind-modal-backdrop *,
+        .process-modal-body,
+        .process-modal-body * {
+          scrollbar-width: thin;
+          scrollbar-color: rgba(34,197,94,0.58) rgba(15,23,42,0.20);
+        }
+
+        #zone-processes-section ::-webkit-scrollbar,
+        .agromind-process-modal ::-webkit-scrollbar,
+        .agromind-modal ::-webkit-scrollbar,
+        .agromind-modal-backdrop ::-webkit-scrollbar,
+        .process-modal-body ::-webkit-scrollbar {
+          width: 9px;
+          height: 9px;
+        }
+
+        #zone-processes-section ::-webkit-scrollbar-track,
+        .agromind-process-modal ::-webkit-scrollbar-track,
+        .agromind-modal ::-webkit-scrollbar-track,
+        .agromind-modal-backdrop ::-webkit-scrollbar-track,
+        .process-modal-body ::-webkit-scrollbar-track {
+          background: rgba(15,23,42,0.18);
+          border-radius: 999px;
+          margin: 10px 0;
+        }
+
+        #zone-processes-section ::-webkit-scrollbar-thumb,
+        .agromind-process-modal ::-webkit-scrollbar-thumb,
+        .agromind-modal ::-webkit-scrollbar-thumb,
+        .agromind-modal-backdrop ::-webkit-scrollbar-thumb,
+        .process-modal-body ::-webkit-scrollbar-thumb {
+          border-radius: 999px;
+          background: linear-gradient(180deg, rgba(34,197,94,0.82), rgba(20,184,166,0.64));
+          border: 2px solid rgba(15,23,42,0.62);
+          box-shadow: 0 0 18px rgba(34,197,94,0.14);
+        }
+
+        #zone-processes-section ::-webkit-scrollbar-thumb:hover,
+        .agromind-process-modal ::-webkit-scrollbar-thumb:hover,
+        .agromind-modal ::-webkit-scrollbar-thumb:hover,
+        .agromind-modal-backdrop ::-webkit-scrollbar-thumb:hover,
+        .process-modal-body ::-webkit-scrollbar-thumb:hover {
+          background: linear-gradient(180deg, rgba(34,197,94,0.98), rgba(20,184,166,0.84));
+          box-shadow: 0 0 24px rgba(34,197,94,0.28);
+        }
+
+        #zone-processes-section .pl-scroll-area {
+          max-height: min(68vh, 760px);
+          overflow: auto;
+          padding-right: 4px;
+        }
+
         #zone-processes-section .pl-expanded-area {
           animation: pl-expand-in 180ms ease both;
         }
@@ -1193,7 +1252,7 @@ export default function ProcessModal({
             />
           </div>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+          <div className="pl-scroll-area" style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
             {filteredProcesses.map((process) => {
               const steps = Array.isArray(process.steps) ? process.steps : [];
               const sortedSteps = getSortedSteps(steps);
