@@ -602,34 +602,22 @@ export default function TareasPage({
 
 
   const fetchMapZones = useCallback(async () => {
-    const localCandidates = [
-      contextActiveFarm,
-      activeFarm,
-      ...(Array.isArray(farms) ? farms : []),
+    /*
+      Fuente única para el selector de zonas dentro de Tareas:
+      - zonas recibidas desde FarmShell/FarmMap;
+      - zonas persistidas en localStorage;
+      - datos disponibles en FarmContext.
+
+      IMPORTANTE:
+      TareasPage NO consulta endpoints de zonas ni rutas legacy del mapa.
+      No se hacen llamadas fallback a endpoints legacy del mapa.
+      Eso evita 404 repetidos y parpadeo del calendario.
+    */
+    const collected = [
+      ...(Array.isArray(zonesFromMap) ? zonesFromMap : []),
+      ...extractMapZoneNames(contextActiveFarm),
+      ...readStoredMapZones(farmId),
     ];
-
-    const localZones = localCandidates
-      .filter(Boolean)
-      .filter((farm) => {
-        if (!farmId) return true;
-        const candidateId = farm?.id || farm?._id || farm?.farmId;
-        return !candidateId || String(candidateId) === String(farmId);
-      })
-      .flatMap((farm) => extractMapZoneNames(farm));
-
-    const storedZones = readStoredMapZones(farmId);
-    const collected = [...localZones, ...storedZones];
-
-    if (farmId && token) {
-      try {
-        const ts = Date.now();
-        const data = await apiFetch(`/api/farms/${farmId}/map?ts=${ts}`);
-        collected.push(...extractMapZoneNames(data));
-      } catch {
-        // Si el mapa aún no existe para la finca, usamos únicamente zonas locales/guardadas.
-        // No probamos rutas alternativas porque generan 404 repetidos y parpadeo visual.
-      }
-    }
 
     const seen = new Set();
     const cleanZones = collected
@@ -643,7 +631,7 @@ export default function TareasPage({
       });
 
     setFetchedMapZones(cleanZones);
-  }, [farmId, token, contextActiveFarm, activeFarm, farms, API_BASE]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [farmId, zonesFromMap, contextActiveFarm]);
 
   const fetchWeather = useCallback(async () => {
     setWeatherLoading(true);
