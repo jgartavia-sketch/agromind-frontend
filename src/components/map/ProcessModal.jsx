@@ -579,7 +579,7 @@ export default function ProcessModal({
         .agromind-modal ::-webkit-scrollbar-track,
         .agromind-modal-backdrop ::-webkit-scrollbar-track,
         .process-modal-body ::-webkit-scrollbar-track {
-          background: rgba(15,23,42,0.18);
+          background: rgba(255,255,255,0.03);
           border-radius: 999px;
           margin: 10px 0;
         }
@@ -590,9 +590,10 @@ export default function ProcessModal({
         .agromind-modal-backdrop ::-webkit-scrollbar-thumb,
         .process-modal-body ::-webkit-scrollbar-thumb {
           border-radius: 999px;
-          background: linear-gradient(180deg, rgba(34,197,94,0.82), rgba(20,184,166,0.64));
-          border: 2px solid rgba(15,23,42,0.62);
-          box-shadow: 0 0 18px rgba(34,197,94,0.14);
+          background: linear-gradient(180deg, #22c55e, #16a34a, #15803d);
+          border: 2px solid rgba(15,23,42,0.72);
+          box-shadow: 0 0 18px rgba(34,197,94,0.18);
+          transition: background 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
         }
 
         #zone-processes-section ::-webkit-scrollbar-thumb:hover,
@@ -600,14 +601,18 @@ export default function ProcessModal({
         .agromind-modal ::-webkit-scrollbar-thumb:hover,
         .agromind-modal-backdrop ::-webkit-scrollbar-thumb:hover,
         .process-modal-body ::-webkit-scrollbar-thumb:hover {
-          background: linear-gradient(180deg, rgba(34,197,94,0.98), rgba(20,184,166,0.84));
-          box-shadow: 0 0 24px rgba(34,197,94,0.28);
+          background: linear-gradient(180deg, #4ade80, #22c55e, #16a34a);
+          border-color: rgba(15,23,42,0.56);
+          box-shadow: 0 0 14px rgba(34,197,94,0.45);
         }
 
         #zone-processes-section .pl-scroll-area {
-          max-height: min(68vh, 760px);
-          overflow: auto;
-          padding-right: 4px;
+          max-height: 52vh;
+          min-height: 320px;
+          overflow-y: auto;
+          overflow-x: hidden;
+          padding-right: 8px;
+          scrollbar-gutter: stable;
         }
 
         #zone-processes-section .pl-expanded-area {
