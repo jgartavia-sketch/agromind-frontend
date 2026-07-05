@@ -153,6 +153,7 @@ function buildProcessCalendarItem({ process, zone }) {
 
   const due = pickFirstDate(
     process?.due,
+    process?.dueDate,
     process?.end,
     process?.endDate,
     process?.targetDate,
@@ -210,6 +211,7 @@ function buildStageCalendarItem({ process, stage, zone, index }) {
 
   const due = pickFirstDate(
     stage?.due,
+    stage?.dueDate,
     stage?.end,
     stage?.endDate,
     stage?.targetDate,

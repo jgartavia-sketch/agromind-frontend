@@ -129,6 +129,7 @@ const PROCESS_START_DATE_KEYS = [
 
 const PROCESS_END_DATE_KEYS = [
   "due",
+  "dueDate",
   "end",
   "endDate",
   "targetDate",
