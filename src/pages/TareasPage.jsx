@@ -25,15 +25,17 @@ function getPriorityClass(priority) {
 
 function getStatusClass(status) {
   switch (status) {
-    case "Pendiente":
-      return "status-badge status-pending";
     case "En progreso":
       return "status-badge status-progress";
     case "Completada":
       return "status-badge status-done";
     default:
-      return "status-badge";
+      return "status-badge status-progress";
   }
+}
+
+function normalizeTaskStatus(status) {
+  return status === "Completada" ? "Completada" : "En progreso";
 }
 
 function getSuggestionClass(level) {
@@ -51,7 +53,7 @@ function getSuggestionClass(level) {
 
 const PRIORIDADES = ["Alta", "Media", "Baja"];
 const TIPOS = ["Riego", "Alimentación", "Mantenimiento", "Cosecha"];
-const ESTADOS = ["Pendiente", "En progreso", "Completada"];
+const ESTADOS = ["En progreso", "Completada"];
 const GENERAL_ZONE_OPTION = "Zona general";
 
 const EMPTY_FORM = {
@@ -61,7 +63,7 @@ const EMPTY_FORM = {
   priority: "Media",
   start: "",
   due: "",
-  status: "Pendiente",
+  status: "En progreso",
   owner: "",
 };
 
@@ -719,6 +721,7 @@ export default function TareasPage({
         ...t,
         start: toYYYYMMDD(t.start),
         due: toYYYYMMDD(t.due),
+        status: normalizeTaskStatus(t.status),
       }));
       setTasks(normalized);
       return normalized;
@@ -837,7 +840,6 @@ export default function TareasPage({
 
   const summary = useMemo(() => {
     const total = tasks.length;
-    const pending = tasks.filter((t) => t.status === "Pendiente").length;
     const inProgress = tasks.filter((t) => t.status === "En progreso").length;
     const done = tasks.filter((t) => t.status === "Completada").length;
     const overdue = tasks.filter(isTaskOverdue).length;
@@ -847,7 +849,7 @@ export default function TareasPage({
         p.itemType === "process" &&
         !["Finalizado", "Completado", "Cancelado"].includes(p.status)
     ).length;
-    return { total, pending, inProgress, done, overdue, week, activeProcesses };
+    return { total, inProgress, done, overdue, week, activeProcesses };
   }, [tasks, calendarItems]);
 
   const zoneOptions = useMemo(() => {
@@ -1063,7 +1065,7 @@ export default function TareasPage({
       priority: payload.priority || "Media",
       start: toYYYYMMDD(payload.start),
       due: toYYYYMMDD(payload.due),
-      status: payload.status || "Pendiente",
+      status: normalizeTaskStatus(payload.status),
       owner: (payload.owner || "").toString(),
     };
 
@@ -1173,7 +1175,7 @@ export default function TareasPage({
       priority: task.priority || "Media",
       start: task.start || "",
       due: task.due || "",
-      status: task.status || "Pendiente",
+      status: normalizeTaskStatus(task.status),
       owner: task.owner || "",
     });
     scrollToEditor();
@@ -1965,7 +1967,6 @@ export default function TareasPage({
                 disabled={saving}
               >
                 <option value="Todas">Todas</option>
-                <option value="Pendiente">Pendiente</option>
                 <option value="En progreso">En progreso</option>
                 <option value="Completada">Completada</option>
               </select>
