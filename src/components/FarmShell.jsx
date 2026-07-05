@@ -279,10 +279,10 @@ export default function FarmShell({ user, onLogout }) {
       const endpoints = [
         `/api/farms/${farmId}/map?ts=${ts}`,
         `/api/farms/${farmId}/zones?ts=${ts}`,
-        `/api/map/${farmId}?ts=${ts}`,
+        `/api/farms/${farmId}/map?ts=${ts}`,
         `/farms/${farmId}/map?ts=${ts}`,
         `/farms/${farmId}/zones?ts=${ts}`,
-        `/map/${farmId}?ts=${ts}`,
+        `/api/farms/${farmId}/map?ts=${ts}`,
       ];
 
       for (const endpoint of endpoints) {
