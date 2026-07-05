@@ -112,6 +112,185 @@ function addDaysYYYYMMDD(dateStr, days) {
   return d.toISOString().slice(0, 10);
 }
 
+const PROCESS_START_DATE_KEYS = [
+  "start",
+  "startDate",
+  "startedAt",
+  "plannedStartDate",
+  "estimatedStartDate",
+  "initialDate",
+  "from",
+  "fromDate",
+  "date",
+  "fechaInicio",
+  "inicio",
+  "start_date",
+];
+
+const PROCESS_END_DATE_KEYS = [
+  "due",
+  "end",
+  "endDate",
+  "targetDate",
+  "estimatedEndDate",
+  "plannedEndDate",
+  "plannedDueDate",
+  "completedAt",
+  "deadline",
+  "finishDate",
+  "finishedAt",
+  "until",
+  "to",
+  "toDate",
+  "fechaFin",
+  "fin",
+  "end_date",
+];
+
+function pickDateFromObject(obj, keys = []) {
+  if (!obj || typeof obj !== "object") return "";
+
+  for (const key of keys) {
+    const date = toYYYYMMDD(obj?.[key]);
+    if (date) return date;
+  }
+
+  return "";
+}
+
+function getProcessStageList(process) {
+  const candidates = [
+    process?.stages,
+    process?.steps,
+    process?.phases,
+    process?.etapas,
+    process?.timeline,
+    process?.calendarStages,
+  ];
+
+  for (const value of candidates) {
+    if (Array.isArray(value) && value.length) return value;
+  }
+
+  return [];
+}
+
+function getStageIdentity(stage, fallbackIndex = null) {
+  if (!stage || typeof stage !== "object") return String(fallbackIndex ?? "");
+
+  return String(
+    stage?.id ||
+      stage?._id ||
+      stage?.stageId ||
+      stage?.stepId ||
+      stage?.key ||
+      stage?.name ||
+      stage?.title ||
+      stage?.label ||
+      fallbackIndex ||
+      ""
+  );
+}
+
+function findMatchingStageIndex(process, stage, explicitStageId) {
+  const stages = getProcessStageList(process);
+  if (!stages.length) return -1;
+
+  const targetId = String(
+    explicitStageId ||
+      stage?.id ||
+      stage?._id ||
+      stage?.stageId ||
+      stage?.stepId ||
+      stage?.key ||
+      ""
+  );
+
+  if (targetId) {
+    const byId = stages.findIndex((candidate, index) => {
+      return getStageIdentity(candidate, index) === targetId;
+    });
+
+    if (byId >= 0) return byId;
+  }
+
+  const targetName = String(
+    stage?.name ||
+      stage?.title ||
+      stage?.label ||
+      stage?.stageName ||
+      stage?.etapa ||
+      ""
+  )
+    .trim()
+    .toLowerCase();
+
+  if (targetName) {
+    const byName = stages.findIndex((candidate) => {
+      const candidateName = String(
+        candidate?.name ||
+          candidate?.title ||
+          candidate?.label ||
+          candidate?.stageName ||
+          candidate?.etapa ||
+          ""
+      )
+        .trim()
+        .toLowerCase();
+
+      return candidateName && candidateName === targetName;
+    });
+
+    if (byName >= 0) return byName;
+  }
+
+  return -1;
+}
+
+function resolveProcessCalendarStart(item) {
+  return (
+    pickDateFromObject(item, PROCESS_START_DATE_KEYS) ||
+    pickDateFromObject(item?.stage, PROCESS_START_DATE_KEYS) ||
+    pickDateFromObject(item?.process, PROCESS_START_DATE_KEYS) ||
+    ""
+  );
+}
+
+function resolveProcessCalendarDue(item, fallbackStart = "") {
+  const explicitEnd =
+    pickDateFromObject(item, PROCESS_END_DATE_KEYS) ||
+    pickDateFromObject(item?.stage, PROCESS_END_DATE_KEYS);
+
+  if (explicitEnd) return explicitEnd;
+
+  const process = item?.process;
+  const stage = item?.stage;
+  const stages = getProcessStageList(process);
+  const stageId = item?.stageId || item?.extendedProps?.stageId;
+  const currentIndex = findMatchingStageIndex(process, stage, stageId);
+
+  if (currentIndex >= 0) {
+    const currentStage = stages[currentIndex];
+    const currentStageEnd = pickDateFromObject(currentStage, PROCESS_END_DATE_KEYS);
+    if (currentStageEnd) return currentStageEnd;
+
+    const nextStage = stages[currentIndex + 1];
+    const nextStageStart = pickDateFromObject(nextStage, PROCESS_START_DATE_KEYS);
+
+    if (nextStageStart) {
+      const inferredEnd = addDaysYYYYMMDD(nextStageStart, -1);
+      if (inferredEnd && (!fallbackStart || inferredEnd >= fallbackStart)) {
+        return inferredEnd;
+      }
+    }
+  }
+
+  const processEnd = pickDateFromObject(process, PROCESS_END_DATE_KEYS);
+  if (processEnd) return processEnd;
+
+  return fallbackStart;
+}
+
 
 function normalizeCalendarServiceItems(payload) {
   const rawItems = Array.isArray(payload)
@@ -127,10 +306,22 @@ function normalizeCalendarServiceItems(payload) {
   return rawItems
     .map((item, index) => {
       const itemType = item?.itemType || item?.type || item?.source || "event";
-      const start = toYYYYMMDD(item?.start || item?.startDate || item?.date);
-      const due = toYYYYMMDD(
-        item?.due || item?.end || item?.endDate || item?.estimatedEndDate || start
-      );
+
+      const start =
+        itemType === "process"
+          ? resolveProcessCalendarStart(item)
+          : toYYYYMMDD(item?.start || item?.startDate || item?.date);
+
+      const due =
+        itemType === "process"
+          ? resolveProcessCalendarDue(item, start)
+          : toYYYYMMDD(
+              item?.due ||
+                item?.end ||
+                item?.endDate ||
+                item?.estimatedEndDate ||
+                start
+            );
 
       if (!start || !item?.title) return null;
 
@@ -1230,19 +1421,30 @@ export default function TareasPage({
 
     const processEvents = calendarItems
       .filter((p) => p?.itemType === "process" && p?.start && p?.title)
-      .map((p) => ({
-        id: `process-${p.id}`,
-        title: `Proceso · ${p.title}`,
-        start: p.start,
-        end: addDaysYYYYMMDD(p.due || p.start, 1),
-        allDay: true,
-        classNames: ["calendar-event-process-readonly"],
-        extendedProps: {
-          ...p,
-          itemType: "process",
-          editableFromCalendar: false,
-        },
-      }));
+      .map((p) => {
+        const processStart = resolveProcessCalendarStart(p) || p.start;
+        const processDue = resolveProcessCalendarDue(p, processStart) || p.due || processStart;
+
+        return {
+          id: `process-${p.id}`,
+          title: `Proceso · ${p.title}`,
+          start: processStart,
+          end: addDaysYYYYMMDD(processDue, 1),
+          allDay: true,
+          display: "block",
+          editable: false,
+          startEditable: false,
+          durationEditable: false,
+          classNames: ["calendar-event-process-readonly"],
+          extendedProps: {
+            ...p,
+            start: processStart,
+            due: processDue,
+            itemType: "process",
+            editableFromCalendar: false,
+          },
+        };
+      });
 
     return [...processEvents, ...taskEvents];
   }, [tasks, calendarItems]);
@@ -1791,6 +1993,10 @@ export default function TareasPage({
               expandRows={true}
               handleWindowResize={false}
               stickyHeaderDates={true}
+              allDaySlot={true}
+              allDayText="Todo el día"
+              eventDisplay="block"
+              displayEventTime={false}
               events={calendarEvents}
               eventClick={handleCalendarEventClick}
               eventContent={(arg) => {
