@@ -1,5 +1,5 @@
 // src/components/FarmShell.jsx
-import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "../styles/farm-shell.css";
 
 const FarmMap = lazy(() => import("./map/FarmMap"));
@@ -172,6 +172,17 @@ function extractZoneNames(payload) {
     });
 }
 
+function areSameStringList(a, b) {
+  if (!Array.isArray(a) || !Array.isArray(b)) return false;
+  if (a.length !== b.length) return false;
+
+  for (let i = 0; i < a.length; i += 1) {
+    if (String(a[i] || "") !== String(b[i] || "")) return false;
+  }
+
+  return true;
+}
+
 function readStoredZones(farmId) {
   if (typeof window === "undefined" || !window.localStorage) return [];
 
@@ -239,6 +250,8 @@ export default function FarmShell({ user, onLogout }) {
   const [token, setToken] = useState(() => getAuthToken());
   const [farmId, setFarmId] = useState(() => getActiveFarmId());
   const [zonesFromMap, setZonesFromMap] = useState([]);
+  const zonesFetchKeyRef = useRef("");
+  const zonesLastFarmRef = useRef("");
 
   const [farmLocation, setFarmLocation] = useState({
     lat: null,
@@ -271,36 +284,61 @@ export default function FarmShell({ user, onLogout }) {
       });
   }, []);
 
-  const fetchZonesFromMap = useCallback(async () => {
-    const collected = [...readStoredZones(farmId)];
+  const fetchZonesFromMap = useCallback(
+    async ({ force = false } = {}) => {
+      const activeFarmId = farmId ? String(farmId) : "";
+      const activeToken = token ? String(token) : "";
+      const fetchKey = `${activeFarmId}:${activeToken ? "auth" : "anon"}`;
 
-    if (farmId && token) {
-      const ts = Date.now();
-      const endpoints = [
-        `/api/farms/${farmId}/map?ts=${ts}`,
-      ];
-
-      for (const endpoint of endpoints) {
-        try {
-          const res = await fetch(`${API_BASE}${endpoint}`, {
-            method: "GET",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-            cache: "no-store",
-          });
-
-          if (!res.ok) continue;
-
-          const data = await res.json().catch(() => null);
-          collected.push(...extractZoneNames(data));
-        } catch {}
+      if (!activeFarmId) {
+        zonesFetchKeyRef.current = "";
+        zonesLastFarmRef.current = "";
+        setZonesFromMap((prev) => (prev.length ? [] : prev));
+        return;
       }
-    }
 
-    setZonesFromMap(cleanZoneList(collected));
-  }, [cleanZoneList, farmId, token]);
+      if (!force && zonesFetchKeyRef.current === fetchKey) {
+        return;
+      }
+
+      zonesFetchKeyRef.current = fetchKey;
+      zonesLastFarmRef.current = activeFarmId;
+
+      const collected = [...readStoredZones(activeFarmId)];
+
+      if (activeToken) {
+        const ts = Date.now();
+
+        try {
+          const res = await fetch(
+            `${API_BASE}/api/farms/${activeFarmId}/map?ts=${ts}`,
+            {
+              method: "GET",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${activeToken}`,
+              },
+              cache: "no-store",
+            }
+          );
+
+          if (res.ok) {
+            const data = await res.json().catch(() => null);
+            collected.push(...extractZoneNames(data));
+          }
+        } catch {
+          // Si falla la red, conservamos las zonas locales sin romper Tareas.
+        }
+      }
+
+      const cleanZones = cleanZoneList(collected);
+
+      setZonesFromMap((prev) =>
+        areSameStringList(prev, cleanZones) ? prev : cleanZones
+      );
+    },
+    [cleanZoneList, farmId, token]
+  );
 
   useEffect(() => {
     const sync = () => {
@@ -331,7 +369,7 @@ export default function FarmShell({ user, onLogout }) {
     function onMapRefresh(e) {
       const targetFarmId = e?.detail?.farmId ? String(e.detail.farmId) : "";
       if (targetFarmId && farmId && String(farmId) !== targetFarmId) return;
-      fetchZonesFromMap();
+      fetchZonesFromMap({ force: true });
     }
 
     window.addEventListener("agromind:map:refresh", onMapRefresh);
@@ -347,7 +385,7 @@ export default function FarmShell({ user, onLogout }) {
 
   const handleTabChange = (tab) => {
     setActiveTab(tab);
-    if (tab === "tareas") fetchZonesFromMap();
+    if (tab === "tareas") fetchZonesFromMap({ force: true });
   };
 
   const handleOpenZoneInMap = (zoneName) => {
