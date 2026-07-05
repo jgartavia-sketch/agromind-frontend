@@ -1257,7 +1257,7 @@ export default function ProcessModal({
             />
           </div>
 
-          <div className="pl-scroll-area" style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+          <div className="pl-scroll-area" style={{ display: "flex", flexDirection: "column", gap: "12px", width:"100%", boxSizing:"border-box" }}>
             {filteredProcesses.map((process) => {
               const steps = Array.isArray(process.steps) ? process.steps : [];
               const sortedSteps = getSortedSteps(steps);
