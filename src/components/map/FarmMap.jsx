@@ -3646,7 +3646,16 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
               </button>
             </div>
 
-            <div style={{ padding: "14px", overflow: "auto" }}>
+            <div
+              style={{
+                flex: 1,
+                minHeight: 0,
+                overflowY: "auto",
+                overflowX: "hidden",
+                padding: "14px",
+                boxSizing: "border-box",
+              }}
+            >
               <ProcessModal
                 componentsModalView={componentsModalView}
                 modalZone={modalZone}
