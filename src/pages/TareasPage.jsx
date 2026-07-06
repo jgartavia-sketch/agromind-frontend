@@ -1689,6 +1689,117 @@ export default function TareasPage({
           font-size: 0.82rem;
         }
 
+        .master-filter-toolbar {
+          position: relative;
+          display: grid;
+          grid-template-columns: minmax(130px, 0.75fr) minmax(130px, 0.75fr) minmax(150px, 0.85fr) minmax(220px, 1.45fr) auto auto;
+          align-items: end;
+          gap: 0.65rem;
+          margin: 0 0 0.85rem;
+          padding: 0.72rem;
+          border-radius: 22px;
+          border: 1px solid rgba(148,163,184,0.14);
+          background:
+            radial-gradient(circle at 8% 0%, rgba(34,197,94,0.12), transparent 34%),
+            linear-gradient(135deg, rgba(15,23,42,0.86), rgba(2,6,23,0.62));
+          box-shadow: inset 0 1px 0 rgba(255,255,255,0.05), 0 14px 34px rgba(0,0,0,0.18);
+          backdrop-filter: blur(18px);
+        }
+
+        .master-filter-field {
+          position: relative;
+          min-width: 0;
+        }
+
+        .master-filter-field span {
+          display: block;
+          margin: 0 0 0.34rem;
+          color: rgba(148,163,184,0.86);
+          font-size: 0.68rem;
+          font-weight: 900;
+          line-height: 1;
+          text-transform: uppercase;
+          letter-spacing: 0.08em;
+        }
+
+        .master-filter-field select,
+        .master-filter-field input {
+          width: 100%;
+          height: 42px;
+          border: 1px solid rgba(148,163,184,0.16);
+          border-radius: 14px;
+          outline: none;
+          background: rgba(15,23,42,0.74);
+          color: #e5e7eb;
+          padding: 0 0.82rem;
+          font-size: 0.86rem;
+          font-weight: 750;
+          box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+          transition: border-color .16s ease, box-shadow .16s ease, background .16s ease;
+        }
+
+        .master-filter-field select:focus,
+        .master-filter-field input:focus {
+          border-color: rgba(34,197,94,0.48);
+          background: rgba(15,23,42,0.94);
+          box-shadow: 0 0 0 3px rgba(34,197,94,0.11), inset 0 1px 0 rgba(255,255,255,0.05);
+        }
+
+        .master-filter-field input::placeholder {
+          color: rgba(148,163,184,0.62);
+          font-weight: 650;
+        }
+
+        .master-filter-clear,
+        .master-filter-count {
+          height: 42px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          white-space: nowrap;
+          border-radius: 999px;
+        }
+
+        .master-filter-clear {
+          border: 1px solid rgba(148,163,184,0.18);
+          background: rgba(15,23,42,0.58);
+          color: rgba(226,232,240,0.92);
+          padding: 0 0.95rem;
+          font-weight: 850;
+          cursor: pointer;
+          transition: transform .16s ease, border-color .16s ease, background .16s ease, color .16s ease;
+        }
+
+        .master-filter-clear:hover:not(:disabled) {
+          transform: translateY(-1px);
+          border-color: rgba(34,197,94,0.34);
+          background: rgba(22,163,74,0.14);
+          color: #f8fafc;
+        }
+
+        .master-filter-clear:disabled,
+        .master-filter-field select:disabled,
+        .master-filter-field input:disabled {
+          opacity: 0.62;
+          cursor: not-allowed;
+        }
+
+        .master-filter-count {
+          gap: 0.4rem;
+          border: 1px solid rgba(34,197,94,0.22);
+          background: rgba(22,163,74,0.12);
+          color: rgba(220,252,231,0.94);
+          padding: 0 0.9rem;
+          font-size: 0.82rem;
+          font-weight: 850;
+        }
+
+        .master-filter-count strong {
+          color: #f8fafc;
+          font-size: 1rem;
+          line-height: 1;
+        }
+
         .calendar-shell-pro {
           position: relative;
           border-radius: 24px;
@@ -1978,13 +2089,12 @@ export default function TareasPage({
 
         .master-lower-grid {
           display: grid;
-          grid-template-columns: minmax(0, 0.95fr) minmax(320px, 0.55fr);
+          grid-template-columns: minmax(0, 1fr);
           gap: 1rem;
           align-items: start;
         }
 
         .task-editor-pro.card,
-        .filters-pro.card,
         .table-pro.card {
           border-radius: 24px;
           border: 1px solid rgba(148,163,184,0.14);
@@ -2271,10 +2381,25 @@ export default function TareasPage({
           to { opacity: 1; transform: translateY(0) scale(1); }
         }
 
+        @media (max-width: 1180px) {
+          .master-filter-toolbar {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+          }
+
+          .master-filter-search,
+          .master-filter-clear,
+          .master-filter-count {
+            grid-column: span 1;
+          }
+        }
+
         @media (max-width: 980px) {
-          .master-stats-grid,
-          .master-lower-grid {
+          .master-stats-grid {
             grid-template-columns: 1fr 1fr;
+          }
+
+          .master-lower-grid {
+            grid-template-columns: 1fr;
           }
         }
 
@@ -2286,8 +2411,14 @@ export default function TareasPage({
           }
 
           .master-stats-grid,
-          .master-lower-grid {
+          .master-lower-grid,
+          .master-filter-toolbar {
             grid-template-columns: 1fr;
+          }
+
+          .master-filter-clear,
+          .master-filter-count {
+            width: 100%;
           }
 
           .calendar-shell-pro {
@@ -2387,6 +2518,83 @@ export default function TareasPage({
               <span className="master-stat-label">Procesos visibles</span>
               <span className="master-stat-value">{summary.activeProcesses}</span>
               <span className="master-stat-note">Lectura desde Process Lab</span>
+            </div>
+          </div>
+
+          <div className="master-filter-toolbar" aria-label="Filtros del Calendario Maestro">
+            <div className="master-filter-field master-filter-select">
+              <span>Estado</span>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                disabled={saving}
+              >
+                <option value="Todas">Todas</option>
+                <option value="En progreso">En progreso</option>
+                <option value="Completada">Completada</option>
+              </select>
+            </div>
+
+            <div className="master-filter-field master-filter-select">
+              <span>Tipo</span>
+              <select
+                value={typeFilter}
+                onChange={(e) => setTypeFilter(e.target.value)}
+                disabled={saving}
+              >
+                <option value="Todas">Todas</option>
+                {TIPOS.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="master-filter-field master-filter-select">
+              <span>Zona</span>
+              <select
+                value={zoneFilter}
+                onChange={(e) => setZoneFilter(e.target.value)}
+                disabled={saving}
+              >
+                <option value="Todas">Todas</option>
+                {zoneOptions.map((z) => (
+                  <option key={z} value={z}>
+                    {z}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="master-filter-field master-filter-search">
+              <span>Buscar</span>
+              <input
+                type="text"
+                placeholder="Tarea, zona o responsable..."
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
+                disabled={saving}
+              />
+            </div>
+
+            <button
+              type="button"
+              className="master-filter-clear"
+              onClick={() => {
+                setStatusFilter("Todas");
+                setTypeFilter("Todas");
+                setZoneFilter("Todas");
+                setSearchText("");
+              }}
+              disabled={saving}
+            >
+              Limpiar filtros
+            </button>
+
+            <div className="master-filter-count" aria-live="polite">
+              <strong>{filteredTasks.length}</strong>
+              <span>{filteredTasks.length === 1 ? "tarea visible" : "tareas visibles"}</span>
             </div>
           </div>
 
@@ -2590,68 +2798,6 @@ export default function TareasPage({
               )}
             </div>
           </form>
-        </section>
-
-        <section className="filters-pro card">
-          <h3 className="compact-section-title">Vista operativa</h3>
-
-          <div className="filters-bar" style={{ margin: 0 }}>
-            <div className="filter-group">
-              <label>Estado</label>
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                disabled={saving}
-              >
-                <option value="Todas">Todas</option>
-                <option value="En progreso">En progreso</option>
-                <option value="Completada">Completada</option>
-              </select>
-            </div>
-
-            <div className="filter-group">
-              <label>Tipo</label>
-              <select
-                value={typeFilter}
-                onChange={(e) => setTypeFilter(e.target.value)}
-                disabled={saving}
-              >
-                <option value="Todas">Todas</option>
-                {TIPOS.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="filter-group">
-              <label>Zona</label>
-              <select
-                value={zoneFilter}
-                onChange={(e) => setZoneFilter(e.target.value)}
-                disabled={saving}
-              >
-                <option value="Todas">Todas</option>
-                {zoneOptions.map((z) => (
-                  <option key={z} value={z}>
-                    {z}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="filter-group filter-group-wide">
-              <label>Buscar</label>
-              <input
-                type="text"
-                placeholder="Buscar por tarea, zona o responsable..."
-                value={searchText}
-                onChange={(e) => setSearchText(e.target.value)}
-                disabled={saving}
-              />
-            </div>
-          </div>
         </section>
       </div>
 
