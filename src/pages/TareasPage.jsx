@@ -737,6 +737,7 @@ export default function TareasPage({
   const [typeFilter, setTypeFilter] = useState("Todas");
   const [zoneFilter, setZoneFilter] = useState("Todas");
   const [searchText, setSearchText] = useState("");
+  const [appliedSearchText, setAppliedSearchText] = useState("");
 
   const [formData, setFormData] = useState(EMPTY_FORM);
   const [editingId, setEditingId] = useState(null);
@@ -1082,6 +1083,7 @@ export default function TareasPage({
     setTypeFilter("Todas");
     setZoneFilter("Todas");
     setSearchText("");
+    setAppliedSearchText("");
     setEditingId(null);
     setFormData(EMPTY_FORM);
     setIgnoredSuggestions(new Set());
@@ -1135,7 +1137,7 @@ export default function TareasPage({
     const matchType = typeFilter === "Todas" || task.type === typeFilter;
     const matchZone = zoneFilter === "Todas" || task.zone === zoneFilter;
 
-    const query = searchText.trim().toLowerCase();
+    const query = appliedSearchText.trim().toLowerCase();
     const matchSearch =
       query === "" ||
       (task.title || "").toLowerCase().includes(query) ||
@@ -1267,6 +1269,10 @@ export default function TareasPage({
   const combinedSuggestions = useMemo(() => {
     return [...weatherContextSuggestions, ...visibleSuggestions];
   }, [weatherContextSuggestions, visibleSuggestions]);
+
+  const handleSearchSubmit = () => {
+    setAppliedSearchText(searchText);
+  };
 
   const handleFormChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -1731,7 +1737,7 @@ export default function TareasPage({
         .master-filter-toolbar {
           position: relative;
           display: grid;
-          grid-template-columns: minmax(130px, 0.75fr) minmax(130px, 0.75fr) minmax(150px, 0.85fr) minmax(280px, 1.8fr) auto;
+          grid-template-columns: minmax(130px, 0.75fr) minmax(130px, 0.75fr) minmax(150px, 0.85fr) minmax(260px, 1.65fr) auto auto;
           align-items: end;
           gap: 0.65rem;
           margin: 0 0 0.85rem;
@@ -1789,6 +1795,7 @@ export default function TareasPage({
           font-weight: 650;
         }
 
+        .master-filter-search-btn,
         .master-filter-clear {
           height: 42px;
           display: inline-flex;
@@ -1796,6 +1803,24 @@ export default function TareasPage({
           justify-content: center;
           white-space: nowrap;
           border-radius: 999px;
+        }
+
+        .master-filter-search-btn {
+          border: 1px solid rgba(34,197,94,0.32);
+          background: linear-gradient(135deg, rgba(22,163,74,0.98), rgba(20,184,166,0.82));
+          color: #f8fafc;
+          padding: 0 1.05rem;
+          font-weight: 900;
+          cursor: pointer;
+          box-shadow: 0 14px 30px rgba(34,197,94,0.18);
+          transition: transform .16s ease, border-color .16s ease, background .16s ease, color .16s ease, box-shadow .16s ease;
+        }
+
+        .master-filter-search-btn:hover:not(:disabled) {
+          transform: translateY(-1px);
+          border-color: rgba(34,197,94,0.52);
+          box-shadow: 0 18px 38px rgba(34,197,94,0.26);
+          filter: brightness(1.05);
         }
 
         .master-filter-clear {
@@ -1815,6 +1840,7 @@ export default function TareasPage({
           color: #f8fafc;
         }
 
+        .master-filter-search-btn:disabled,
         .master-filter-clear:disabled,
         .master-filter-field select:disabled,
         .master-filter-field input:disabled {
@@ -2866,9 +2892,24 @@ export default function TareasPage({
                 placeholder="Tarea, zona o responsable..."
                 value={searchText}
                 onChange={(e) => setSearchText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleSearchSubmit();
+                  }
+                }}
                 disabled={saving}
               />
             </div>
+
+            <button
+              type="button"
+              className="master-filter-search-btn"
+              onClick={handleSearchSubmit}
+              disabled={saving}
+            >
+              Buscar
+            </button>
 
             <button
               type="button"
@@ -2878,6 +2919,7 @@ export default function TareasPage({
                 setTypeFilter("Todas");
                 setZoneFilter("Todas");
                 setSearchText("");
+                setAppliedSearchText("");
               }}
               disabled={saving}
             >
