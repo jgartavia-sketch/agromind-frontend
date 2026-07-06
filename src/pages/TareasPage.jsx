@@ -1748,8 +1748,8 @@ export default function TareasPage({
           overflow: hidden;
           padding: 0 !important;
           background:
-            radial-gradient(circle at 50% 0%, rgba(34,197,94,0.18), transparent 58%),
-            linear-gradient(180deg, rgba(30,41,59,0.96), rgba(15,23,42,0.92)) !important;
+            linear-gradient(180deg, rgba(15,23,42,0.98), rgba(17,24,39,0.96)) !important;
+          backdrop-filter: blur(18px);
           border-bottom: 1px solid rgba(34,197,94,0.20) !important;
         }
 
@@ -1759,7 +1759,7 @@ export default function TareasPage({
           left: 14%;
           right: 14%;
           bottom: 0;
-          height: 2px;
+          height: 3px;
           border-radius: 999px;
           background: linear-gradient(90deg, transparent, rgba(34,197,94,0.64), transparent);
           opacity: 0.55;
@@ -1769,9 +1769,9 @@ export default function TareasPage({
           display: flex;
           align-items: center;
           justify-content: center;
-          min-height: 52px;
+          min-height: 64px;
           padding: 0.85rem 0.75rem !important;
-          color: rgba(248,250,252,0.92) !important;
+          color: #f8fafc !important;
           font-size: clamp(0.9rem, 1.4vw, 1.05rem);
           font-weight: 900;
           letter-spacing: -0.02em;
@@ -1799,7 +1799,7 @@ export default function TareasPage({
 
         .calendar-shell-pro .fc-day-today {
           background:
-            linear-gradient(180deg, rgba(34,197,94,0.13), rgba(20,184,166,0.06)) !important;
+            linear-gradient(180deg, rgba(34,197,94,0.10), rgba(15,23,42,0.02)) !important;
         }
 
         .calendar-shell-pro .fc-daygrid-day-number {
