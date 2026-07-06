@@ -737,7 +737,6 @@ export default function TareasPage({
   const [typeFilter, setTypeFilter] = useState("Todas");
   const [zoneFilter, setZoneFilter] = useState("Todas");
   const [searchText, setSearchText] = useState("");
-  const [searchDraft, setSearchDraft] = useState("");
 
   const [formData, setFormData] = useState(EMPTY_FORM);
   const [editingId, setEditingId] = useState(null);
@@ -1732,7 +1731,7 @@ export default function TareasPage({
         .master-filter-toolbar {
           position: relative;
           display: grid;
-          grid-template-columns: minmax(130px, 0.72fr) minmax(130px, 0.72fr) minmax(150px, 0.82fr) minmax(220px, 1.35fr) auto auto auto;
+          grid-template-columns: minmax(130px, 0.75fr) minmax(130px, 0.75fr) minmax(150px, 0.85fr) minmax(280px, 1.8fr) auto;
           align-items: end;
           gap: 0.65rem;
           margin: 0 0 0.85rem;
@@ -1790,9 +1789,7 @@ export default function TareasPage({
           font-weight: 650;
         }
 
-        .master-filter-apply,
-        .master-filter-clear,
-        .master-filter-count {
+        .master-filter-clear {
           height: 42px;
           display: inline-flex;
           align-items: center;
@@ -1801,32 +1798,14 @@ export default function TareasPage({
           border-radius: 999px;
         }
 
-        .master-filter-apply,
-        .master-filter-clear {
-          padding: 0 0.95rem;
-          font-weight: 850;
-          cursor: pointer;
-          transition: transform .16s ease, border-color .16s ease, background .16s ease, color .16s ease, box-shadow .16s ease;
-        }
-
-        .master-filter-apply {
-          border: 1px solid rgba(34,197,94,0.34);
-          background:
-            linear-gradient(135deg, rgba(22,163,74,0.96), rgba(20,184,166,0.72));
-          color: #f8fafc;
-          box-shadow: 0 12px 24px rgba(16,185,129,0.16), inset 0 1px 0 rgba(255,255,255,0.14);
-        }
-
-        .master-filter-apply:hover:not(:disabled) {
-          transform: translateY(-1px);
-          border-color: rgba(74,222,128,0.58);
-          box-shadow: 0 16px 30px rgba(16,185,129,0.22), inset 0 1px 0 rgba(255,255,255,0.18);
-        }
-
         .master-filter-clear {
           border: 1px solid rgba(148,163,184,0.18);
           background: rgba(15,23,42,0.58);
           color: rgba(226,232,240,0.92);
+          padding: 0 0.95rem;
+          font-weight: 850;
+          cursor: pointer;
+          transition: transform .16s ease, border-color .16s ease, background .16s ease, color .16s ease;
         }
 
         .master-filter-clear:hover:not(:disabled) {
@@ -1836,28 +1815,11 @@ export default function TareasPage({
           color: #f8fafc;
         }
 
-        .master-filter-apply:disabled,
         .master-filter-clear:disabled,
         .master-filter-field select:disabled,
         .master-filter-field input:disabled {
           opacity: 0.62;
           cursor: not-allowed;
-        }
-
-        .master-filter-count {
-          gap: 0.4rem;
-          border: 1px solid rgba(34,197,94,0.22);
-          background: rgba(22,163,74,0.12);
-          color: rgba(220,252,231,0.94);
-          padding: 0 0.9rem;
-          font-size: 0.82rem;
-          font-weight: 850;
-        }
-
-        .master-filter-count strong {
-          color: #f8fafc;
-          font-size: 1rem;
-          line-height: 1;
         }
 
         .calendar-shell-pro {
@@ -2719,9 +2681,7 @@ export default function TareasPage({
           }
 
           .master-filter-search,
-          .master-filter-apply,
-          .master-filter-clear,
-          .master-filter-count {
+          .master-filter-clear {
             grid-column: span 1;
           }
         }
@@ -2749,9 +2709,7 @@ export default function TareasPage({
             grid-template-columns: 1fr;
           }
 
-          .master-filter-apply,
-          .master-filter-clear,
-          .master-filter-count {
+          .master-filter-clear {
             width: 100%;
           }
 
@@ -2906,25 +2864,11 @@ export default function TareasPage({
               <input
                 type="text"
                 placeholder="Tarea, zona o responsable..."
-                value={searchDraft}
-                onChange={(e) => setSearchDraft(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    setSearchText(searchDraft);
-                  }
-                }}
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
                 disabled={saving}
               />
             </div>
-
-            <button
-              type="button"
-              className="master-filter-apply"
-              onClick={() => setSearchText(searchDraft)}
-              disabled={saving}
-            >
-              Buscar
-            </button>
 
             <button
               type="button"
@@ -2934,17 +2878,12 @@ export default function TareasPage({
                 setTypeFilter("Todas");
                 setZoneFilter("Todas");
                 setSearchText("");
-                setSearchDraft("");
               }}
               disabled={saving}
             >
               Limpiar filtros
             </button>
 
-            <div className="master-filter-count" aria-live="polite">
-              <strong>{filteredTasks.length}</strong>
-              <span>{filteredTasks.length === 1 ? "tarea visible" : "tareas visibles"}</span>
-            </div>
           </div>
 
           <div className="calendar-shell-pro">
