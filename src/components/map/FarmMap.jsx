@@ -3581,16 +3581,15 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
           <div
           role="dialog"
           aria-modal="true"
-          className="agromind-process-modal-backdrop"
           style={{
             position: "fixed",
             inset: 0,
-            zIndex: 9999,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: "20px",
+            zIndex: 2147483647,
+            display: "block",
+            padding: 0,
+            margin: 0,
             boxSizing: "border-box",
+            overflow: "hidden",
           }}
         >
           <div
@@ -3605,21 +3604,26 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
 
           <div
             onClick={(e) => e.stopPropagation()}
-            className="agromind-process-modal"
             style={{
-              position: "relative",
-              width: "min(1180px, calc(100vw - 40px))",
-              height: "min(86vh, 820px)",
-              maxWidth: "calc(100vw - 40px)",
-              maxHeight: "calc(100vh - 40px)",
+              position: "fixed",
+              top: "clamp(12px, 3vh, 24px)",
+              right: "clamp(12px, 3vw, 28px)",
+              bottom: "clamp(12px, 3vh, 24px)",
+              left: "clamp(12px, 3vw, 28px)",
+              width: "auto",
+              height: "auto",
+              maxWidth: "none",
+              maxHeight: "none",
               minWidth: 0,
-              background: "rgba(2,6,23,0.96)",
+              minHeight: 0,
+              background: "rgba(2,6,23,0.98)",
               border: "1px solid rgba(148,163,184,0.22)",
               borderRadius: "18px",
               boxShadow: "0 18px 60px rgba(0,0,0,0.55)",
               overflow: "hidden",
               display: "flex",
               flexDirection: "column",
+              boxSizing: "border-box",
             }}
           >
             <div
