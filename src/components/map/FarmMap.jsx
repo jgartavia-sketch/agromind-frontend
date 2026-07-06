@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useMemo } from "react";
+import { createPortal } from "react-dom";
 import "ol/ol.css";
 import "../../styles/farm-map.css";
 
@@ -3572,8 +3573,12 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
         />
       )}
 
-      {componentsModalOpen && modalZone && componentsModalView === "processes" && (
-        <div
+      {componentsModalOpen &&
+        modalZone &&
+        componentsModalView === "processes" &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div
           role="dialog"
           aria-modal="true"
           className="agromind-process-modal-backdrop"
@@ -3584,7 +3589,8 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            padding: "16px",
+            padding: "20px",
+            boxSizing: "border-box",
           }}
         >
           <div
@@ -3602,10 +3608,10 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
             className="agromind-process-modal"
             style={{
               position: "relative",
-              width: "min(1280px, calc(100vw - 48px))",
-              height: "min(90vh, 900px)",
-              maxWidth: "calc(100vw - 48px)",
-              maxHeight: "calc(100vh - 48px)",
+              width: "min(1180px, calc(100vw - 40px))",
+              height: "min(86vh, 820px)",
+              maxWidth: "calc(100vw - 40px)",
+              maxHeight: "calc(100vh - 40px)",
               minWidth: 0,
               background: "rgba(2,6,23,0.96)",
               border: "1px solid rgba(148,163,184,0.22)",
@@ -3728,8 +3734,9 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
               </button>
             </div>
           </div>
-        </div>
-      )}
+          </div>,
+          document.body
+        )}
 
       {deleteConfirm ? (
         <div
