@@ -920,10 +920,14 @@ export default function ProcessModal({
           justifyContent: "space-between",
           gap: "12px",
           flexWrap: "wrap",
+          width: "100%",
+          maxWidth: "100%",
+          minWidth: 0,
+          boxSizing: "border-box",
           marginBottom: "14px",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: "12px", minWidth: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "12px", minWidth: 0, flex: "1 1 320px", maxWidth: "100%" }}>
           <div
             style={{
               width: "42px",
@@ -937,11 +941,12 @@ export default function ProcessModal({
               color: "#bbf7d0",
               fontWeight: 900,
               boxShadow: "0 12px 28px rgba(34,197,94,0.08)",
+              flex: "0 0 42px",
             }}
           >
             PL
           </div>
-          <div style={{ minWidth: 0 }}>
+          <div style={{ minWidth: 0, flex: "1 1 auto", maxWidth: "100%", overflow: "hidden" }}>
             <h4 style={{ margin: 0, color: "#f8fafc", fontSize: "1.08rem", letterSpacing: "-0.02em" }}>
               Process Lab
             </h4>
@@ -951,6 +956,7 @@ export default function ProcessModal({
                 color: "rgba(226,232,240,0.72)",
                 fontSize: "0.82rem",
                 lineHeight: 1.35,
+                overflowWrap: "anywhere",
               }}
             >
               Zona: {modalZone.name} · procesos activos, etapas encadenadas y avance visible.
@@ -967,6 +973,7 @@ export default function ProcessModal({
               setProcessesError("");
             }}
             disabled={processActionLoading}
+            style={{ flex: "0 0 auto", maxWidth: "100%", whiteSpace: "nowrap" }}
           >
             {showCreateProcessForm ? "Cerrar laboratorio" : "Nuevo proceso"}
           </button>
@@ -976,7 +983,7 @@ export default function ProcessModal({
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+          gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
           gap: "12px",
           marginBottom: "16px",
         }}
