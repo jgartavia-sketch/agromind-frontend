@@ -386,8 +386,16 @@ export default function ProcessModal({
     <div
       id="zone-processes-section"
       style={{
-        marginBottom: "16px",
+        marginBottom: 0,
         padding: "18px",
+        width: "100%",
+        height: "100%",
+        minWidth: 0,
+        minHeight: 0,
+        boxSizing: "border-box",
+        display: "flex",
+        flexDirection: "column",
+        overflow: "hidden",
         borderRadius: "24px",
         border: "1px solid rgba(34,197,94,0.24)",
         background:
@@ -400,6 +408,15 @@ export default function ProcessModal({
         #zone-processes-section {
           position: relative;
           isolation: isolate;
+        }
+
+        #zone-processes-section,
+        #zone-processes-section * {
+          box-sizing: border-box;
+        }
+
+        #zone-processes-section > * {
+          min-width: 0;
         }
 
         #zone-processes-section::before {
@@ -607,8 +624,9 @@ export default function ProcessModal({
         }
 
         #zone-processes-section .pl-scroll-area {
-          max-height: 52vh;
-          min-height: 320px;
+          flex: 1;
+          min-height: 0;
+          max-height: none;
           overflow-y: auto;
           overflow-x: hidden;
           padding-right: 8px;
@@ -1257,7 +1275,7 @@ export default function ProcessModal({
             />
           </div>
 
-          <div className="pl-scroll-area" style={{ display: "flex", flexDirection: "column", gap: "12px", width:"100%", boxSizing:"border-box" }}>
+          <div className="pl-scroll-area" style={{ display: "flex", flexDirection: "column", gap: "12px", width: "100%", minWidth: 0, minHeight: 0, boxSizing: "border-box" }}>
             {filteredProcesses.map((process) => {
               const steps = Array.isArray(process.steps) ? process.steps : [];
               const sortedSteps = getSortedSteps(steps);
