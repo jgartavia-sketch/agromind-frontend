@@ -391,11 +391,13 @@ export default function ProcessModal({
         width: "100%",
         maxWidth: "100%",
         minWidth: 0,
-        minHeight: "100%",
+        minHeight: 0,
         boxSizing: "border-box",
         display: "flex",
+        flex: "1 1 auto",
         flexDirection: "column",
-        overflow: "visible",
+        overflowX: "hidden",
+        overflowY: "visible",
         borderRadius: "24px",
         border: "1px solid rgba(34,197,94,0.24)",
         background:
@@ -417,6 +419,32 @@ export default function ProcessModal({
 
         #zone-processes-section > * {
           min-width: 0;
+          max-width: 100%;
+        }
+
+        #zone-processes-section .pl-lab-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          margin-bottom: 14px;
+          width: 100%;
+          max-width: 100%;
+          min-width: 0;
+        }
+
+        #zone-processes-section .pl-lab-title-block {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          min-width: 0;
+          flex: 1 1 auto;
+          max-width: 100%;
+        }
+
+        #zone-processes-section .pl-lab-action {
+          flex: 0 0 auto;
+          max-width: 100%;
         }
 
         #zone-processes-section::before {
@@ -658,6 +686,21 @@ export default function ProcessModal({
         }
 
 
+        @media (max-width: 1080px) {
+          #zone-processes-section .pl-lab-header {
+            align-items: flex-start !important;
+            flex-wrap: wrap !important;
+          }
+
+          #zone-processes-section .pl-lab-action {
+            margin-left: 54px !important;
+          }
+
+          #zone-processes-section .pl-process-toggle > div {
+            grid-template-columns: 1fr !important;
+          }
+        }
+
         @media (max-width: 900px) {
           #zone-processes-section > div:first-of-type {
             grid-template-columns: 1fr !important;
@@ -704,13 +747,19 @@ export default function ProcessModal({
             box-shadow: 0 18px 46px rgba(0,0,0,0.34), inset 0 1px 0 rgba(255,255,255,0.03) !important;
           }
 
-          #zone-processes-section > div:first-of-type {
+          #zone-processes-section .pl-lab-header {
+            align-items: flex-start !important;
+            flex-direction: column !important;
+          }
+
+          #zone-processes-section .pl-lab-title-block {
+            width: 100% !important;
             align-items: flex-start !important;
           }
 
-          #zone-processes-section > div:first-of-type > div:first-child {
+          #zone-processes-section .pl-lab-action {
             width: 100% !important;
-            align-items: flex-start !important;
+            margin-left: 0 !important;
           }
 
           #zone-processes-section h4 {
@@ -924,18 +973,8 @@ export default function ProcessModal({
           }
         }
       `}</style>
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "minmax(0, 1fr) auto",
-          alignItems: "center",
-          gap: "12px",
-          marginBottom: "14px",
-          width: "100%",
-          minWidth: 0,
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: "12px", minWidth: 0, maxWidth: "100%" }}>
+      <div className="pl-lab-header">
+        <div className="pl-lab-title-block">
           <div
             style={{
               width: "42px",
@@ -974,13 +1013,13 @@ export default function ProcessModal({
         {modalZoneProcesses.length > 0 && (
           <button
             type="button"
-            className="primary-btn"
+            className="primary-btn pl-lab-action"
             onClick={() => {
               setShowCreateProcessForm((prev) => !prev);
               setProcessesError("");
             }}
             disabled={processActionLoading}
-            style={{ justifySelf: "end", maxWidth: "100%", whiteSpace: "nowrap", flexShrink: 0 }}
+            style={{ whiteSpace: "nowrap" }}
           >
             {showCreateProcessForm ? "Cerrar laboratorio" : "Nuevo proceso"}
           </button>
@@ -1326,6 +1365,9 @@ export default function ProcessModal({
                       ? "radial-gradient(circle at 8% 0%, rgba(34,197,94,0.12), transparent 32%), linear-gradient(180deg, rgba(15,23,42,0.96), rgba(5,10,22,0.99))"
                       : "linear-gradient(180deg, rgba(15,23,42,0.82), rgba(5,10,22,0.96))",
                     overflow: "hidden",
+                    width: "100%",
+                    maxWidth: "100%",
+                    minWidth: 0,
                     boxShadow: isExpanded ? "0 22px 44px rgba(0,0,0,0.30), 0 0 0 1px rgba(34,197,94,0.04)" : "0 12px 24px rgba(0,0,0,0.14)",
                   }}
                 >
@@ -1348,9 +1390,12 @@ export default function ProcessModal({
                     <div
                       style={{
                         display: "grid",
-                        gridTemplateColumns: "minmax(0, 1fr) minmax(150px, 220px)",
+                        gridTemplateColumns: "minmax(0, 1fr) minmax(120px, 180px)",
                         gap: "14px",
                         alignItems: "center",
+                        width: "100%",
+                        maxWidth: "100%",
+                        minWidth: 0,
                       }}
                     >
                       <div style={{ minWidth: 0 }}>
