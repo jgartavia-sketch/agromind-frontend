@@ -1735,35 +1735,116 @@ export default function TareasPage({
           border-color: rgba(148,163,184,0.12) !important;
         }
 
+        .calendar-shell-pro .fc-scrollgrid {
+          border-radius: 22px;
+          overflow: hidden;
+          background:
+            linear-gradient(180deg, rgba(15,23,42,0.92), rgba(2,6,23,0.86));
+          box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+        }
+
         .calendar-shell-pro .fc-col-header-cell {
-          background: rgba(15,23,42,0.78);
-          padding: 0.4rem 0;
+          position: relative;
+          overflow: hidden;
+          padding: 0 !important;
+          background:
+            radial-gradient(circle at 50% 0%, rgba(34,197,94,0.18), transparent 58%),
+            linear-gradient(180deg, rgba(30,41,59,0.96), rgba(15,23,42,0.92)) !important;
+          border-bottom: 1px solid rgba(34,197,94,0.20) !important;
+        }
+
+        .calendar-shell-pro .fc-col-header-cell::after {
+          content: "";
+          position: absolute;
+          left: 14%;
+          right: 14%;
+          bottom: 0;
+          height: 2px;
+          border-radius: 999px;
+          background: linear-gradient(90deg, transparent, rgba(34,197,94,0.64), transparent);
+          opacity: 0.55;
+        }
+
+        .calendar-shell-pro .fc-col-header-cell-cushion {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          min-height: 52px;
+          padding: 0.85rem 0.75rem !important;
+          color: rgba(248,250,252,0.92) !important;
+          font-size: clamp(0.9rem, 1.4vw, 1.05rem);
+          font-weight: 900;
+          letter-spacing: -0.02em;
+          text-decoration: none !important;
+          text-transform: lowercase;
+          text-shadow: 0 1px 16px rgba(0,0,0,0.34);
+        }
+
+        .calendar-shell-pro .fc-day-today .fc-col-header-cell-cushion,
+        .calendar-shell-pro .fc-col-header-cell.fc-day-today .fc-col-header-cell-cushion {
+          color: #bbf7d0 !important;
+          text-shadow: 0 0 22px rgba(34,197,94,0.48);
         }
 
         .calendar-shell-pro .fc-daygrid-day,
         .calendar-shell-pro .fc-timegrid-slot,
         .calendar-shell-pro .fc-list-day-cushion,
         .calendar-shell-pro .fc-list-table td {
-          background: rgba(2,6,23,0.28) !important;
+          background: rgba(2,6,23,0.30) !important;
+        }
+
+        .calendar-shell-pro .fc-daygrid-day-frame {
+          padding: 0.18rem;
         }
 
         .calendar-shell-pro .fc-day-today {
-          background: rgba(34,197,94,0.10) !important;
+          background:
+            linear-gradient(180deg, rgba(34,197,94,0.13), rgba(20,184,166,0.06)) !important;
+        }
+
+        .calendar-shell-pro .fc-daygrid-day-number {
+          color: rgba(226,232,240,0.86) !important;
+          font-weight: 900;
+          padding: 0.55rem 0.65rem !important;
+          text-decoration: none !important;
         }
 
         .calendar-shell-pro .fc-event {
-          border: 0 !important;
-          border-radius: 10px !important;
-          padding: 0.08rem 0.24rem !important;
+          border: 1px solid rgba(255,255,255,0.12) !important;
+          border-radius: 999px !important;
+          padding: 0 !important;
           cursor: pointer;
-          box-shadow: 0 10px 24px rgba(0,0,0,0.18);
+          overflow: hidden;
+          box-shadow:
+            0 10px 26px rgba(0,0,0,0.26),
+            inset 0 1px 0 rgba(255,255,255,0.14);
           transform: none !important;
-          transition: border-color .16s ease, background .16s ease, box-shadow .16s ease !important;
+          transition: transform .16s ease, filter .16s ease, border-color .16s ease, box-shadow .16s ease !important;
         }
 
         .calendar-shell-pro .fc-event:hover {
-          transform: none !important;
-          box-shadow: 0 10px 24px rgba(0,0,0,0.18);
+          transform: translateY(-1px) !important;
+          filter: brightness(1.08) saturate(1.06);
+          border-color: rgba(255,255,255,0.22) !important;
+          box-shadow:
+            0 14px 32px rgba(0,0,0,0.32),
+            0 0 24px rgba(34,197,94,0.12),
+            inset 0 1px 0 rgba(255,255,255,0.18) !important;
+        }
+
+        .calendar-shell-pro .fc-daygrid-event,
+        .calendar-shell-pro .fc-timegrid-event {
+          min-height: 31px;
+          margin: 0.16rem 0.35rem;
+        }
+
+        .calendar-shell-pro .fc-daygrid-block-event .fc-event-main,
+        .calendar-shell-pro .fc-timegrid-event .fc-event-main {
+          display: flex;
+          align-items: center;
+          min-width: 0;
+          height: 100%;
+          color: #f8fafc !important;
         }
 
         .calendar-loading-layer {
@@ -1791,47 +1872,108 @@ export default function TareasPage({
         }
 
         .calendar-event-task {
-          background: linear-gradient(135deg, rgba(59,130,246,0.88), rgba(14,165,233,0.72)) !important;
+          background:
+            linear-gradient(90deg, rgba(37,99,235,0.96), rgba(14,165,233,0.78)) !important;
         }
 
         .calendar-event-progress {
-          background: linear-gradient(135deg, rgba(245,158,11,0.9), rgba(217,119,6,0.7)) !important;
+          background:
+            linear-gradient(90deg, rgba(217,119,6,0.98), rgba(245,158,11,0.80)) !important;
         }
 
         .calendar-event-done {
-          background: linear-gradient(135deg, rgba(34,197,94,0.85), rgba(16,185,129,0.72)) !important;
+          background:
+            linear-gradient(90deg, rgba(21,128,61,0.96), rgba(16,185,129,0.78)) !important;
         }
 
         .calendar-event-high {
-          background: linear-gradient(135deg, rgba(239,68,68,0.92), rgba(244,63,94,0.74)) !important;
+          background:
+            linear-gradient(90deg, rgba(220,38,38,0.96), rgba(244,63,94,0.80)) !important;
         }
 
         .calendar-event-process-readonly {
-          background: linear-gradient(135deg, rgba(168,85,247,0.88), rgba(99,102,241,0.68)) !important;
+          background:
+            linear-gradient(90deg, rgba(126,34,206,0.98), rgba(79,70,229,0.82)) !important;
           cursor: help !important;
         }
 
         .calendar-event-inner-pro {
+          position: relative;
           display: flex;
           align-items: center;
-          gap: 0.35rem;
+          gap: 0.52rem;
+          width: 100%;
           min-width: 0;
-          font-size: 0.78rem;
-          font-weight: 800;
+          min-height: 31px;
+          padding: 0.32rem 0.72rem 0.32rem 0.48rem;
+          font-size: clamp(0.76rem, 1vw, 0.86rem);
+          font-weight: 900;
+          line-height: 1.1;
+          letter-spacing: -0.015em;
+        }
+
+        .calendar-event-inner-pro::after {
+          content: "";
+          position: absolute;
+          inset: 0;
+          background:
+            linear-gradient(180deg, rgba(255,255,255,0.18), transparent 48%),
+            radial-gradient(circle at 0% 50%, rgba(255,255,255,0.14), transparent 38%);
+          opacity: 0.75;
+          pointer-events: none;
+        }
+
+        .calendar-event-kind {
+          position: relative;
+          z-index: 1;
+          width: 20px;
+          height: 20px;
+          border-radius: 999px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          flex: 0 0 auto;
+          color: #f8fafc;
+          font-size: 0.72rem;
+          font-weight: 1000;
+          background: rgba(15,23,42,0.28);
+          border: 1px solid rgba(255,255,255,0.18);
+          box-shadow: inset 0 1px 0 rgba(255,255,255,0.16), 0 6px 18px rgba(0,0,0,0.24);
         }
 
         .calendar-event-dot {
-          width: 6px;
-          height: 6px;
+          position: relative;
+          z-index: 1;
+          width: 7px;
+          height: 7px;
           border-radius: 999px;
-          background: rgba(255,255,255,0.86);
+          background: rgba(255,255,255,0.92);
+          box-shadow: 0 0 12px rgba(255,255,255,0.34);
           flex: 0 0 auto;
         }
 
         .calendar-event-title-pro {
+          position: relative;
+          z-index: 1;
           overflow: hidden;
           text-overflow: ellipsis;
           white-space: nowrap;
+          text-shadow: 0 1px 12px rgba(0,0,0,0.42);
+        }
+
+        .calendar-event-stage-pro {
+          position: relative;
+          z-index: 1;
+          flex: 0 0 auto;
+          opacity: 0.78;
+          font-weight: 800;
+          white-space: nowrap;
+        }
+
+        .calendar-event-stage-pro::before {
+          content: "•";
+          margin-right: 0.45rem;
+          opacity: 0.72;
         }
 
         .master-lower-grid {
@@ -2279,13 +2421,24 @@ export default function TareasPage({
               eventClick={handleCalendarEventClick}
               eventContent={(arg) => {
                 const itemType = arg?.event?.extendedProps?.itemType;
+                const cleanTitle = arg.event.title.replace(/^Proceso · /, "");
+                const titleParts = cleanTitle.split(" · ");
+                const mainTitle = titleParts[0] || cleanTitle;
+                const stageTitle = titleParts.slice(1).join(" · ");
+
                 return (
-                  <div className="calendar-event-inner-pro">
-                    <span className="calendar-event-dot" />
-                    <span className="calendar-event-title-pro">
-                      {itemType === "process" ? "Proceso · " : ""}
-                      {arg.event.title.replace(/^Proceso · /, "")}
+                  <div className="calendar-event-inner-pro" title={cleanTitle}>
+                    <span className="calendar-event-kind">
+                      {itemType === "process" ? "PL" : "T"}
                     </span>
+                    <span className="calendar-event-title-pro">
+                      {mainTitle}
+                    </span>
+                    {stageTitle && (
+                      <span className="calendar-event-stage-pro">
+                        {stageTitle}
+                      </span>
+                    )}
                   </div>
                 );
               }}
