@@ -154,6 +154,19 @@ function formatDayHeaderName(date) {
   }
 }
 
+function formatWeekHeaderDate(date) {
+  if (!date) return "";
+
+  try {
+    return date.toLocaleDateString("es-CR", {
+      day: "numeric",
+      month: "numeric",
+    });
+  } catch {
+    return "";
+  }
+}
+
 const PROCESS_START_DATE_KEYS = [
   "start",
   "startDate",
@@ -1923,6 +1936,19 @@ export default function TareasPage({
           text-shadow: 0 0 22px rgba(34,197,94,0.48);
         }
 
+        .calendar-shell-pro .fc-timeGridWeek-view .fc-col-header-cell.fc-day-today,
+        .calendar-shell-pro .fc-timeGridWeek-view .fc-day-today,
+        .calendar-shell-pro .fc-timeGridWeek-view .fc-scrollgrid-sync-inner {
+          background-color: transparent !important;
+        }
+
+        .calendar-shell-pro .fc-timeGridWeek-view .fc-col-header-cell.fc-day-today {
+          background:
+            radial-gradient(circle at 50% 0%, rgba(34,197,94,0.28), transparent 62%),
+            linear-gradient(180deg, rgba(15,23,42,0.98), rgba(2,6,23,0.94)) !important;
+          box-shadow: inset 0 -1px 0 rgba(34,197,94,0.38);
+        }
+
         .calendar-shell-pro .fc-timeGridDay-view .fc-col-header-cell,
         .calendar-shell-pro .fc-timeGridDay-view .fc-timegrid-axis,
         .calendar-shell-pro .fc-timeGridDay-view .fc-timegrid-axis-frame {
@@ -1958,6 +1984,43 @@ export default function TareasPage({
           font-size: clamp(0.78rem, 1vw, 0.88rem);
           font-weight: 800;
           letter-spacing: 0.01em;
+        }
+
+        .calendar-week-header-pro {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 0.38rem;
+          line-height: 1;
+          text-transform: none;
+        }
+
+        .calendar-week-header-name {
+          color: #f8fafc;
+          font-weight: 950;
+          letter-spacing: -0.03em;
+          text-transform: capitalize;
+        }
+
+        .calendar-week-header-date {
+          color: rgba(187,247,208,0.88);
+          font-size: 0.92em;
+          font-weight: 850;
+          letter-spacing: -0.01em;
+        }
+
+        .calendar-week-header-pro.is-today {
+          padding: 0.62rem 0.95rem;
+          border: 1px solid rgba(34,197,94,0.30);
+          border-radius: 999px;
+          background: rgba(34,197,94,0.10);
+          box-shadow: 0 0 26px rgba(34,197,94,0.16);
+        }
+
+        .calendar-week-header-pro.is-today .calendar-week-header-name,
+        .calendar-week-header-pro.is-today .calendar-week-header-date {
+          color: #bbf7d0;
+          text-shadow: 0 0 18px rgba(34,197,94,0.38);
         }
 
         .calendar-shell-pro .fc-daygrid-day,
@@ -2687,18 +2750,35 @@ export default function TareasPage({
               allDaySlot={true}
               allDayText="Todo el día"
               dayHeaderContent={(arg) => {
-                if (arg.view.type !== "timeGridDay") return arg.text;
+                if (arg.view.type === "timeGridDay") {
+                  return (
+                    <div className="calendar-day-header-pro">
+                      <span className="calendar-day-header-name">
+                        {formatDayHeaderName(arg.date)}
+                      </span>
+                      <span className="calendar-day-header-date">
+                        {formatDayHeaderDate(arg.date)}
+                      </span>
+                    </div>
+                  );
+                }
 
-                return (
-                  <div className="calendar-day-header-pro">
-                    <span className="calendar-day-header-name">
-                      {formatDayHeaderName(arg.date)}
-                    </span>
-                    <span className="calendar-day-header-date">
-                      {formatDayHeaderDate(arg.date)}
-                    </span>
-                  </div>
-                );
+                if (arg.view.type === "timeGridWeek") {
+                  return (
+                    <div
+                      className={`calendar-week-header-pro${arg.isToday ? " is-today" : ""}`}
+                    >
+                      <span className="calendar-week-header-name">
+                        {formatDayHeaderName(arg.date)}
+                      </span>
+                      <span className="calendar-week-header-date">
+                        {formatWeekHeaderDate(arg.date)}
+                      </span>
+                    </div>
+                  );
+                }
+
+                return arg.text;
               }}
               eventDisplay="block"
               displayEventTime={false}
