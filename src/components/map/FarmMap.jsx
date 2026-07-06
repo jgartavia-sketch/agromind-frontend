@@ -3668,6 +3668,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
                   overflowY: "auto",
                   overflowX: "hidden",
                   overscrollBehavior: "contain",
+                  WebkitOverflowScrolling: "touch",
                   scrollbarGutter: "stable",
                   padding: "14px",
                   boxSizing: "border-box",
