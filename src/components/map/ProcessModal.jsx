@@ -389,13 +389,13 @@ export default function ProcessModal({
         marginBottom: 0,
         padding: "18px",
         width: "100%",
-        height: "100%",
+        maxWidth: "100%",
         minWidth: 0,
-        minHeight: 0,
+        minHeight: "100%",
         boxSizing: "border-box",
         display: "flex",
         flexDirection: "column",
-        overflow: "hidden",
+        overflow: "visible",
         borderRadius: "24px",
         border: "1px solid rgba(34,197,94,0.24)",
         background:
@@ -624,13 +624,11 @@ export default function ProcessModal({
         }
 
         #zone-processes-section .pl-scroll-area {
-          flex: 1;
+          flex: 0 0 auto;
           min-height: 0;
           max-height: none;
-          overflow-y: auto;
-          overflow-x: hidden;
-          padding-right: 8px;
-          scrollbar-gutter: stable;
+          overflow: visible;
+          padding-right: 0;
         }
 
         #zone-processes-section .pl-expanded-area {
@@ -660,6 +658,19 @@ export default function ProcessModal({
         }
 
 
+        @media (max-width: 900px) {
+          #zone-processes-section > div:first-of-type {
+            grid-template-columns: 1fr !important;
+          }
+
+          #zone-processes-section > div:first-of-type .primary-btn {
+            justify-self: start !important;
+          }
+
+          #zone-processes-section .pl-process-toggle > div {
+            grid-template-columns: 1fr !important;
+          }
+        }
 
         @media (max-width: 980px) {
           #zone-processes-section {
@@ -915,19 +926,16 @@ export default function ProcessModal({
       `}</style>
       <div
         style={{
-          display: "flex",
+          display: "grid",
+          gridTemplateColumns: "minmax(0, 1fr) auto",
           alignItems: "center",
-          justifyContent: "space-between",
           gap: "12px",
-          flexWrap: "wrap",
-          width: "100%",
-          maxWidth: "100%",
-          minWidth: 0,
-          boxSizing: "border-box",
           marginBottom: "14px",
+          width: "100%",
+          minWidth: 0,
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: "12px", minWidth: 0, flex: "1 1 320px", maxWidth: "100%" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "12px", minWidth: 0, maxWidth: "100%" }}>
           <div
             style={{
               width: "42px",
@@ -941,12 +949,11 @@ export default function ProcessModal({
               color: "#bbf7d0",
               fontWeight: 900,
               boxShadow: "0 12px 28px rgba(34,197,94,0.08)",
-              flex: "0 0 42px",
             }}
           >
             PL
           </div>
-          <div style={{ minWidth: 0, flex: "1 1 auto", maxWidth: "100%", overflow: "hidden" }}>
+          <div style={{ minWidth: 0 }}>
             <h4 style={{ margin: 0, color: "#f8fafc", fontSize: "1.08rem", letterSpacing: "-0.02em" }}>
               Process Lab
             </h4>
@@ -973,7 +980,7 @@ export default function ProcessModal({
               setProcessesError("");
             }}
             disabled={processActionLoading}
-            style={{ flex: "0 0 auto", maxWidth: "100%", whiteSpace: "nowrap" }}
+            style={{ justifySelf: "end", maxWidth: "100%", whiteSpace: "nowrap", flexShrink: 0 }}
           >
             {showCreateProcessForm ? "Cerrar laboratorio" : "Nuevo proceso"}
           </button>
@@ -1341,7 +1348,7 @@ export default function ProcessModal({
                     <div
                       style={{
                         display: "grid",
-                        gridTemplateColumns: "minmax(0, 1fr) auto",
+                        gridTemplateColumns: "minmax(0, 1fr) minmax(150px, 220px)",
                         gap: "14px",
                         alignItems: "center",
                       }}
@@ -1414,7 +1421,7 @@ export default function ProcessModal({
                         </div>
                       </div>
 
-                      <div style={{ minWidth: "170px" }}>
+                      <div style={{ minWidth: 0, width: "100%" }}>
                         <div
                           style={{
                             display: "flex",

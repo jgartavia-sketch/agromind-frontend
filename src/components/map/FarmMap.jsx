@@ -3602,9 +3602,10 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
             className="agromind-process-modal"
             style={{
               position: "relative",
-              width: "min(1180px, calc(100vw - 32px))",
-              height: "min(88vh, 860px)",
-              maxWidth: "calc(100vw - 32px)",
+              width: "min(1280px, calc(100vw - 48px))",
+              height: "min(90vh, 900px)",
+              maxWidth: "calc(100vw - 48px)",
+              maxHeight: "calc(100vh - 48px)",
               minWidth: 0,
               background: "rgba(2,6,23,0.96)",
               border: "1px solid rgba(148,163,184,0.22)",
@@ -3657,6 +3658,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
                 width: "100%",
                 overflowY: "auto",
                 overflowX: "hidden",
+                overscrollBehavior: "contain",
                 scrollbarGutter: "stable",
                 padding: "14px",
                 boxSizing: "border-box",
