@@ -3579,165 +3579,165 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
         typeof document !== "undefined" &&
         createPortal(
           <div
-          role="dialog"
-          aria-modal="true"
-          style={{
-            position: "fixed",
-            inset: 0,
-            zIndex: 2147483647,
-            display: "block",
-            padding: 0,
-            margin: 0,
-            boxSizing: "border-box",
-            overflow: "hidden",
-          }}
-        >
-          <div
-            onClick={closeComponentsModal}
-            style={{
-              position: "absolute",
-              inset: 0,
-              background: "rgba(0,0,0,0.55)",
-              backdropFilter: "blur(2px)",
-            }}
-          />
-
-          <div
-            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            className="agromind-process-modal-backdrop"
             style={{
               position: "fixed",
-              top: "clamp(12px, 3vh, 24px)",
-              right: "clamp(12px, 3vw, 28px)",
-              bottom: "clamp(12px, 3vh, 24px)",
-              left: "clamp(12px, 3vw, 28px)",
-              width: "auto",
-              height: "auto",
-              maxWidth: "none",
-              maxHeight: "none",
-              minWidth: 0,
-              minHeight: 0,
-              background: "rgba(2,6,23,0.98)",
-              border: "1px solid rgba(148,163,184,0.22)",
-              borderRadius: "18px",
-              boxShadow: "0 18px 60px rgba(0,0,0,0.55)",
-              overflow: "hidden",
-              display: "flex",
-              flexDirection: "column",
+              inset: 0,
+              zIndex: 2147483647,
+              width: "100vw",
+              height: "100dvh",
+              margin: 0,
+              padding: "18px",
               boxSizing: "border-box",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              background: "rgba(2,6,23,0.72)",
+              backdropFilter: "blur(8px)",
+              overflow: "hidden",
             }}
+            onClick={closeComponentsModal}
           >
             <div
+              onClick={(e) => e.stopPropagation()}
+              className="agromind-process-modal"
               style={{
-                padding: "14px 14px",
-                borderBottom: "1px solid rgba(148,163,184,0.18)",
+                position: "relative",
+                width: "min(1280px, 100%)",
+                height: "min(860px, calc(100dvh - 36px))",
+                maxWidth: "100%",
+                maxHeight: "calc(100dvh - 36px)",
+                minWidth: 0,
+                minHeight: 0,
+                background: "rgba(2,6,23,0.98)",
+                border: "1px solid rgba(148,163,184,0.22)",
+                borderRadius: "18px",
+                boxShadow: "0 28px 90px rgba(0,0,0,0.68)",
+                overflow: "hidden",
                 display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: "10px",
+                flexDirection: "column",
+                boxSizing: "border-box",
               }}
             >
               <div
                 style={{
+                  flex: "0 0 auto",
+                  padding: "14px 16px",
+                  borderBottom: "1px solid rgba(148,163,184,0.18)",
                   display: "flex",
                   alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: "10px",
+                  minWidth: 0,
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "10px",
+                    flexWrap: "wrap",
+                    minWidth: 0,
+                  }}
+                >
+                  <h4 style={{ margin: 0, color: "#e5e7eb" }}>Procesos de la zona</h4>
+                  <span className="zone-tag">{modalZone.name}</span>
+                </div>
+
+                <button
+                  type="button"
+                  className="secondary-btn"
+                  onClick={closeComponentsModal}
+                  style={{ flex: "0 0 auto", padding: "0.35rem 0.65rem" }}
+                  title="Cerrar"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div
+                className="process-modal-body"
+                style={{
+                  flex: "1 1 auto",
+                  minHeight: 0,
+                  minWidth: 0,
+                  width: "100%",
+                  maxWidth: "100%",
+                  overflowY: "auto",
+                  overflowX: "hidden",
+                  overscrollBehavior: "contain",
+                  scrollbarGutter: "stable",
+                  padding: "14px",
+                  boxSizing: "border-box",
+                  display: "flex",
+                  flexDirection: "column",
+                }}
+              >
+                <ProcessModal
+                  componentsModalView={componentsModalView}
+                  modalZone={modalZone}
+                  modalZoneProcesses={modalZoneProcesses}
+                  processesLoading={processesLoading}
+                  processesError={processesError}
+                  processActionLoading={processActionLoading}
+                  showCreateProcessForm={showCreateProcessForm}
+                  setShowCreateProcessForm={setShowCreateProcessForm}
+                  newProcessName={newProcessName}
+                  setNewProcessName={setNewProcessName}
+                  newProcessDescription={newProcessDescription}
+                  setNewProcessDescription={setNewProcessDescription}
+                  newProcessOwner={newProcessOwner}
+                  setNewProcessOwner={setNewProcessOwner}
+                  newProcessPriority={newProcessPriority}
+                  setNewProcessPriority={setNewProcessPriority}
+                  newProcessStartDate={newProcessStartDate}
+                  setNewProcessStartDate={setNewProcessStartDate}
+                  newProcessTargetDate={newProcessTargetDate}
+                  setNewProcessTargetDate={setNewProcessTargetDate}
+                  createProcessForZone={createProcessForZone}
+                  updateProcessStatus={updateProcessStatus}
+                  deleteProcess={deleteProcess}
+                  openStepFormByProcess={openStepFormByProcess}
+                  setOpenStepFormByProcess={setOpenStepFormByProcess}
+                  newStepByProcess={newStepByProcess}
+                  updateStepDraftField={updateStepDraftField}
+                  createStepForProcess={createStepForProcess}
+                  toggleStepCompletion={toggleStepCompletion}
+                  PROCESS_PRIORITIES={PROCESS_PRIORITIES}
+                  getEmptyStepDraft={getEmptyStepDraft}
+                  getProgressFromSteps={getProgressFromSteps}
+                  getPriorityPillStyle={getPriorityPillStyle}
+                  getStatusPillStyle={getStatusPillStyle}
+                  addDaysToYYYYMMDD={addDaysToYYYYMMDD}
+                  formatProcessDate={formatProcessDate}
+                  getDurationDays={getDurationDays}
+                  nowIso={nowIso}
+                />
+              </div>
+
+              <div
+                style={{
+                  flex: "0 0 auto",
+                  padding: "12px 16px",
+                  borderTop: "1px solid rgba(148,163,184,0.18)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "flex-end",
                   gap: "10px",
                   flexWrap: "wrap",
                 }}
               >
-                <h4 style={{ margin: 0, color: "#e5e7eb" }}>Procesos de la zona</h4>
-                <span className="zone-tag">{modalZone.name}</span>
+                <button
+                  type="button"
+                  className="secondary-btn"
+                  onClick={closeComponentsModal}
+                >
+                  Cerrar
+                </button>
               </div>
-
-              <button
-                type="button"
-                className="secondary-btn"
-                onClick={closeComponentsModal}
-                style={{ padding: "0.35rem 0.65rem" }}
-                title="Cerrar"
-              >
-                ✕
-              </button>
             </div>
-
-            <div
-              className="process-modal-body"
-              style={{
-                flex: 1,
-                minHeight: 0,
-                minWidth: 0,
-                width: "100%",
-                overflowY: "auto",
-                overflowX: "hidden",
-                overscrollBehavior: "contain",
-                scrollbarGutter: "stable",
-                padding: "14px",
-                boxSizing: "border-box",
-                display: "flex",
-                flexDirection: "column",
-              }}
-            >
-              <ProcessModal
-                componentsModalView={componentsModalView}
-                modalZone={modalZone}
-                modalZoneProcesses={modalZoneProcesses}
-                processesLoading={processesLoading}
-                processesError={processesError}
-                processActionLoading={processActionLoading}
-                showCreateProcessForm={showCreateProcessForm}
-                setShowCreateProcessForm={setShowCreateProcessForm}
-                newProcessName={newProcessName}
-                setNewProcessName={setNewProcessName}
-                newProcessDescription={newProcessDescription}
-                setNewProcessDescription={setNewProcessDescription}
-                newProcessOwner={newProcessOwner}
-                setNewProcessOwner={setNewProcessOwner}
-                newProcessPriority={newProcessPriority}
-                setNewProcessPriority={setNewProcessPriority}
-                newProcessStartDate={newProcessStartDate}
-                setNewProcessStartDate={setNewProcessStartDate}
-                newProcessTargetDate={newProcessTargetDate}
-                setNewProcessTargetDate={setNewProcessTargetDate}
-                createProcessForZone={createProcessForZone}
-                updateProcessStatus={updateProcessStatus}
-                deleteProcess={deleteProcess}
-                openStepFormByProcess={openStepFormByProcess}
-                setOpenStepFormByProcess={setOpenStepFormByProcess}
-                newStepByProcess={newStepByProcess}
-                updateStepDraftField={updateStepDraftField}
-                createStepForProcess={createStepForProcess}
-                toggleStepCompletion={toggleStepCompletion}
-                PROCESS_PRIORITIES={PROCESS_PRIORITIES}
-                getEmptyStepDraft={getEmptyStepDraft}
-                getProgressFromSteps={getProgressFromSteps}
-                getPriorityPillStyle={getPriorityPillStyle}
-                getStatusPillStyle={getStatusPillStyle}
-                addDaysToYYYYMMDD={addDaysToYYYYMMDD}
-                formatProcessDate={formatProcessDate}
-                getDurationDays={getDurationDays}
-                nowIso={nowIso}
-              />
-            </div>
-
-            <div
-              style={{
-                padding: "12px 14px",
-                borderTop: "1px solid rgba(148,163,184,0.18)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "flex-end",
-                gap: "10px",
-                flexWrap: "wrap",
-              }}
-            >
-              <button
-                type="button"
-                className="secondary-btn"
-                onClick={closeComponentsModal}
-              >
-                Cerrar
-              </button>
-            </div>
-          </div>
           </div>,
           document.body
         )}
