@@ -128,6 +128,32 @@ function formatCalendarDate(dateStr) {
   }
 }
 
+function formatDayHeaderDate(date) {
+  if (!date) return "";
+
+  try {
+    return date.toLocaleDateString("es-CR", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
+  } catch {
+    return "";
+  }
+}
+
+function formatDayHeaderName(date) {
+  if (!date) return "";
+
+  try {
+    return date.toLocaleDateString("es-CR", {
+      weekday: "long",
+    });
+  } catch {
+    return "";
+  }
+}
+
 const PROCESS_START_DATE_KEYS = [
   "start",
   "startDate",
@@ -1897,6 +1923,43 @@ export default function TareasPage({
           text-shadow: 0 0 22px rgba(34,197,94,0.48);
         }
 
+        .calendar-shell-pro .fc-timeGridDay-view .fc-col-header-cell,
+        .calendar-shell-pro .fc-timeGridDay-view .fc-timegrid-axis,
+        .calendar-shell-pro .fc-timeGridDay-view .fc-timegrid-axis-frame {
+          background:
+            linear-gradient(180deg, rgba(15,23,42,0.98), rgba(2,6,23,0.94)) !important;
+        }
+
+        .calendar-shell-pro .fc-timeGridDay-view .fc-col-header-cell-cushion {
+          min-height: 54px;
+          padding: 0.62rem 0.85rem !important;
+        }
+
+        .calendar-day-header-pro {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 0.16rem;
+          line-height: 1.05;
+          text-transform: none;
+        }
+
+        .calendar-day-header-name {
+          color: #f8fafc;
+          font-size: clamp(0.95rem, 1.4vw, 1.12rem);
+          font-weight: 950;
+          letter-spacing: -0.03em;
+          text-transform: capitalize;
+        }
+
+        .calendar-day-header-date {
+          color: rgba(187,247,208,0.88);
+          font-size: clamp(0.78rem, 1vw, 0.88rem);
+          font-weight: 800;
+          letter-spacing: 0.01em;
+        }
+
         .calendar-shell-pro .fc-daygrid-day,
         .calendar-shell-pro .fc-timegrid-slot,
         .calendar-shell-pro .fc-list-day-cushion,
@@ -2623,6 +2686,20 @@ export default function TareasPage({
               stickyHeaderDates={true}
               allDaySlot={true}
               allDayText="Todo el día"
+              dayHeaderContent={(arg) => {
+                if (arg.view.type !== "timeGridDay") return arg.text;
+
+                return (
+                  <div className="calendar-day-header-pro">
+                    <span className="calendar-day-header-name">
+                      {formatDayHeaderName(arg.date)}
+                    </span>
+                    <span className="calendar-day-header-date">
+                      {formatDayHeaderDate(arg.date)}
+                    </span>
+                  </div>
+                );
+              }}
               eventDisplay="block"
               displayEventTime={false}
               events={calendarEvents}
