@@ -292,34 +292,11 @@ export default function FinanzasPage({ token: tokenProp } = {}) {
     [movements]
   );
 
-  const rowsToRender =
-    movements.length > 0
-      ? movements
-      : [
-          {
-            id: "placeholder-1",
-            date: "—",
-            concept: "Ej: Venta de productos",
-            category: "—",
-            type: "Ingreso",
-            amount: 0,
-            note: "—",
-            invoiceNumber: "—",
-          },
-          {
-            id: "placeholder-2",
-            date: "—",
-            concept: "Ej: Compra de insumos",
-            category: "—",
-            type: "Gasto",
-            amount: 0,
-            note: "—",
-            invoiceNumber: "—",
-          },
-        ];
+  const rowsToRender = movements;
 
   const handleOpenNewMovement = () => {
     setEditingMovement(null);
+    window.scrollTo({ top: 0, behavior: "smooth" });
     setShowModal(true);
   };
 

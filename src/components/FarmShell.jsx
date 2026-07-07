@@ -366,6 +366,14 @@ export default function FarmShell({ user, onLogout }) {
   }, [fetchZonesFromMap]);
 
   useEffect(() => {
+    window.scrollTo({
+      top: 0,
+      left: 0,
+      behavior: "auto",
+    });
+  }, [activeTab]);
+
+  useEffect(() => {
     function onMapRefresh(e) {
       const targetFarmId = e?.detail?.farmId ? String(e.detail.farmId) : "";
       if (targetFarmId && farmId && String(farmId) !== targetFarmId) return;
