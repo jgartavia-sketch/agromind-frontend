@@ -3555,23 +3555,28 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
         </div>
       )}
 
-      {componentsModalOpen && modalZone && componentsModalView === "components" && (
-        <ComponentModal
-          modalZone={modalZone}
-          componentsDraft={componentsDraft}
-          COMPONENT_TYPES={COMPONENT_TYPES}
-          editingNotesMap={editingNotesMap}
-          closeComponentsModal={closeComponentsModal}
-          draftAddComponent={draftAddComponent}
-          draftDeleteComponent={draftDeleteComponent}
-          draftUpdate={draftUpdate}
-          toggleEditNote={toggleEditNote}
-          saveComponentsModal={saveComponentsModal}
-          handleDeleteFeature={handleDeleteFeature}
-          getComponentIcon={getComponentIcon}
-          getComponentDisplayName={getComponentDisplayName}
-        />
-      )}
+      {componentsModalOpen &&
+        modalZone &&
+        componentsModalView === "components" &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <ComponentModal
+            modalZone={modalZone}
+            componentsDraft={componentsDraft}
+            COMPONENT_TYPES={COMPONENT_TYPES}
+            editingNotesMap={editingNotesMap}
+            closeComponentsModal={closeComponentsModal}
+            draftAddComponent={draftAddComponent}
+            draftDeleteComponent={draftDeleteComponent}
+            draftUpdate={draftUpdate}
+            toggleEditNote={toggleEditNote}
+            saveComponentsModal={saveComponentsModal}
+            handleDeleteFeature={handleDeleteFeature}
+            getComponentIcon={getComponentIcon}
+            getComponentDisplayName={getComponentDisplayName}
+          />,
+          document.body
+        )}
 
       {componentsModalOpen &&
         modalZone &&
