@@ -59,6 +59,8 @@ const GENERAL_ZONE_OPTION = "Zona general";
 const EMPTY_FORM = {
   title: "",
   zone: GENERAL_ZONE_OPTION,
+  zoneId: "",
+  zoneType: "general",
   type: "Mantenimiento",
   priority: "Media",
   start: "",
@@ -605,6 +607,132 @@ function extractMapZoneNames(payload) {
     });
 }
 
+function normalizeMapElement(item, fallbackType = "zone") {
+  if (!item) return null;
+
+  if (typeof item === "string") {
+    const name = item.trim();
+    if (!name) return null;
+    return {
+      id: "",
+      name,
+      zoneType: fallbackType || "legacy",
+      raw: item,
+    };
+  }
+
+  if (typeof item !== "object") return null;
+
+  const data = item.data && typeof item.data === "object" ? item.data : {};
+  const id = String(item.id || item._id || item.zoneId || item.elementId || "").trim();
+  const name = String(
+    item.name ||
+      item.title ||
+      item.label ||
+      item.zoneName ||
+      item.zone ||
+      item.area ||
+      data.name ||
+      ""
+  ).trim();
+
+  if (!name) return null;
+
+  const typeText = String(
+    item.kind ||
+      item.zoneType ||
+      item.elementType ||
+      item.type ||
+      item.mapType ||
+      data.type ||
+      fallbackType ||
+      "zone"
+  ).toLowerCase();
+
+  let zoneType = fallbackType || "zone";
+  if (typeText.includes("point") || typeText.includes("punto")) zoneType = "point";
+  else if (typeText.includes("line") || typeText.includes("línea") || typeText.includes("linea")) zoneType = "line";
+  else if (typeText.includes("polygon") || typeText.includes("zone") || typeText.includes("zona")) zoneType = "zone";
+
+  return {
+    id,
+    name,
+    zoneType,
+    raw: item,
+  };
+}
+
+function extractMapElements(payload) {
+  const output = [];
+
+  const pushList = (list, type) => {
+    if (!Array.isArray(list)) return;
+    list.forEach((item) => {
+      const normalized = normalizeMapElement(item, type);
+      if (normalized) output.push(normalized);
+    });
+  };
+
+  pushList(payload?.zones, "zone");
+  pushList(payload?.mapZones, "zone");
+  pushList(payload?.polygons, "zone");
+  pushList(payload?.lines, "line");
+  pushList(payload?.mapLines, "line");
+  pushList(payload?.points, "point");
+  pushList(payload?.mapPoints, "point");
+
+  if (Array.isArray(payload)) {
+    payload.forEach((item) => {
+      const normalized = normalizeMapElement(item, "zone");
+      if (normalized) output.push(normalized);
+    });
+  }
+
+  if (output.length === 0) {
+    extractMapZoneNames(payload).forEach((name) => {
+      const normalized = normalizeMapElement(name, "legacy");
+      if (normalized) output.push(normalized);
+    });
+  }
+
+  const seen = new Set();
+  return output.filter((item) => {
+    const key = item.id ? `id:${item.id}` : `name:${normalizeZoneName(item.name)}`;
+    if (!item.name || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function getMapElementLabel(element) {
+  if (!element) return "";
+  const name = String(element.name || "").trim();
+  if (!name) return "";
+
+  if (element.zoneType === "line") return `Línea · ${name}`;
+  if (element.zoneType === "point") return `Punto · ${name}`;
+  if (element.zoneType === "legacy") return name;
+  return name;
+}
+
+function findMapElementByTask(task, elements = []) {
+  if (!task) return null;
+  const taskZoneId = String(task.zoneId || "").trim();
+  const taskZoneName = normalizeZoneName(task.zone);
+
+  if (taskZoneId) {
+    const byId = elements.find((element) => String(element.id || "") === taskZoneId);
+    if (byId) return byId;
+  }
+
+  if (taskZoneName) {
+    const byName = elements.find((element) => normalizeZoneName(element.name) === taskZoneName);
+    if (byName) return byName;
+  }
+
+  return null;
+}
+
 function readStoredMapZones(farmId) {
   if (typeof window === "undefined" || !window.localStorage) return [];
 
@@ -645,11 +773,11 @@ function readStoredMapZones(farmId) {
 
   const seen = new Set();
   return candidates
-    .flatMap((candidate) => extractMapZoneNames(candidate))
-    .filter((name) => {
-      const clean = normalizeZoneName(name);
-      if (!clean || seen.has(clean)) return false;
-      seen.add(clean);
+    .flatMap((candidate) => extractMapElements(candidate))
+    .filter((element) => {
+      const key = element?.id ? `id:${element.id}` : `name:${normalizeZoneName(element?.name)}`;
+      if (!element?.name || seen.has(key)) return false;
+      seen.add(key);
       return true;
     });
 }
@@ -745,18 +873,23 @@ export default function TareasPage({
   const [selectedProcessNotice, setSelectedProcessNotice] = useState(null);
   const [pendingDeleteTaskId, setPendingDeleteTaskId] = useState(null);
 
-  const mapZones = useMemo(() => {
+  const mapElements = useMemo(() => {
     const seen = new Set();
-    return [...(Array.isArray(zonesFromMap) ? zonesFromMap : []), ...fetchedMapZones]
-      .map((zone) => String(zone || "").trim())
+    return [
+      ...extractMapElements(zonesFromMap),
+      ...(Array.isArray(fetchedMapZones) ? fetchedMapZones : []),
+    ]
+      .map((item) => normalizeMapElement(item, item?.zoneType || "zone"))
       .filter(Boolean)
-      .filter((zone) => {
-        const key = normalizeZoneName(zone);
-        if (!key || seen.has(key)) return false;
+      .filter((element) => {
+        const key = element.id ? `id:${element.id}` : `name:${normalizeZoneName(element.name)}`;
+        if (!element.name || seen.has(key)) return false;
         seen.add(key);
         return true;
       });
   }, [zonesFromMap, fetchedMapZones]);
+
+  const mapZones = useMemo(() => mapElements.map((element) => element.name), [mapElements]);
 
   const API_BASE =
     import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || "";
@@ -854,36 +987,34 @@ export default function TareasPage({
 
 
   const fetchMapZones = useCallback(async () => {
-    /*
-      Fuente única para el selector de zonas dentro de Tareas:
-      - zonas recibidas desde FarmShell/FarmMap;
-      - zonas persistidas en localStorage;
-      - datos disponibles en FarmContext.
-
-      IMPORTANTE:
-      TareasPage NO consulta endpoints de zonas ni rutas legacy del mapa.
-      No se hacen llamadas fallback a endpoints legacy del mapa.
-      Eso evita 404 repetidos y parpadeo del calendario.
-    */
     const collected = [
-      ...(Array.isArray(zonesFromMap) ? zonesFromMap : []),
-      ...extractMapZoneNames(contextActiveFarm),
+      ...extractMapElements(zonesFromMap),
+      ...extractMapElements(contextActiveFarm),
       ...readStoredMapZones(farmId),
     ];
 
+    if (farmId && token) {
+      try {
+        const mapPayload = await apiFetch(`/api/farms/${farmId}/map?ts=${Date.now()}`);
+        collected.push(...extractMapElements(mapPayload));
+      } catch {
+        // Si el mapa no responde, mantenemos las fuentes locales/props.
+      }
+    }
+
     const seen = new Set();
-    const cleanZones = collected
-      .map((zone) => String(zone || "").trim())
+    const cleanElements = collected
+      .map((item) => normalizeMapElement(item, item?.zoneType || "zone"))
       .filter(Boolean)
-      .filter((zone) => {
-        const key = normalizeZoneName(zone);
-        if (!key || seen.has(key)) return false;
+      .filter((element) => {
+        const key = element.id ? `id:${element.id}` : `name:${normalizeZoneName(element.name)}`;
+        if (!element.name || seen.has(key)) return false;
         seen.add(key);
         return true;
       });
 
-    setFetchedMapZones(cleanZones);
-  }, [farmId, zonesFromMap, contextActiveFarm]);
+    setFetchedMapZones(cleanElements);
+  }, [farmId, token, zonesFromMap, contextActiveFarm]);
 
   const fetchWeather = useCallback(async () => {
     setWeatherLoading(true);
@@ -1104,38 +1235,90 @@ export default function TareasPage({
   }, [tasks, calendarItems]);
 
   const zoneOptions = useMemo(() => {
-    const set = new Set();
-    tasks.forEach((t) => t.zone && set.add(t.zone));
-    mapZones.forEach((z) => z && set.add(z));
-    return Array.from(set);
-  }, [tasks, mapZones]);
+    const seen = new Set();
+    const options = [];
 
-  const taskZoneOptions = useMemo(() => {
-    const seen = new Set([normalizeZoneName(GENERAL_ZONE_OPTION)]);
-    const currentZone = String(formData.zone || "").trim();
-    const list = [GENERAL_ZONE_OPTION];
-
-    if (currentZone && normalizeZoneName(currentZone) !== normalizeZoneName(GENERAL_ZONE_OPTION)) {
-      list.push(currentZone);
-      seen.add(normalizeZoneName(currentZone));
-    }
-
-    mapZones.forEach((zone) => {
-      const clean = String(zone || "").trim();
-      const key = normalizeZoneName(clean);
-      if (!clean || seen.has(key)) return;
+    const pushOption = (value, label = value) => {
+      const cleanValue = String(value || "").trim();
+      const cleanLabel = String(label || cleanValue).trim();
+      const key = cleanValue || cleanLabel;
+      if (!key || seen.has(key)) return;
       seen.add(key);
-      list.push(clean);
+      options.push({ value: cleanValue || cleanLabel, label: cleanLabel || cleanValue });
+    };
+
+    mapElements.forEach((element) => {
+      pushOption(element.id || element.name, getMapElementLabel(element));
     });
 
-    return list;
-  }, [formData.zone, mapZones]);
+    tasks.forEach((task) => {
+      const element = findMapElementByTask(task, mapElements);
+      if (element) pushOption(element.id || element.name, getMapElementLabel(element));
+      else if (task.zone) pushOption(task.zone, task.zone);
+    });
+
+    return options;
+  }, [tasks, mapElements]);
+
+  const taskZoneOptions = useMemo(() => {
+    const seen = new Set(["general"]);
+    const options = [
+      {
+        value: GENERAL_ZONE_OPTION,
+        label: GENERAL_ZONE_OPTION,
+        zone: GENERAL_ZONE_OPTION,
+        zoneId: "",
+        zoneType: "general",
+      },
+    ];
+
+    const currentZone = String(formData.zone || "").trim();
+    const currentZoneId = String(formData.zoneId || "").trim();
+
+    if (currentZone && normalizeZoneName(currentZone) !== normalizeZoneName(GENERAL_ZONE_OPTION)) {
+      const currentKey = currentZoneId ? `id:${currentZoneId}` : `name:${normalizeZoneName(currentZone)}`;
+      if (!seen.has(currentKey)) {
+        seen.add(currentKey);
+        options.push({
+          value: currentZoneId || currentZone,
+          label: currentZone,
+          zone: currentZone,
+          zoneId: currentZoneId,
+          zoneType: formData.zoneType || "legacy",
+        });
+      }
+    }
+
+    mapElements.forEach((element) => {
+      const key = element.id ? `id:${element.id}` : `name:${normalizeZoneName(element.name)}`;
+      if (!element.name || seen.has(key)) return;
+      seen.add(key);
+      options.push({
+        value: element.id || element.name,
+        label: getMapElementLabel(element),
+        zone: element.name,
+        zoneId: element.id,
+        zoneType: element.zoneType || "zone",
+      });
+    });
+
+    return options;
+  }, [formData.zone, formData.zoneId, formData.zoneType, mapElements]);
+
+  const selectedTaskZoneValue = formData.zoneId || formData.zone || GENERAL_ZONE_OPTION;
 
   const filteredTasks = tasks.filter((task) => {
     const matchStatus =
       statusFilter === "Todas" || task.status === statusFilter;
     const matchType = typeFilter === "Todas" || task.type === typeFilter;
-    const matchZone = zoneFilter === "Todas" || task.zone === zoneFilter;
+    const taskElement = findMapElementByTask(task, mapElements);
+    const taskZoneValue = taskElement?.id || task.zoneId || task.zone || "";
+    const taskZoneLabel = taskElement ? getMapElementLabel(taskElement) : task.zone || "";
+    const matchZone =
+      zoneFilter === "Todas" ||
+      taskZoneValue === zoneFilter ||
+      taskZoneLabel === zoneFilter ||
+      task.zone === zoneFilter;
 
     const query = appliedSearchText.trim().toLowerCase();
     const matchSearch =
@@ -1316,6 +1499,8 @@ export default function TareasPage({
       ...EMPTY_FORM,
       title: (payload.title || "").toString(),
       zone: (payload.zone || GENERAL_ZONE_OPTION).toString(),
+      zoneId: (payload.zoneId || "").toString(),
+      zoneType: (payload.zoneType || (payload.zoneId ? "zone" : "general")).toString(),
       type: payload.type || "Mantenimiento",
       priority: payload.priority || "Media",
       start: toYYYYMMDD(payload.start),
@@ -1348,6 +1533,8 @@ export default function TareasPage({
       ...formData,
       title: formData.title.trim(),
       zone: formData.zone.trim(),
+      zoneId: String(formData.zoneId || "").trim(),
+      zoneType: String(formData.zoneType || "").trim(),
       owner: formData.owner.trim(),
     };
 
@@ -1426,6 +1613,8 @@ export default function TareasPage({
     setFormData({
       title: task.title || "",
       zone: task.zone || GENERAL_ZONE_OPTION,
+      zoneId: task.zoneId || "",
+      zoneType: task.zoneType || (task.zoneId ? "zone" : "general"),
       type: task.type || "Mantenimiento",
       priority: task.priority || "Media",
       start: task.start || "",
@@ -2877,9 +3066,9 @@ export default function TareasPage({
                 disabled={saving}
               >
                 <option value="Todas">Todas</option>
-                {zoneOptions.map((z) => (
-                  <option key={z} value={z}>
-                    {z}
+                {zoneOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
                   </option>
                 ))}
               </select>
@@ -3051,13 +3240,21 @@ export default function TareasPage({
               <div className="task-field">
                 <label>Zona / elemento</label>
                 <select
-                  value={formData.zone || GENERAL_ZONE_OPTION}
-                  onChange={(e) => handleFormChange("zone", e.target.value)}
+                  value={selectedTaskZoneValue}
+                  onChange={(e) => {
+                    const selected = taskZoneOptions.find((option) => option.value === e.target.value);
+                    setFormData((prev) => ({
+                      ...prev,
+                      zone: selected?.zone || GENERAL_ZONE_OPTION,
+                      zoneId: selected?.zoneId || "",
+                      zoneType: selected?.zoneType || "general",
+                    }));
+                  }}
                   disabled={saving}
                 >
-                  {taskZoneOptions.map((zone) => (
-                    <option key={zone} value={zone}>
-                      {zone}
+                  {taskZoneOptions.map((option) => (
+                    <option key={`${option.zoneId || option.value}-${option.zoneType}`} value={option.value}>
+                      {option.label}
                     </option>
                   ))}
                 </select>
@@ -3190,13 +3387,13 @@ export default function TareasPage({
                 <td>{task.title}</td>
                 <td>
                   <div className="task-zone-cell">
-                    <span>{task.zone}</span>
+                    <span>{getMapElementLabel(findMapElementByTask(task, mapElements)) || task.zone}</span>
                     <div className="task-zone-actions">
-                      {onOpenZoneInMap && task.zone && (
+                      {onOpenZoneInMap && (task.zone || task.zoneId) && (
                         <button
                           type="button"
                           className="link-button"
-                          onClick={() => onOpenZoneInMap(task.zone)}
+                          onClick={() => onOpenZoneInMap(findMapElementByTask(task, mapElements)?.name || task.zone)}
                           disabled={saving}
                         >
                           Ver en mapa
