@@ -987,10 +987,18 @@ export default function TareasPage({
 
 
   const fetchMapZones = useCallback(async () => {
+    /*
+      Fuente real del selector de zonas/elementos:
+      - props recibidas desde FarmShell/FarmMap;
+      - FarmContext cuando trae datos del mapa;
+      - endpoint actual /api/farms/:farmId/map.
+
+      No se mezclan zonas antiguas desde localStorage.
+      Eso evita que zonas de otras fincas se queden fijas en todos los selectores.
+    */
     const collected = [
       ...extractMapElements(zonesFromMap),
       ...extractMapElements(contextActiveFarm),
-      ...readStoredMapZones(farmId),
     ];
 
     if (farmId && token) {
@@ -998,7 +1006,7 @@ export default function TareasPage({
         const mapPayload = await apiFetch(`/api/farms/${farmId}/map?ts=${Date.now()}`);
         collected.push(...extractMapElements(mapPayload));
       } catch {
-        // Si el mapa no responde, mantenemos las fuentes locales/props.
+        // Si el mapa no responde, mantenemos solo las fuentes actuales.
       }
     }
 
