@@ -107,3 +107,52 @@ export async function createBitacoraEntry({
     }
   );
 }
+
+
+/**
+ * Actualiza únicamente el texto de una nota.
+ */
+export async function updateBitacoraEntry({
+  farmId,
+  entryId,
+  text,
+}) {
+  if (!farmId || !entryId) {
+    throw new Error("No se pudo identificar la nota.");
+  }
+
+  const cleanText = String(text || "").trim();
+
+  if (!cleanText) {
+    throw new Error("La nota no puede quedar vacía.");
+  }
+
+  return apiFetch(
+    `/api/farms/${farmId}/bitacora/${entryId}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({
+        text: cleanText,
+      }),
+    }
+  );
+}
+
+/**
+ * Elimina una nota de la Bitácora.
+ */
+export async function deleteBitacoraEntry({
+  farmId,
+  entryId,
+}) {
+  if (!farmId || !entryId) {
+    throw new Error("No se pudo identificar la nota.");
+  }
+
+  return apiFetch(
+    `/api/farms/${farmId}/bitacora/${entryId}`,
+    {
+      method: "DELETE",
+    }
+  );
+}

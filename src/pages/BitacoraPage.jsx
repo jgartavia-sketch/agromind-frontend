@@ -1,10 +1,11 @@
 // src/pages/BitacoraPage.jsx
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { useFarm } from "../context/FarmContext";
 import {
   createBitacoraEntry,
+  deleteBitacoraEntry,
   loadBitacoraEntries,
+  updateBitacoraEntry,
 } from "../services/bitacoraService";
 
 const MONTH_FORMATTER = new Intl.DateTimeFormat("es-CR", {
@@ -23,14 +24,20 @@ const TIME_FORMATTER = new Intl.DateTimeFormat("es-CR", {
   minute: "2-digit",
 });
 
-export default function BitacoraPage() {
-  const navigate = useNavigate();
+export default function BitacoraPage({
+  onOpenTasks,
+  onOpenFinance,
+}) {
   const { activeFarm, farmId, farmName } = useFarm();
 
   const [entry, setEntry] = useState("");
   const [entries, setEntries] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [editingId, setEditingId] = useState("");
+  const [editingText, setEditingText] = useState("");
+  const [deletingId, setDeletingId] = useState("");
+  const [busyEntryId, setBusyEntryId] = useState("");
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
 
@@ -127,6 +134,82 @@ export default function BitacoraPage() {
     }
   };
 
+  const startEditing = (item) => {
+    setDeletingId("");
+    setEditingId(item.id);
+    setEditingText(item.text || "");
+    setError("");
+  };
+
+  const cancelEditing = () => {
+    setEditingId("");
+    setEditingText("");
+  };
+
+  const handleUpdate = async (entryId) => {
+    const cleanText = editingText.trim();
+
+    if (!cleanText || busyEntryId) return;
+
+    setBusyEntryId(entryId);
+    setError("");
+    setSuccessMessage("");
+
+    try {
+      const updatedEntry = await updateBitacoraEntry({
+        farmId,
+        entryId,
+        text: cleanText,
+      });
+
+      setEntries((currentEntries) =>
+        currentEntries.map((item) =>
+          item.id === entryId ? updatedEntry : item
+        )
+      );
+
+      cancelEditing();
+      setSuccessMessage("Nota actualizada correctamente.");
+    } catch (requestError) {
+      setError(
+        requestError?.message ||
+          "No se pudo actualizar la nota."
+      );
+    } finally {
+      setBusyEntryId("");
+    }
+  };
+
+  const handleDelete = async (entryId) => {
+    if (busyEntryId) return;
+
+    setBusyEntryId(entryId);
+    setError("");
+    setSuccessMessage("");
+
+    try {
+      await deleteBitacoraEntry({
+        farmId,
+        entryId,
+      });
+
+      setEntries((currentEntries) =>
+        currentEntries.filter((item) => item.id !== entryId)
+      );
+
+      setDeletingId("");
+      if (editingId === entryId) cancelEditing();
+      setSuccessMessage("Nota eliminada correctamente.");
+    } catch (requestError) {
+      setError(
+        requestError?.message ||
+          "No se pudo eliminar la nota."
+      );
+    } finally {
+      setBusyEntryId("");
+    }
+  };
+
   return (
     <div className="page">
       <section style={activeFarmBannerStyle}>
@@ -168,7 +251,7 @@ export default function BitacoraPage() {
           <button
             type="button"
             style={secondaryActionStyle}
-            onClick={() => navigate("/tareas")}
+            onClick={onOpenTasks}
           >
             Crear tarea
           </button>
@@ -176,7 +259,7 @@ export default function BitacoraPage() {
           <button
             type="button"
             style={secondaryActionStyle}
-            onClick={() => navigate("/finanzas")}
+            onClick={onOpenFinance}
           >
             Agregar movimiento
           </button>
@@ -261,20 +344,122 @@ export default function BitacoraPage() {
                             </summary>
 
                             <div style={dayContentStyle}>
-                              {dayGroup.entries.map((item) => (
-                                <article
-                                  key={item.id}
-                                  style={entryCardStyle}
-                                >
-                                  <time style={timeStyle}>
-                                    {formatEntryTime(item)}
-                                  </time>
+                              {dayGroup.entries.map((item) => {
+                                const isEditing = editingId === item.id;
+                                const isDeleting = deletingId === item.id;
+                                const isBusy = busyEntryId === item.id;
 
-                                  <p style={entryTextStyle}>
-                                    {item.text}
-                                  </p>
-                                </article>
-                              ))}
+                                return (
+                                  <article
+                                    key={item.id}
+                                    style={entryCardStyle}
+                                  >
+                                    <div style={entryHeaderStyle}>
+                                      <time style={timeStyle}>
+                                        {formatEntryTime(item)}
+                                      </time>
+
+                                      {!isEditing && !isDeleting && (
+                                        <div style={entryActionsStyle}>
+                                          <button
+                                            type="button"
+                                            style={miniButtonStyle}
+                                            onClick={() => startEditing(item)}
+                                          >
+                                            Editar
+                                          </button>
+
+                                          <button
+                                            type="button"
+                                            style={dangerMiniButtonStyle}
+                                            onClick={() =>
+                                              setDeletingId(item.id)
+                                            }
+                                          >
+                                            Eliminar
+                                          </button>
+                                        </div>
+                                      )}
+                                    </div>
+
+                                    {isEditing ? (
+                                      <div style={editBoxStyle}>
+                                        <textarea
+                                          value={editingText}
+                                          onChange={(event) =>
+                                            setEditingText(event.target.value)
+                                          }
+                                          style={editTextareaStyle}
+                                          disabled={isBusy}
+                                        />
+
+                                        <div style={entryActionsStyle}>
+                                          <button
+                                            type="button"
+                                            className="primary-btn"
+                                            onClick={() =>
+                                              handleUpdate(item.id)
+                                            }
+                                            disabled={
+                                              !editingText.trim() || isBusy
+                                            }
+                                          >
+                                            {isBusy
+                                              ? "Guardando..."
+                                              : "Guardar cambios"}
+                                          </button>
+
+                                          <button
+                                            type="button"
+                                            style={miniButtonStyle}
+                                            onClick={cancelEditing}
+                                            disabled={isBusy}
+                                          >
+                                            Cancelar
+                                          </button>
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <p style={entryTextStyle}>
+                                        {item.text}
+                                      </p>
+                                    )}
+
+                                    {isDeleting && (
+                                      <div style={deleteBoxStyle}>
+                                        <strong>¿Eliminar esta nota?</strong>
+                                        <p style={deleteTextStyle}>
+                                          Esta acción no se puede deshacer.
+                                        </p>
+
+                                        <div style={entryActionsStyle}>
+                                          <button
+                                            type="button"
+                                            style={confirmDeleteButtonStyle}
+                                            onClick={() =>
+                                              handleDelete(item.id)
+                                            }
+                                            disabled={isBusy}
+                                          >
+                                            {isBusy
+                                              ? "Eliminando..."
+                                              : "Sí, eliminar"}
+                                          </button>
+
+                                          <button
+                                            type="button"
+                                            style={miniButtonStyle}
+                                            onClick={() => setDeletingId("")}
+                                            disabled={isBusy}
+                                          >
+                                            Cancelar
+                                          </button>
+                                        </div>
+                                      </div>
+                                    )}
+                                  </article>
+                                );
+                              })}
                             </div>
                           </details>
                         ))}
@@ -637,9 +822,22 @@ const entryCardStyle = {
   background: "rgba(15, 23, 42, 0.62)",
 };
 
+const entryHeaderStyle = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  gap: "1rem",
+  marginBottom: "0.45rem",
+};
+
+const entryActionsStyle = {
+  display: "flex",
+  flexWrap: "wrap",
+  gap: "0.5rem",
+};
+
 const timeStyle = {
   display: "block",
-  marginBottom: "0.4rem",
   fontSize: "0.78rem",
   fontWeight: 800,
   color: "#86efac",
@@ -650,4 +848,64 @@ const entryTextStyle = {
   color: "#e5e7eb",
   whiteSpace: "pre-wrap",
   lineHeight: 1.55,
+};
+
+
+const miniButtonStyle = {
+  border: "1px solid rgba(148, 163, 184, 0.28)",
+  borderRadius: "999px",
+  padding: "0.42rem 0.75rem",
+  background: "rgba(15, 23, 42, 0.78)",
+  color: "#e2e8f0",
+  cursor: "pointer",
+  fontWeight: 700,
+};
+
+const dangerMiniButtonStyle = {
+  ...miniButtonStyle,
+  border: "1px solid rgba(248, 113, 113, 0.34)",
+  color: "#fecaca",
+};
+
+const editBoxStyle = {
+  display: "grid",
+  gap: "0.65rem",
+};
+
+const editTextareaStyle = {
+  width: "100%",
+  minHeight: "110px",
+  padding: "0.8rem",
+  borderRadius: "12px",
+  border: "1px solid #334155",
+  background: "#020617",
+  color: "#e5e7eb",
+  resize: "vertical",
+  boxSizing: "border-box",
+  lineHeight: 1.5,
+  font: "inherit",
+};
+
+const deleteBoxStyle = {
+  marginTop: "0.75rem",
+  padding: "0.8rem",
+  borderRadius: "12px",
+  border: "1px solid rgba(248, 113, 113, 0.32)",
+  background: "rgba(127, 29, 29, 0.16)",
+};
+
+const deleteTextStyle = {
+  margin: "0.35rem 0 0.7rem",
+  color: "#fecaca",
+  opacity: 0.86,
+};
+
+const confirmDeleteButtonStyle = {
+  border: "1px solid rgba(248, 113, 113, 0.42)",
+  borderRadius: "999px",
+  padding: "0.5rem 0.85rem",
+  background: "rgba(220, 38, 38, 0.2)",
+  color: "#fee2e2",
+  cursor: "pointer",
+  fontWeight: 800,
 };
