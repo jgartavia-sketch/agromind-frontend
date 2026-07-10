@@ -297,9 +297,7 @@ export default function FarmShell({ user, onLogout }) {
         return;
       }
 
-      if (!force && zonesFetchKeyRef.current === fetchKey) {
-        return;
-      }
+      if (!force && zonesFetchKeyRef.current === fetchKey) return;
 
       zonesFetchKeyRef.current = fetchKey;
       zonesLastFarmRef.current = activeFarmId;
@@ -326,9 +324,7 @@ export default function FarmShell({ user, onLogout }) {
             const data = await res.json().catch(() => null);
             collected.push(...extractZoneNames(data));
           }
-        } catch {
-          // Si falla la red, conservamos las zonas locales sin romper Tareas.
-        }
+        } catch {}
       }
 
       const cleanZones = cleanZoneList(collected);
@@ -355,10 +351,7 @@ export default function FarmShell({ user, onLogout }) {
     };
 
     window.addEventListener("storage", sync);
-
-    return () => {
-      window.removeEventListener("storage", sync);
-    };
+    return () => window.removeEventListener("storage", sync);
   }, []);
 
   useEffect(() => {
@@ -366,11 +359,7 @@ export default function FarmShell({ user, onLogout }) {
   }, [fetchZonesFromMap]);
 
   useEffect(() => {
-    window.scrollTo({
-      top: 0,
-      left: 0,
-      behavior: "auto",
-    });
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
   }, [activeTab]);
 
   useEffect(() => {
@@ -531,7 +520,12 @@ export default function FarmShell({ user, onLogout }) {
             )}
 
             {activeTab === "bitacora" && (
-              <BitacoraPage token={token} farmId={farmId} />
+              <BitacoraPage
+                token={token}
+                farmId={farmId}
+                onOpenTasks={() => handleTabChange("tareas")}
+                onOpenFinance={() => handleTabChange("finanzas")}
+              />
             )}
           </Suspense>
         </section>
