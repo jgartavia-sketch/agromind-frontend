@@ -228,8 +228,22 @@ export default function AddMovementModal({
       overflowY: "auto",
       overscrollBehavior: "contain",
       WebkitOverflowScrolling: "touch",
-      padding: "1rem 1.25rem calc(1.35rem + env(safe-area-inset-bottom, 0px))",
+      padding: "1rem 1.25rem",
       scrollbarGutter: "stable",
+    },
+    footer: {
+      flex: "0 0 auto",
+      display: "flex",
+      justifyContent: "flex-end",
+      gap: "0.75rem",
+      flexWrap: "wrap",
+      padding:
+        "0.9rem 1.25rem calc(0.9rem + env(safe-area-inset-bottom, 0px))",
+      background:
+        "linear-gradient(180deg, rgba(5,12,28,0.97), rgba(2,6,23,1))",
+      borderTop: "1px solid rgba(148,163,184,0.1)",
+      boxShadow: "0 -14px 30px rgba(0,0,0,0.2)",
+      zIndex: 5,
     },
     titleRow: {
       display: "flex",
@@ -340,7 +354,7 @@ export default function AddMovementModal({
         </div>
 
         <div style={modalStyles.body}>
-          <form onSubmit={handleSubmit}>
+          <form id="movement-form" onSubmit={handleSubmit}>
             <div style={{ display: "grid", gap: "0.85rem" }}>
             <section style={modalStyles.panel}>
               <div style={modalStyles.grid}>
@@ -507,35 +521,44 @@ export default function AddMovementModal({
               </div>
             </section>
 
-            <div
-              style={{
-                display: "flex",
-                gap: "0.75rem",
-                justifyContent: "flex-end",
-                flexWrap: "wrap",
-                paddingTop: "0.25rem",
-              }}
-            >
-              <button
-                type="submit"
-                className="primary-btn"
-                disabled={saving}
-                style={{
-                  minWidth: "220px",
-                  minHeight: "48px",
-                  borderRadius: "999px",
-                  fontWeight: 800,
-                }}
-              >
-                {saving
-                  ? "Guardando…"
-                  : isEdit
-                  ? "Guardar cambios"
-                  : "Guardar movimiento"}
-              </button>
-            </div>
             </div>
           </form>
+        </div>
+
+        <div style={modalStyles.footer}>
+          <button
+            type="button"
+            className="secondary-btn"
+            onClick={onClose}
+            disabled={saving}
+            style={{
+              minWidth: "140px",
+              minHeight: "48px",
+              borderRadius: "999px",
+              fontWeight: 700,
+            }}
+          >
+            Cancelar
+          </button>
+
+          <button
+            type="submit"
+            form="movement-form"
+            className="primary-btn"
+            disabled={saving}
+            style={{
+              minWidth: "220px",
+              minHeight: "48px",
+              borderRadius: "999px",
+              fontWeight: 800,
+            }}
+          >
+            {saving
+              ? "Guardando…"
+              : isEdit
+              ? "Guardar cambios"
+              : "Guardar movimiento"}
+          </button>
         </div>
       </div>
     </div>
