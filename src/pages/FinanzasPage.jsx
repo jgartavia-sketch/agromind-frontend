@@ -203,6 +203,8 @@ export default function FinanzasPage({ token: tokenProp } = {}) {
   const [assetType, setAssetType] = useState("Equipo");
   const [assetQty, setAssetQty] = useState(1);
   const [assetUnitValue, setAssetUnitValue] = useState("");
+  const [editingAssetId, setEditingAssetId] = useState(null);
+  const [assetsOpen, setAssetsOpen] = useState(false);
 
   const totalAssetsValue = useMemo(() => {
     return assets.reduce((acc, a) => acc + Number(a.totalValue || 0), 0);
@@ -511,6 +513,27 @@ export default function FinanzasPage({ token: tokenProp } = {}) {
     setShowModal(true);
   };
 
+  const resetAssetForm = () => {
+    setAssetName("");
+    setAssetType("Equipo");
+    setAssetQty(1);
+    setAssetUnitValue("");
+    setEditingAssetId(null);
+  };
+
+  const handleEditAsset = (asset) => {
+    setAssetName(asset?.name || "");
+    setAssetType(asset?.type || "Equipo");
+    setAssetQty(Number(asset?.qty || 1));
+    setAssetUnitValue(
+      asset?.unitValue === 0 || asset?.unitValue
+        ? String(asset.unitValue)
+        : ""
+    );
+    setEditingAssetId(asset?.id || null);
+    setAssetsOpen(true);
+  };
+
   const handleAddAsset = async () => {
     setAssetsError("");
 
@@ -546,36 +569,52 @@ export default function FinanzasPage({ token: tokenProp } = {}) {
 
     try {
       setAssetsSaving(true);
-      const data = await apiFetch(`/api/farms/${farmId}/finance/assets`, {
-        method: "POST",
-        body: JSON.stringify(payload),
-      });
 
-      const created = data?.asset || null;
-      if (created) {
-        const parsed = extractQtyFromName(created.name);
-        const total = parsed.qty * Number(created.purchaseValue || 0);
+      const isEditing = !!editingAssetId;
+      const data = await apiFetch(
+        isEditing
+          ? `/api/farms/${farmId}/finance/assets/${editingAssetId}`
+          : `/api/farms/${farmId}/finance/assets`,
+        {
+          method: isEditing ? "PUT" : "POST",
+          body: JSON.stringify(payload),
+        }
+      );
+
+      const saved = data?.asset || null;
+
+      if (saved) {
+        const parsed = extractQtyFromName(saved.name);
+        const total = parsed.qty * Number(saved.purchaseValue || 0);
 
         const uiAsset = {
-          id: created.id,
+          id: saved.id,
           name: parsed.cleanName,
-          type: created.category || "Equipo",
+          type: saved.category || "Equipo",
           qty: parsed.qty,
-          unitValue: Number(created.purchaseValue || 0),
+          unitValue: Number(saved.purchaseValue || 0),
           totalValue: total,
-          purchaseDate: created.purchaseDate,
-          usefulLifeYears: created.usefulLifeYears,
-          residualValue: created.residualValue,
+          purchaseDate: saved.purchaseDate,
+          usefulLifeYears: saved.usefulLifeYears,
+          residualValue: saved.residualValue,
         };
 
-        setAssets((prev) => [uiAsset, ...prev]);
-        setAssetName("");
-        setAssetType("Equipo");
-        setAssetQty(1);
-        setAssetUnitValue("");
+        setAssets((prev) =>
+          isEditing
+            ? prev.map((asset) => (asset.id === uiAsset.id ? uiAsset : asset))
+            : [uiAsset, ...prev]
+        );
+
+        resetAssetForm();
+        setAssetsOpen(true);
       }
     } catch (err) {
-      setAssetsError(err?.message || "No se pudo guardar el activo.");
+      setAssetsError(
+        err?.message ||
+          (editingAssetId
+            ? "No se pudo actualizar el activo."
+            : "No se pudo guardar el activo.")
+      );
     } finally {
       setAssetsSaving(false);
     }
@@ -603,6 +642,10 @@ export default function FinanzasPage({ token: tokenProp } = {}) {
       });
 
       setAssets((prev) => prev.filter((a) => a.id !== assetId));
+
+      if (editingAssetId === assetId) {
+        resetAssetForm();
+      }
     } catch (err) {
       setAssetsError(err?.message || "No se pudo eliminar el activo.");
     } finally {
@@ -857,131 +900,201 @@ export default function FinanzasPage({ token: tokenProp } = {}) {
           </section>
 
           <section className="finance-assets card">
-            <header className="page-header page-header-actions">
+            <header className="finance-assets-header">
               <div>
                 <h2>Activos</h2>
-                <p className="page-subtitle">
+                <p>
                   Equipos, infraestructura y recursos con valor económico
                 </p>
               </div>
-
-              <button
-                className="btn-secondary finance-add-asset-btn"
-                type="button"
-                onClick={handleAddAsset}
-                disabled={assetsSaving || !assetName.trim()}
-                title={!assetName.trim() ? "Escribe un nombre para el activo" : ""}
-              >
-                {assetsSaving ? "Guardando…" : "+ Agregar activo"}
-              </button>
             </header>
 
             {(assetsError || assetsLoading) && (
-              <div style={{ marginBottom: "0.75rem", opacity: 0.85 }}>
+              <div className="finance-assets-status">
                 {assetsLoading ? "Cargando activos…" : assetsError}
               </div>
             )}
 
-            <div className="asset-form">
-              <div className="asset-form-row asset-form-row-primary">
-                <input
-                  className="input"
-                  type="text"
-                  placeholder="Nombre (Ej: Tractor, Bomba, Invernadero)"
-                  value={assetName}
-                  onChange={(e) => setAssetName(e.target.value)}
-                />
-
-                <select
-                  className="input"
-                  value={assetType}
-                  onChange={(e) => setAssetType(e.target.value)}
-                >
-                  <option value="Equipo">Equipo</option>
-                  <option value="Infraestructura">Infraestructura</option>
-                  <option value="Herramienta">Herramienta</option>
-                  <option value="Animal">Animal</option>
-                  <option value="Vehículo">Vehículo</option>
-                  <option value="Otro">Otro</option>
-                </select>
+            <div className="finance-assets-form-card">
+              <div className="finance-assets-form-heading">
+                <div>
+                  <span className="finance-assets-eyebrow">
+                    {editingAssetId ? "Editando activo" : "Nuevo activo"}
+                  </span>
+                  <h3>
+                    {editingAssetId
+                      ? "Actualiza la información"
+                      : "Registra un recurso de la finca"}
+                  </h3>
+                </div>
               </div>
 
-              <div className="asset-form-row asset-form-row-values">
-                <input
-                  className="input"
-                  type="number"
-                  min="1"
-                  step="1"
-                  placeholder="Cantidad"
-                  value={assetQty}
-                  onChange={(e) => setAssetQty(e.target.value)}
-                />
-                <input
-                  className="input"
-                  type="number"
-                  min="0"
-                  step="1000"
-                  placeholder="Valor unitario (₡)"
-                  value={assetUnitValue}
-                  onChange={(e) => setAssetUnitValue(e.target.value)}
-                />
-                <div className="input asset-total-field">
-                  <span>Total activos</span>
-                  <strong>{formatMoneyCRC(totalAssetsValue)}</strong>
+              <div className="asset-form">
+                <div className="asset-form-row asset-form-row-primary">
+                  <input
+                    className="input"
+                    type="text"
+                    placeholder="Nombre (Ej: Tractor, Bomba, Invernadero)"
+                    value={assetName}
+                    onChange={(e) => setAssetName(e.target.value)}
+                  />
+
+                  <select
+                    className="input"
+                    value={assetType}
+                    onChange={(e) => setAssetType(e.target.value)}
+                  >
+                    <option value="Equipo">Equipo</option>
+                    <option value="Infraestructura">Infraestructura</option>
+                    <option value="Herramienta">Herramienta</option>
+                    <option value="Animal">Animal</option>
+                    <option value="Vehículo">Vehículo</option>
+                    <option value="Otro">Otro</option>
+                  </select>
+                </div>
+
+                <div className="asset-form-row asset-form-row-values">
+                  <input
+                    className="input"
+                    type="number"
+                    min="1"
+                    step="1"
+                    placeholder="Cantidad"
+                    value={assetQty}
+                    onChange={(e) => setAssetQty(e.target.value)}
+                  />
+
+                  <input
+                    className="input"
+                    type="number"
+                    min="0"
+                    step="1000"
+                    placeholder="Valor unitario (₡)"
+                    value={assetUnitValue}
+                    onChange={(e) => setAssetUnitValue(e.target.value)}
+                  />
+                </div>
+
+                <div className="finance-assets-form-actions">
+                  {editingAssetId && (
+                    <button
+                      className="finance-asset-cancel-btn"
+                      type="button"
+                      onClick={resetAssetForm}
+                      disabled={assetsSaving}
+                    >
+                      Cancelar edición
+                    </button>
+                  )}
+
+                  <button
+                    className="finance-add-asset-btn"
+                    type="button"
+                    onClick={handleAddAsset}
+                    disabled={assetsSaving || !assetName.trim()}
+                    title={
+                      !assetName.trim()
+                        ? "Escribe un nombre para el activo"
+                        : ""
+                    }
+                  >
+                    {assetsSaving
+                      ? "Guardando…"
+                      : editingAssetId
+                      ? "Guardar cambios"
+                      : "+ Agregar activo"}
+                  </button>
                 </div>
               </div>
             </div>
 
-            <div className="finance-table finance-assets-table">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Activo</th>
-                    <th>Tipo</th>
-                    <th style={{ textAlign: "right" }}>Cantidad</th>
-                    <th style={{ textAlign: "right" }}>Valor unitario</th>
-                    <th style={{ textAlign: "right" }}>Total</th>
-                    <th>Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
+            <section className="finance-assets-accordion">
+              <button
+                type="button"
+                className="finance-assets-summary"
+                onClick={() => setAssetsOpen((open) => !open)}
+                aria-expanded={assetsOpen}
+              >
+                <span
+                  className={`finance-assets-chevron ${
+                    assetsOpen ? "is-open" : ""
+                  }`}
+                  aria-hidden="true"
+                >
+                  ›
+                </span>
+
+                <span className="finance-assets-summary-copy">
+                  <strong>Total activos</strong>
+                  <small>
+                    {assets.length} {assets.length === 1 ? "activo" : "activos"}
+                  </small>
+                </span>
+
+                <strong className="finance-assets-total-value">
+                  {formatMoneyCRC(totalAssetsValue)}
+                </strong>
+              </button>
+
+              {assetsOpen && (
+                <div className="finance-assets-list">
                   {assets.length === 0 ? (
-                    <tr className="row-placeholder">
-                      <td colSpan="6" style={{ opacity: 0.7 }}>
-                        No hay activos registrados todavía.
-                      </td>
-                    </tr>
+                    <div className="finance-empty-state">
+                      No hay activos registrados todavía.
+                    </div>
                   ) : (
-                    assets.map((a) => (
-                      <tr key={a.id}>
-                        <td>{a.name}</td>
-                        <td>{a.type}</td>
-                        <td style={{ textAlign: "right" }}>{Number(a.qty || 0)}</td>
-                        <td style={{ textAlign: "right" }}>
-                          {formatMoneyCRC(a.unitValue)}
-                        </td>
-                        <td style={{ textAlign: "right" }}>
-                          {formatMoneyCRC(a.totalValue)}
-                        </td>
-                        <td>
-                          <div className="task-actions">
-                            <button
-                              type="button"
-                              className="finance-action-btn finance-action-btn-delete"
-                              disabled={assetsSaving}
-                              onClick={() => handleDeleteAsset(a.id)}
-                              aria-label={`Eliminar activo ${a.name || ""}`}
-                            >
-                              <span>Eliminar</span>
-                            </button>
+                    assets.map((asset) => (
+                      <article className="finance-asset-item" key={asset.id}>
+                        <div className="finance-asset-item-heading">
+                          <div>
+                            <h3>{asset.name}</h3>
+                            <p>{asset.type}</p>
                           </div>
-                        </td>
-                      </tr>
+
+                          <strong>
+                            {formatMoneyCRC(asset.totalValue)}
+                          </strong>
+                        </div>
+
+                        <div className="finance-asset-item-details">
+                          <div>
+                            <span>Cantidad</span>
+                            <strong>{Number(asset.qty || 0)}</strong>
+                          </div>
+
+                          <div>
+                            <span>Valor unitario</span>
+                            <strong>
+                              {formatMoneyCRC(asset.unitValue)}
+                            </strong>
+                          </div>
+                        </div>
+
+                        <div className="finance-asset-item-actions">
+                          <button
+                            type="button"
+                            className="finance-action-btn finance-action-btn-edit"
+                            disabled={assetsSaving}
+                            onClick={() => handleEditAsset(asset)}
+                          >
+                            Editar
+                          </button>
+
+                          <button
+                            type="button"
+                            className="finance-action-btn finance-action-btn-delete"
+                            disabled={assetsSaving}
+                            onClick={() => handleDeleteAsset(asset.id)}
+                          >
+                            Eliminar
+                          </button>
+                        </div>
+                      </article>
                     ))
                   )}
-                </tbody>
-              </table>
-            </div>
+                </div>
+              )}
+            </section>
           </section>
         </section>
 
