@@ -652,28 +652,33 @@ export default function ComponentModal({
         style={{
           position: "relative",
           width: isMobileLayout ? "100%" : "min(1080px, 100%)",
-          maxHeight: isMobileLayout ? "calc(100dvh - 16px)" : "calc(100dvh - 32px)",
+          height: isMobileLayout
+            ? "calc(100dvh - 16px)"
+            : "min(860px, calc(100dvh - 32px))",
+          maxHeight: isMobileLayout
+            ? "calc(100dvh - 16px)"
+            : "calc(100dvh - 32px)",
           background:
             "linear-gradient(145deg, rgba(2,6,23,0.98), rgba(15,23,42,0.96))",
           border: "1px solid rgba(148,163,184,0.22)",
           borderRadius: isMobileLayout ? "18px" : "24px",
           boxShadow:
             "0 28px 90px rgba(0,0,0,0.62), 0 0 0 1px rgba(34,197,94,0.06), inset 0 1px 0 rgba(255,255,255,0.04)",
-          overflow: "hidden",
-          display: "flex",
-          flexDirection: "column",
+          overflowY: "auto",
+          overflowX: "hidden",
+          WebkitOverflowScrolling: "touch",
+          overscrollBehavior: "contain",
           minHeight: 0,
         }}
       >
         <div
           style={{
             position: "relative",
-            padding: isMobileLayout ? "18px 12px 16px" : "20px 18px 18px",
+            padding: isMobileLayout ? "12px 12px 11px" : "16px 18px 14px",
             borderBottom: "1px solid rgba(148,163,184,0.16)",
             background:
               "linear-gradient(135deg, rgba(6,78,59,0.48), rgba(15,23,42,0.86) 58%, rgba(2,6,23,0.92))",
-            overflow: "visible",
-            flexShrink: 0,
+            overflow: "hidden",
             zIndex: 2,
           }}
         >
@@ -695,10 +700,10 @@ export default function ComponentModal({
             style={{
               position: "relative",
               display: "flex",
-              flexDirection: isMobileLayout ? "column" : "row",
-              alignItems: isMobileLayout ? "stretch" : "flex-start",
+              flexDirection: "row",
+              alignItems: "center",
               justifyContent: "space-between",
-              gap: isMobileLayout ? "12px" : "14px",
+              gap: "12px",
             }}
           >
             <div style={{ minWidth: 0 }}>
@@ -712,9 +717,9 @@ export default function ComponentModal({
               >
                 <span
                   style={{
-                    width: "44px",
-                    height: "44px",
-                    borderRadius: "16px",
+                    width: isMobileLayout ? "38px" : "42px",
+                    height: isMobileLayout ? "38px" : "42px",
+                    borderRadius: isMobileLayout ? "14px" : "16px",
                     display: "inline-flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -734,7 +739,7 @@ export default function ComponentModal({
                     style={{
                       margin: 0,
                       color: "#f8fafc",
-                      fontSize: "1.08rem",
+                      fontSize: isMobileLayout ? "1rem" : "1.08rem",
                       letterSpacing: "-0.01em",
                     }}
                   >
@@ -750,14 +755,16 @@ export default function ComponentModal({
                     }}
                   >
                     <span className="zone-tag">{modalZone?.name || "Zona"}</span>
-                    <span
-                      style={{
-                        color: "rgba(226,232,240,0.64)",
-                        fontSize: "0.82rem",
-                      }}
-                    >
-                      Inventario visual simple, listo para crecer.
-                    </span>
+                    {!isMobileLayout ? (
+                      <span
+                        style={{
+                          color: "rgba(226,232,240,0.64)",
+                          fontSize: "0.82rem",
+                        }}
+                      >
+                        Inventario visual simple, listo para crecer.
+                      </span>
+                    ) : null}
                   </div>
                 </div>
               </div>
@@ -767,7 +774,15 @@ export default function ComponentModal({
               type="button"
               className="secondary-btn"
               onClick={closeComponentsModal}
-              style={{ padding: "0.38rem 0.68rem", alignSelf: isMobileLayout ? "flex-end" : "auto" }}
+              style={{
+                width: isMobileLayout ? "42px" : "auto",
+                minWidth: isMobileLayout ? "42px" : "auto",
+                height: isMobileLayout ? "42px" : "auto",
+                padding: isMobileLayout ? 0 : "0.38rem 0.68rem",
+                alignSelf: "auto",
+                justifyContent: "center",
+                flex: "0 0 auto",
+              }}
               title="Cerrar"
             >
               ✕
@@ -778,11 +793,8 @@ export default function ComponentModal({
         <div
           style={{
             padding: isMobileLayout ? "12px" : "16px",
-            overflow: "auto",
+            overflow: "visible",
             minHeight: 0,
-            WebkitOverflowScrolling: "touch",
-            overscrollBehavior: "contain",
-            overscrollBehavior: "contain",
           }}
         >
           <section
@@ -1626,7 +1638,7 @@ export default function ComponentModal({
         {saveNotice ? (
           <div
             style={{
-              margin: isMobileLayout ? "0 12px 10px" : "0 16px 10px",
+              margin: isMobileLayout ? "10px 12px 0" : "10px 16px 0",
               padding: "0.62rem 0.78rem",
               borderRadius: "13px",
               border: saveNotice.startsWith("✓")
@@ -1646,15 +1658,14 @@ export default function ComponentModal({
 
         <div
           style={{
-            padding: "13px 16px",
+            padding: isMobileLayout ? "12px" : "13px 16px",
             borderTop: "1px solid rgba(148,163,184,0.16)",
-            background: "rgba(2,6,23,0.42)",
+            background: "rgba(2,6,23,0.72)",
             display: "flex",
             alignItems: isMobileLayout ? "stretch" : "center",
             justifyContent: "space-between",
             gap: "10px",
             flexWrap: "wrap",
-            flexShrink: 0,
           }}
         >
           <div style={{ color: "rgba(226,232,240,0.58)", fontSize: "0.8rem" }}>
@@ -1900,6 +1911,13 @@ export default function ComponentModal({
           .component-lab-shell .secondary-btn,
           .component-lab-shell .danger-link {
             min-height: 42px;
+          }
+
+          .component-lab-shell {
+            padding-top: max(8px, env(safe-area-inset-top)) !important;
+            padding-right: max(8px, env(safe-area-inset-right)) !important;
+            padding-bottom: max(8px, env(safe-area-inset-bottom)) !important;
+            padding-left: max(8px, env(safe-area-inset-left)) !important;
           }
 
           .component-lab-shell .zone-tag {
