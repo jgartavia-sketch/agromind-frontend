@@ -7,6 +7,7 @@ const TareasPage = lazy(() => import("../pages/TareasPage"));
 const FinanzasPage = lazy(() => import("../pages/FinanzasPage"));
 const ClimaPage = lazy(() => import("../pages/ClimaPage"));
 const BitacoraPage = lazy(() => import("../pages/BitacoraPage"));
+const DashboardPage = lazy(() => import("../pages/DashboardPage"));
 const Footer = lazy(() => import("./Footer"));
 
 const RAW_API_BASE =
@@ -244,7 +245,7 @@ function ModuleLoader({ text = "Cargando módulo..." }) {
 }
 
 export default function FarmShell({ user, onLogout }) {
-  const [activeTab, setActiveTab] = useState("mapa");
+  const [activeTab, setActiveTab] = useState("dashboard");
   const [focusZoneRequest, setFocusZoneRequest] = useState(null);
 
   const [token, setToken] = useState(() => getAuthToken());
@@ -263,6 +264,7 @@ export default function FarmShell({ user, onLogout }) {
   });
 
   const visibleTabs = [
+    ["dashboard", "Dashboard"],
     ["mapa", "Mapa de la finca"],
     ["tareas", "Tareas"],
     ["finanzas", "Finanzas"],
@@ -445,7 +447,7 @@ export default function FarmShell({ user, onLogout }) {
       updatedAt: Date.now(),
     });
 
-    setActiveTab("mapa");
+    setActiveTab("dashboard");
     setFocusZoneRequest(null);
 
     if (onLogout) onLogout();
@@ -491,6 +493,10 @@ export default function FarmShell({ user, onLogout }) {
       <main className="farm-shell-main">
         <section className="farm-shell-map-card">
           <Suspense fallback={<ModuleLoader text="Cargando tu finca..." />}>
+            {activeTab === "dashboard" && (
+              <DashboardPage user={user} token={token} farmId={farmId} />
+            )}
+
             {activeTab === "mapa" && (
               <FarmMap
                 focusZoneRequest={focusZoneRequest}
