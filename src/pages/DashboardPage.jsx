@@ -1,26 +1,79 @@
 // src/pages/DashboardPage.jsx
+import { useEffect, useMemo, useState } from "react";
 import "../styles/dashboard.css";
 
-const kpis = [
-  {
-    label: "Procesos activos",
-    value: "0",
-    detail: "Procesos actualmente en ejecución",
-    tone: "green",
-  },
-  {
-    label: "Tareas pendientes",
-    value: "0",
-    detail: "Actividades que requieren seguimiento",
-    tone: "amber",
-  },
-  {
-    label: "Componentes registrados",
-    value: "0",
-    detail: "Elementos registrados en la finca",
-    tone: "blue",
-  },
-];
+const API_BASE =
+  import.meta.env.VITE_API_URL ||
+  import.meta.env.VITE_API_BASE_URL ||
+  "https://agromind-backend-slem.onrender.com";
+
+function getAuthToken() {
+  return (
+    localStorage.getItem("agromind_token") ||
+    localStorage.getItem("agromind_jwt") ||
+    localStorage.getItem("token") ||
+    localStorage.getItem("agromind_auth_token") ||
+    localStorage.getItem("auth_token") ||
+    localStorage.getItem("jwt") ||
+    localStorage.getItem("access_token") ||
+    ""
+  );
+}
+
+async function apiFetch(path, options = {}) {
+  const token = getAuthToken();
+
+  const response = await fetch(`${API_BASE}${path}`, {
+    ...options,
+    cache: "no-store",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(options.headers || {}),
+    },
+  });
+
+  const text = await response.text();
+
+  let data = null;
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    data = text;
+  }
+
+  if (!response.ok) {
+    const message =
+      data?.error ||
+      data?.message ||
+      (typeof data === "string" && data.trim()) ||
+      `Error HTTP ${response.status}`;
+
+    throw new Error(message);
+  }
+
+  return data;
+}
+
+function getMapZones(mapPayload) {
+  return Array.isArray(mapPayload?.zones) ? mapPayload.zones : [];
+}
+
+function countComponents(zones) {
+  return zones.reduce((total, zone) => {
+    return total + (Array.isArray(zone?.components) ? zone.components.length : 0);
+  }, 0);
+}
+
+function countPendingTasks(tasks) {
+  return tasks.filter((task) => task?.status !== "Completada").length;
+}
+
+function countActiveProcesses(processLists) {
+  return processLists
+    .flat()
+    .filter((process) => process?.status === "Activo").length;
+}
 
 const recentActivity = [
   {
@@ -47,12 +100,124 @@ const alerts = [
 ];
 
 export default function DashboardPage({ user, farmId }) {
+  const [dashboardKpis, setDashboardKpis] = useState({
+    activeProcesses: 0,
+    pendingTasks: 0,
+    registeredComponents: 0,
+  });
+
+  const [kpisLoading, setKpisLoading] = useState(false);
+  const [kpisError, setKpisError] = useState("");
+
   const displayName =
     user?.name ||
     user?.firstName ||
     user?.first_name ||
     user?.email?.split("@")?.[0] ||
     "Productor";
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadDashboardKpis() {
+      if (!farmId) {
+        setDashboardKpis({
+          activeProcesses: 0,
+          pendingTasks: 0,
+          registeredComponents: 0,
+        });
+        setKpisError("");
+        setKpisLoading(false);
+        return;
+      }
+
+      try {
+        setKpisLoading(true);
+        setKpisError("");
+
+        const timestamp = Date.now();
+
+        const [mapPayload, tasksPayload] = await Promise.all([
+          apiFetch(`/api/farms/${farmId}/map?ts=${timestamp}`),
+          apiFetch(`/api/farms/${farmId}/tasks?ts=${timestamp}`),
+        ]);
+
+        if (cancelled) return;
+
+        const zones = getMapZones(mapPayload);
+        const tasks = Array.isArray(tasksPayload?.tasks)
+          ? tasksPayload.tasks
+          : [];
+
+        const processRequests = zones
+          .filter((zone) => zone?.id)
+          .map((zone) =>
+            apiFetch(`/api/processes/zone/${zone.id}`, {
+              method: "GET",
+            }).catch(() => [])
+          );
+
+        const processLists =
+          processRequests.length > 0
+            ? await Promise.all(processRequests)
+            : [];
+
+        if (cancelled) return;
+
+        setDashboardKpis({
+          activeProcesses: countActiveProcesses(processLists),
+          pendingTasks: countPendingTasks(tasks),
+          registeredComponents: countComponents(zones),
+        });
+      } catch (error) {
+        if (cancelled) return;
+
+        setDashboardKpis({
+          activeProcesses: 0,
+          pendingTasks: 0,
+          registeredComponents: 0,
+        });
+
+        setKpisError(
+          error?.message || "No se pudieron cargar los indicadores."
+        );
+      } finally {
+        if (!cancelled) {
+          setKpisLoading(false);
+        }
+      }
+    }
+
+    loadDashboardKpis();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [farmId]);
+
+  const kpis = useMemo(
+    () => [
+      {
+        label: "Procesos activos",
+        value: kpisLoading ? "—" : String(dashboardKpis.activeProcesses),
+        detail: "Procesos actualmente en ejecución",
+        tone: "green",
+      },
+      {
+        label: "Tareas pendientes",
+        value: kpisLoading ? "—" : String(dashboardKpis.pendingTasks),
+        detail: "Actividades que requieren seguimiento",
+        tone: "amber",
+      },
+      {
+        label: "Componentes registrados",
+        value: kpisLoading ? "—" : String(dashboardKpis.registeredComponents),
+        detail: "Elementos registrados en la finca",
+        tone: "blue",
+      },
+    ],
+    [dashboardKpis, kpisLoading]
+  );
 
   return (
     <div className="dashboard-page">
@@ -68,11 +233,34 @@ export default function DashboardPage({ user, farmId }) {
 
         <div className="dashboard-farm-chip">
           <span className="dashboard-farm-chip-label">Finca activa</span>
-          <strong>{farmId ? `Finca #${farmId}` : "Sin finca seleccionada"}</strong>
+          <strong>
+            {farmId ? `Finca #${farmId}` : "Sin finca seleccionada"}
+          </strong>
         </div>
       </section>
 
-      <section className="dashboard-kpi-grid" aria-label="Indicadores principales">
+      {kpisError ? (
+        <div
+          role="alert"
+          style={{
+            marginBottom: "1rem",
+            padding: "0.8rem 1rem",
+            borderRadius: "14px",
+            border: "1px solid rgba(248,113,113,0.24)",
+            background: "rgba(248,113,113,0.10)",
+            color: "#fecaca",
+            fontSize: "0.88rem",
+          }}
+        >
+          {kpisError}
+        </div>
+      ) : null}
+
+      <section
+        className="dashboard-kpi-grid"
+        aria-label="Indicadores principales"
+        aria-busy={kpisLoading}
+      >
         {kpis.map((item) => (
           <article
             key={item.label}
@@ -85,7 +273,7 @@ export default function DashboardPage({ user, farmId }) {
             </div>
 
             <strong>{item.value}</strong>
-            <p>{item.detail}</p>
+            <p>{kpisLoading ? "Cargando datos reales..." : item.detail}</p>
           </article>
         ))}
       </section>
@@ -121,7 +309,9 @@ export default function DashboardPage({ user, farmId }) {
         <article className="dashboard-panel dashboard-interactive-panel">
           <div className="dashboard-panel-header">
             <div>
-              <span className="dashboard-section-kicker">Últimos movimientos</span>
+              <span className="dashboard-section-kicker">
+                Últimos movimientos
+              </span>
               <h2>Actividad reciente</h2>
             </div>
           </div>
@@ -129,7 +319,10 @@ export default function DashboardPage({ user, farmId }) {
           <div className="dashboard-timeline">
             {recentActivity.map((activity) => (
               <div className="dashboard-timeline-item" key={activity.title}>
-                <span className="dashboard-timeline-marker" aria-hidden="true" />
+                <span
+                  className="dashboard-timeline-marker"
+                  aria-hidden="true"
+                />
 
                 <div className="dashboard-timeline-content">
                   <div>
