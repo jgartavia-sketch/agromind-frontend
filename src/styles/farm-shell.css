@@ -9,6 +9,21 @@
 * {
   scrollbar-color: #22c55e rgba(15, 23, 42, 0.92);
   scrollbar-width: thin;
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+  width: 100%;
+}
+
+html,
+body {
+  overflow-x: hidden;
+  overscroll-behavior-y: auto;
+  touch-action: pan-y;
 }
 
 *::-webkit-scrollbar {
@@ -41,17 +56,16 @@
 .farm-shell {
   min-height: 100vh;
   min-height: 100dvh;
+  width: 100%;
   padding: calc(7.25rem + env(safe-area-inset-top, 0px)) clamp(1rem, 4vw, 3rem)
     calc(2rem + env(safe-area-inset-bottom, 0px));
   background: radial-gradient(circle at top, #022c22 0, #020617 45%, #020617 100%);
   color: #e5e7eb;
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  box-sizing: border-box;
   overflow-x: hidden;
-}
-
-* {
-  box-sizing: border-box;
+  overflow-y: visible;
+  overscroll-behavior-y: auto;
+  touch-action: pan-y;
 }
 
 /* =========================
@@ -192,7 +206,8 @@
   width: 100%;
   max-width: 1280px;
   margin: 0 auto;
-  contain: layout paint;
+  overflow: visible;
+  touch-action: pan-y;
 }
 
 .farm-shell-map-card {
@@ -202,9 +217,26 @@
   border: 1px solid #1e293b;
   padding: clamp(0.75rem, 2vw, 1.25rem);
   box-shadow: 0 24px 60px rgba(15, 23, 42, 0.9);
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: visible;
   min-height: 760px;
-  contain: layout paint;
+  touch-action: pan-y;
+  overscroll-behavior-y: auto;
+}
+
+/* Dashboard: permitir scroll vertical desde cualquier zona táctil */
+.farm-shell-map-card .dashboard-page,
+.farm-shell-map-card .dashboard-page * {
+  touch-action: pan-y;
+}
+
+/* Componentes interactivos conservan el gesto normal */
+.farm-shell-map-card button,
+.farm-shell-map-card a,
+.farm-shell-map-card input,
+.farm-shell-map-card select,
+.farm-shell-map-card textarea {
+  touch-action: manipulation;
 }
 
 /* =========================
@@ -279,9 +311,12 @@
     grid-area: nav;
     justify-content: flex-start;
     overflow-x: auto;
+    overflow-y: hidden;
     flex-wrap: nowrap;
     padding-bottom: 0.15rem;
     scrollbar-width: none;
+    touch-action: pan-x;
+    overscroll-behavior-x: contain;
   }
 
   .farm-shell-nav::-webkit-scrollbar {
@@ -315,8 +350,8 @@
 
   .farm-shell-header {
     gap: 0.85rem;
-    padding-left: 0.85rem;
-    padding-right: 0.85rem;
+    padding-left: calc(0.85rem + env(safe-area-inset-left, 0px));
+    padding-right: calc(0.85rem + env(safe-area-inset-right, 0px));
   }
 
   .brand-logo-circle {
