@@ -1,23 +1,34 @@
 // src/pages/DashboardPage.jsx
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useFarm } from "../context/FarmContext";
+import { loadBitacoraEntries } from "../services/bitacoraService";
 import "../styles/dashboard.css";
 
-const API_BASE =
+const RAW_API_BASE =
   import.meta.env.VITE_API_URL ||
   import.meta.env.VITE_API_BASE_URL ||
   "https://agromind-backend-slem.onrender.com";
 
+const API_BASE = RAW_API_BASE.replace(/\/+$/, "");
+
+function pickLocalStorage(keys) {
+  for (const key of keys) {
+    const value = localStorage.getItem(key);
+    if (value && String(value).trim()) return String(value).trim();
+  }
+  return "";
+}
+
 function getAuthToken() {
-  return (
-    localStorage.getItem("agromind_token") ||
-    localStorage.getItem("agromind_jwt") ||
-    localStorage.getItem("token") ||
-    localStorage.getItem("agromind_auth_token") ||
-    localStorage.getItem("auth_token") ||
-    localStorage.getItem("jwt") ||
-    localStorage.getItem("access_token") ||
-    ""
-  );
+  return pickLocalStorage([
+    "agromind_token",
+    "agromind_jwt",
+    "token",
+    "jwt",
+    "access_token",
+    "agromind_auth_token",
+    "auth_token",
+  ]);
 }
 
 async function apiFetch(path, options = {}) {
@@ -43,71 +54,292 @@ async function apiFetch(path, options = {}) {
   }
 
   if (!response.ok) {
-    const message =
+    throw new Error(
       data?.error ||
-      data?.message ||
-      (typeof data === "string" && data.trim()) ||
-      `Error HTTP ${response.status}`;
-
-    throw new Error(message);
+        data?.message ||
+        (typeof data === "string" && data.trim()) ||
+        `Error HTTP ${response.status}`
+    );
   }
 
   return data;
 }
 
-function getMapZones(mapPayload) {
-  return Array.isArray(mapPayload?.zones) ? mapPayload.zones : [];
+function toYYYYMMDD(value) {
+  if (!value) return "";
+
+  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return value;
+  }
+
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+
+  return date.toISOString().slice(0, 10);
 }
 
-function countComponents(zones) {
-  return zones.reduce((total, zone) => {
-    return total + (Array.isArray(zone?.components) ? zone.components.length : 0);
-  }, 0);
+function formatDate(value) {
+  const normalized = toYYYYMMDD(value);
+  if (!normalized) return "Sin fecha";
+
+  try {
+    return new Date(`${normalized}T12:00:00`).toLocaleDateString("es-CR", {
+      day: "2-digit",
+      month: "short",
+    });
+  } catch {
+    return normalized;
+  }
 }
 
-function countPendingTasks(tasks) {
-  return tasks.filter((task) => task?.status !== "Completada").length;
+function formatRelativeTime(value) {
+  if (!value) return "Reciente";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Reciente";
+
+  const diffMs = Date.now() - date.getTime();
+  const diffMinutes = Math.max(0, Math.floor(diffMs / 60000));
+
+  if (diffMinutes < 1) return "Ahora";
+  if (diffMinutes < 60) return `Hace ${diffMinutes} min`;
+
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) return `Hace ${diffHours} h`;
+
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays === 1) return "Ayer";
+  if (diffDays < 7) return `Hace ${diffDays} días`;
+
+  return date.toLocaleDateString("es-CR");
 }
 
-function countActiveProcesses(processLists) {
-  return processLists
-    .flat()
-    .filter((process) => process?.status === "Activo").length;
+function formatMoneyCRC(value) {
+  return Number(value || 0).toLocaleString("es-CR", {
+    style: "currency",
+    currency: "CRC",
+    maximumFractionDigits: 0,
+  });
 }
 
-const recentActivity = [
-  {
-    title: "Todavía no hay actividad reciente",
+function getCurrentMonthKey() {
+  return new Date().toISOString().slice(0, 7);
+}
+
+function normalizeTasks(payload) {
+  const list = Array.isArray(payload?.tasks)
+    ? payload.tasks
+    : Array.isArray(payload)
+    ? payload
+    : [];
+
+  return list.map((task) => ({
+    ...task,
+    start: toYYYYMMDD(task?.start),
+    due: toYYYYMMDD(task?.due),
+    status: task?.status === "Completada" ? "Completada" : "En progreso",
+  }));
+}
+
+function normalizeMovements(payload) {
+  return Array.isArray(payload?.movements)
+    ? payload.movements
+    : Array.isArray(payload)
+    ? payload
+    : [];
+}
+
+function normalizeBitacoraEntry(entry, index) {
+  const title =
+    entry?.title ||
+    entry?.action ||
+    entry?.type ||
+    entry?.category ||
+    "Registro de bitácora";
+
+  const description =
+    entry?.text ||
+    entry?.description ||
+    entry?.note ||
+    entry?.message ||
+    "Se registró una nueva actividad en la finca.";
+
+  const date =
+    entry?.createdAt ||
+    entry?.updatedAt ||
+    entry?.date ||
+    entry?.timestamp ||
+    null;
+
+  return {
+    id: entry?.id || entry?._id || `bitacora-${index}`,
+    title: String(title),
+    description: String(description),
+    date,
+  };
+}
+
+function buildRecentActivity(entries, movements, tasks) {
+  const bitacoraItems = entries.map((entry, index) =>
+    normalizeBitacoraEntry(entry, index)
+  );
+
+  const movementItems = movements.map((movement, index) => ({
+    id: `finance-${movement?.id || index}`,
+    title:
+      movement?.type === "Ingreso"
+        ? "Ingreso registrado"
+        : "Gasto registrado",
     description:
-      "Las acciones realizadas en AgroMind aparecerán aquí automáticamente.",
-    time: "Ahora",
-  },
-];
+      movement?.concept ||
+      movement?.category ||
+      "Movimiento financiero actualizado.",
+    date:
+      movement?.createdAt ||
+      movement?.updatedAt ||
+      movement?.date ||
+      null,
+  }));
 
-const upcomingTasks = [
-  {
-    title: "No hay tareas próximas",
-    meta: "Las próximas actividades aparecerán en esta sección.",
-  },
-];
+  const taskItems = tasks.map((task, index) => ({
+    id: `task-${task?.id || index}`,
+    title:
+      task?.status === "Completada"
+        ? "Tarea completada"
+        : "Tarea registrada",
+    description: task?.title || "Actividad operativa de la finca.",
+    date:
+      task?.updatedAt ||
+      task?.createdAt ||
+      task?.start ||
+      task?.due ||
+      null,
+  }));
 
-const alerts = [
-  {
-    title: "Todo en orden",
-    description: "No hay alertas activas en este momento.",
-    level: "success",
-  },
-];
+  return [...bitacoraItems, ...movementItems, ...taskItems]
+    .sort((a, b) => {
+      const aTime = a?.date ? new Date(a.date).getTime() : 0;
+      const bTime = b?.date ? new Date(b.date).getTime() : 0;
+      return bTime - aTime;
+    })
+    .slice(0, 5);
+}
 
-export default function DashboardPage({ user, farmId }) {
-  const [dashboardKpis, setDashboardKpis] = useState({
-    activeProcesses: 0,
-    pendingTasks: 0,
-    registeredComponents: 0,
+function getUpcomingTasks(tasks) {
+  const today = new Date().toISOString().slice(0, 10);
+
+  return tasks
+    .filter(
+      (task) =>
+        task?.status !== "Completada" &&
+        task?.due &&
+        task.due >= today
+    )
+    .sort((a, b) => String(a.due).localeCompare(String(b.due)))
+    .slice(0, 5);
+}
+
+function buildAlerts({ tasks, processes, movements }) {
+  const today = new Date().toISOString().slice(0, 10);
+
+  const overdueTasks = tasks.filter(
+    (task) =>
+      task?.status !== "Completada" &&
+      task?.due &&
+      task.due < today
+  ).length;
+
+  const blockedProcesses = processes.filter(
+    (process) => process?.status === "Bloqueado"
+  ).length;
+
+  const activeProcessesWithoutSteps = processes.filter(
+    (process) =>
+      process?.status === "Activo" &&
+      (!Array.isArray(process?.steps) || process.steps.length === 0)
+  ).length;
+
+  const alertList = [];
+
+  if (overdueTasks > 0) {
+    alertList.push({
+      title: `${overdueTasks} ${
+        overdueTasks === 1 ? "tarea vencida" : "tareas vencidas"
+      }`,
+      description: "Hay actividades pendientes cuya fecha límite ya pasó.",
+      level: "danger",
+      icon: "!",
+    });
+  }
+
+  if (blockedProcesses > 0) {
+    alertList.push({
+      title: `${blockedProcesses} ${
+        blockedProcesses === 1 ? "proceso bloqueado" : "procesos bloqueados"
+      }`,
+      description: "Revisá los procesos que no pueden continuar.",
+      level: "warning",
+      icon: "!",
+    });
+  }
+
+  if (activeProcessesWithoutSteps > 0) {
+    alertList.push({
+      title: `${activeProcessesWithoutSteps} ${
+        activeProcessesWithoutSteps === 1
+          ? "proceso sin etapas"
+          : "procesos sin etapas"
+      }`,
+      description: "Estos procesos están activos, pero todavía no tienen ruta operativa.",
+      level: "warning",
+      icon: "!",
+    });
+  }
+
+  if (movements.length === 0) {
+    alertList.push({
+      title: "Sin movimientos financieros",
+      description: "Todavía no hay ingresos ni gastos registrados para esta finca.",
+      level: "info",
+      icon: "i",
+    });
+  }
+
+  if (alertList.length === 0) {
+    alertList.push({
+      title: "Todo en orden",
+      description: "No hay alertas activas en este momento.",
+      level: "success",
+      icon: "✓",
+    });
+  }
+
+  return alertList.slice(0, 4);
+}
+
+export default function DashboardPage({ user }) {
+  const {
+    activeFarm,
+    farmId: contextFarmId,
+    farmName,
+  } = useFarm();
+
+  const farmId = contextFarmId || activeFarm?.id || "";
+
+  const [data, setData] = useState({
+    map: {
+      zones: [],
+      points: [],
+      lines: [],
+    },
+    tasks: [],
+    movements: [],
+    processes: [],
+    bitacora: [],
   });
 
-  const [kpisLoading, setKpisLoading] = useState(false);
-  const [kpisError, setKpisError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
 
   const displayName =
     user?.name ||
@@ -116,108 +348,246 @@ export default function DashboardPage({ user, farmId }) {
     user?.email?.split("@")?.[0] ||
     "Productor";
 
-  useEffect(() => {
+  const activeFarmLabel =
+    farmName ||
+    activeFarm?.name ||
+    (farmId ? "Finca activa" : "Sin finca seleccionada");
+
+  const loadDashboard = useCallback(async () => {
+    if (!farmId) {
+      setData({
+        map: { zones: [], points: [], lines: [] },
+        tasks: [],
+        movements: [],
+        processes: [],
+        bitacora: [],
+      });
+      setErrorMsg("");
+      setLoading(false);
+      return;
+    }
+
     let cancelled = false;
 
-    async function loadDashboardKpis() {
-      if (!farmId) {
-        setDashboardKpis({
-          activeProcesses: 0,
-          pendingTasks: 0,
-          registeredComponents: 0,
-        });
-        setKpisError("");
-        setKpisLoading(false);
-        return;
-      }
+    setLoading(true);
+    setErrorMsg("");
 
-      try {
-        setKpisLoading(true);
-        setKpisError("");
+    try {
+      const timestamp = Date.now();
 
-        const timestamp = Date.now();
-
-        const [mapPayload, tasksPayload] = await Promise.all([
+      const [mapPayload, tasksPayload, financePayload, bitacoraPayload] =
+        await Promise.all([
           apiFetch(`/api/farms/${farmId}/map?ts=${timestamp}`),
           apiFetch(`/api/farms/${farmId}/tasks?ts=${timestamp}`),
+          apiFetch(`/api/farms/${farmId}/finance/movements?ts=${timestamp}`),
+          loadBitacoraEntries(farmId).catch(() => []),
         ]);
 
-        if (cancelled) return;
+      if (cancelled) return;
 
-        const zones = getMapZones(mapPayload);
-        const tasks = Array.isArray(tasksPayload?.tasks)
-          ? tasksPayload.tasks
-          : [];
+      const zones = Array.isArray(mapPayload?.zones)
+        ? mapPayload.zones
+        : [];
+      const points = Array.isArray(mapPayload?.points)
+        ? mapPayload.points
+        : [];
+      const lines = Array.isArray(mapPayload?.lines)
+        ? mapPayload.lines
+        : [];
 
-        const processRequests = zones
+      const processLists = await Promise.all(
+        zones
           .filter((zone) => zone?.id)
           .map((zone) =>
             apiFetch(`/api/processes/zone/${zone.id}`, {
               method: "GET",
             }).catch(() => [])
-          );
+          )
+      );
 
-        const processLists =
-          processRequests.length > 0
-            ? await Promise.all(processRequests)
-            : [];
+      if (cancelled) return;
 
-        if (cancelled) return;
+      setData({
+        map: {
+          zones,
+          points,
+          lines,
+        },
+        tasks: normalizeTasks(tasksPayload),
+        movements: normalizeMovements(financePayload),
+        processes: processLists.flat(),
+        bitacora: Array.isArray(bitacoraPayload) ? bitacoraPayload : [],
+      });
+    } catch (error) {
+      if (cancelled) return;
 
-        setDashboardKpis({
-          activeProcesses: countActiveProcesses(processLists),
-          pendingTasks: countPendingTasks(tasks),
-          registeredComponents: countComponents(zones),
-        });
-      } catch (error) {
-        if (cancelled) return;
-
-        setDashboardKpis({
-          activeProcesses: 0,
-          pendingTasks: 0,
-          registeredComponents: 0,
-        });
-
-        setKpisError(
-          error?.message || "No se pudieron cargar los indicadores."
-        );
-      } finally {
-        if (!cancelled) {
-          setKpisLoading(false);
-        }
-      }
+      setErrorMsg(
+        error?.message || "No se pudo cargar el centro de control."
+      );
+    } finally {
+      if (!cancelled) setLoading(false);
     }
-
-    loadDashboardKpis();
 
     return () => {
       cancelled = true;
     };
   }, [farmId]);
 
-  const kpis = useMemo(
-    () => [
-      {
-        label: "Procesos activos",
-        value: kpisLoading ? "—" : String(dashboardKpis.activeProcesses),
-        detail: "Procesos actualmente en ejecución",
-        tone: "green",
-      },
-      {
-        label: "Tareas pendientes",
-        value: kpisLoading ? "—" : String(dashboardKpis.pendingTasks),
-        detail: "Actividades que requieren seguimiento",
-        tone: "amber",
-      },
-      {
-        label: "Componentes registrados",
-        value: kpisLoading ? "—" : String(dashboardKpis.registeredComponents),
-        detail: "Elementos registrados en la finca",
-        tone: "blue",
-      },
-    ],
-    [dashboardKpis, kpisLoading]
+  useEffect(() => {
+    let active = true;
+
+    async function run() {
+      if (!active) return;
+      await loadDashboard();
+    }
+
+    run();
+
+    return () => {
+      active = false;
+    };
+  }, [loadDashboard]);
+
+  useEffect(() => {
+    function handleRefresh(event) {
+      const targetFarmId = event?.detail?.farmId
+        ? String(event.detail.farmId)
+        : "";
+
+      if (
+        targetFarmId &&
+        farmId &&
+        targetFarmId !== String(farmId)
+      ) {
+        return;
+      }
+
+      loadDashboard();
+    }
+
+    window.addEventListener("agromind:tasks:refresh", handleRefresh);
+    window.addEventListener("agromind:map:refresh", handleRefresh);
+    window.addEventListener("agromind:zones:refresh", handleRefresh);
+    window.addEventListener("agromind:farm:refresh", handleRefresh);
+    window.addEventListener("agromind:finance:refresh", handleRefresh);
+    window.addEventListener("agromind:bitacora:refresh", handleRefresh);
+
+    return () => {
+      window.removeEventListener("agromind:tasks:refresh", handleRefresh);
+      window.removeEventListener("agromind:map:refresh", handleRefresh);
+      window.removeEventListener("agromind:zones:refresh", handleRefresh);
+      window.removeEventListener("agromind:farm:refresh", handleRefresh);
+      window.removeEventListener("agromind:finance:refresh", handleRefresh);
+      window.removeEventListener("agromind:bitacora:refresh", handleRefresh);
+    };
+  }, [farmId, loadDashboard]);
+
+  const registeredComponents = useMemo(
+    () =>
+      data.map.zones.reduce(
+        (total, zone) =>
+          total +
+          (Array.isArray(zone?.components)
+            ? zone.components.length
+            : 0),
+        0
+      ),
+    [data.map.zones]
   );
+
+  const activeProcesses = useMemo(
+    () =>
+      data.processes.filter(
+        (process) => process?.status === "Activo"
+      ).length,
+    [data.processes]
+  );
+
+  const pendingTasks = useMemo(
+    () =>
+      data.tasks.filter(
+        (task) => task?.status !== "Completada"
+      ).length,
+    [data.tasks]
+  );
+
+  const currentMonthMovements = useMemo(() => {
+    const monthKey = getCurrentMonthKey();
+
+    return data.movements.filter(
+      (movement) => toYYYYMMDD(movement?.date).slice(0, 7) === monthKey
+    );
+  }, [data.movements]);
+
+  const financeSummary = useMemo(() => {
+    const ingresos = currentMonthMovements
+      .filter((movement) => movement?.type === "Ingreso")
+      .reduce(
+        (total, movement) =>
+          total + Number(movement?.amount || 0),
+        0
+      );
+
+    const gastos = currentMonthMovements
+      .filter((movement) => movement?.type === "Gasto")
+      .reduce(
+        (total, movement) =>
+          total + Number(movement?.amount || 0),
+        0
+      );
+
+    return {
+      ingresos,
+      gastos,
+      balance: ingresos - gastos,
+    };
+  }, [currentMonthMovements]);
+
+  const recentActivity = useMemo(
+    () =>
+      buildRecentActivity(
+        data.bitacora,
+        data.movements,
+        data.tasks
+      ),
+    [data.bitacora, data.movements, data.tasks]
+  );
+
+  const upcomingTasks = useMemo(
+    () => getUpcomingTasks(data.tasks),
+    [data.tasks]
+  );
+
+  const alerts = useMemo(
+    () =>
+      buildAlerts({
+        tasks: data.tasks,
+        processes: data.processes,
+        movements: data.movements,
+      }),
+    [data.tasks, data.processes, data.movements]
+  );
+
+  const kpis = [
+    {
+      label: "Procesos activos",
+      value: loading ? "—" : String(activeProcesses),
+      detail: "Procesos actualmente en ejecución",
+      tone: "green",
+    },
+    {
+      label: "Tareas pendientes",
+      value: loading ? "—" : String(pendingTasks),
+      detail: "Actividades que requieren seguimiento",
+      tone: "amber",
+    },
+    {
+      label: "Componentes registrados",
+      value: loading ? "—" : String(registeredComponents),
+      detail: "Elementos registrados en la finca",
+      tone: "blue",
+    },
+  ];
 
   return (
     <div className="dashboard-page">
@@ -233,13 +603,11 @@ export default function DashboardPage({ user, farmId }) {
 
         <div className="dashboard-farm-chip">
           <span className="dashboard-farm-chip-label">Finca activa</span>
-          <strong>
-            {farmId ? `Finca #${farmId}` : "Sin finca seleccionada"}
-          </strong>
+          <strong>{activeFarmLabel}</strong>
         </div>
       </section>
 
-      {kpisError ? (
+      {errorMsg ? (
         <div
           role="alert"
           style={{
@@ -252,14 +620,14 @@ export default function DashboardPage({ user, farmId }) {
             fontSize: "0.88rem",
           }}
         >
-          {kpisError}
+          {errorMsg}
         </div>
       ) : null}
 
       <section
         className="dashboard-kpi-grid"
         aria-label="Indicadores principales"
-        aria-busy={kpisLoading}
+        aria-busy={loading}
       >
         {kpis.map((item) => (
           <article
@@ -273,7 +641,7 @@ export default function DashboardPage({ user, farmId }) {
             </div>
 
             <strong>{item.value}</strong>
-            <p>{kpisLoading ? "Cargando datos reales..." : item.detail}</p>
+            <p>{loading ? "Actualizando finca..." : item.detail}</p>
           </article>
         ))}
       </section>
@@ -287,13 +655,13 @@ export default function DashboardPage({ user, farmId }) {
         </div>
 
         <div className="dashboard-alert-list">
-          {alerts.map((alert) => (
+          {alerts.map((alert, index) => (
             <div
               className={`dashboard-alert dashboard-alert-${alert.level}`}
-              key={alert.title}
+              key={`${alert.title}-${index}`}
             >
               <span className="dashboard-alert-icon" aria-hidden="true">
-                ✓
+                {alert.icon}
               </span>
 
               <div>
@@ -317,8 +685,29 @@ export default function DashboardPage({ user, farmId }) {
           </div>
 
           <div className="dashboard-timeline">
-            {recentActivity.map((activity) => (
-              <div className="dashboard-timeline-item" key={activity.title}>
+            {recentActivity.length > 0 ? (
+              recentActivity.map((activity) => (
+                <div
+                  className="dashboard-timeline-item"
+                  key={activity.id}
+                >
+                  <span
+                    className="dashboard-timeline-marker"
+                    aria-hidden="true"
+                  />
+
+                  <div className="dashboard-timeline-content">
+                    <div>
+                      <strong>{activity.title}</strong>
+                      <span>{formatRelativeTime(activity.date)}</span>
+                    </div>
+
+                    <p>{activity.description}</p>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="dashboard-timeline-item">
                 <span
                   className="dashboard-timeline-marker"
                   aria-hidden="true"
@@ -326,14 +715,17 @@ export default function DashboardPage({ user, farmId }) {
 
                 <div className="dashboard-timeline-content">
                   <div>
-                    <strong>{activity.title}</strong>
-                    <span>{activity.time}</span>
+                    <strong>Todavía no hay actividad reciente</strong>
+                    <span>Ahora</span>
                   </div>
 
-                  <p>{activity.description}</p>
+                  <p>
+                    Las acciones realizadas en AgroMind aparecerán aquí
+                    automáticamente.
+                  </p>
                 </div>
               </div>
-            ))}
+            )}
           </div>
         </article>
 
@@ -346,19 +738,41 @@ export default function DashboardPage({ user, farmId }) {
           </div>
 
           <div className="dashboard-upcoming-list">
-            {upcomingTasks.map((task) => (
-              <div className="dashboard-upcoming-item" key={task.title}>
+            {upcomingTasks.length > 0 ? (
+              upcomingTasks.map((task) => (
+                <div
+                  className="dashboard-upcoming-item"
+                  key={task.id}
+                >
+                  <div className="dashboard-upcoming-date">
+                    <span>{formatDate(task.due)}</span>
+                    <small>{task.priority || "Media"}</small>
+                  </div>
+
+                  <div>
+                    <strong>{task.title}</strong>
+                    <p>
+                      {task.zone || "Zona general"}
+                      {task.owner ? ` · ${task.owner}` : ""}
+                    </p>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="dashboard-upcoming-item">
                 <div className="dashboard-upcoming-date">
                   <span>—</span>
                   <small>Sin fecha</small>
                 </div>
 
                 <div>
-                  <strong>{task.title}</strong>
-                  <p>{task.meta}</p>
+                  <strong>No hay tareas próximas</strong>
+                  <p>
+                    Las próximas actividades aparecerán en esta sección.
+                  </p>
                 </div>
               </div>
-            ))}
+            )}
           </div>
         </article>
       </section>
@@ -375,17 +789,29 @@ export default function DashboardPage({ user, farmId }) {
           <div className="dashboard-finance-summary">
             <div>
               <span>Ingresos</span>
-              <strong>₡0</strong>
+              <strong>
+                {loading
+                  ? "—"
+                  : formatMoneyCRC(financeSummary.ingresos)}
+              </strong>
             </div>
 
             <div>
               <span>Gastos</span>
-              <strong>₡0</strong>
+              <strong>
+                {loading
+                  ? "—"
+                  : formatMoneyCRC(financeSummary.gastos)}
+              </strong>
             </div>
 
             <div className="dashboard-finance-balance">
               <span>Balance</span>
-              <strong>₡0</strong>
+              <strong>
+                {loading
+                  ? "—"
+                  : formatMoneyCRC(financeSummary.balance)}
+              </strong>
             </div>
           </div>
         </article>
@@ -400,17 +826,17 @@ export default function DashboardPage({ user, farmId }) {
 
           <div className="dashboard-map-metrics">
             <div>
-              <strong>0</strong>
+              <strong>{loading ? "—" : data.map.zones.length}</strong>
               <span>Zonas</span>
             </div>
 
             <div>
-              <strong>0</strong>
+              <strong>{loading ? "—" : data.map.points.length}</strong>
               <span>Puntos</span>
             </div>
 
             <div>
-              <strong>0</strong>
+              <strong>{loading ? "—" : data.map.lines.length}</strong>
               <span>Líneas</span>
             </div>
           </div>
