@@ -70,7 +70,6 @@ export default function AddMovementModal({
   }, [initialMovement]);
 
   const [form, setForm] = useState(initial);
-  const [categoryOpen, setCategoryOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState(() => {
     const current = String(initial.category || "").trim();
     if (!current) return "";
@@ -89,7 +88,6 @@ export default function AddMovementModal({
       current ? (isKnownCategory(current) ? current : "Otro") : ""
     );
     setCustomCategory(current && !isKnownCategory(current) ? current : "");
-    setCategoryOpen(false);
   }, [initial]);
 
   useEffect(() => {
@@ -105,19 +103,20 @@ export default function AddMovementModal({
     };
   }, []);
 
-  const setField = (k, v) => setForm((p) => ({ ...p, [k]: v }));
+  const setField = (key, value) => {
+    setForm((prev) => ({ ...prev, [key]: value }));
+  };
 
-  const handleCategorySelect = (category) => {
-    setSelectedCategory(category);
+  const handleCategoryChange = (value) => {
+    setSelectedCategory(value);
 
-    if (category === "Otro") {
+    if (value === "Otro") {
       setField("category", customCategory);
       return;
     }
 
     setCustomCategory("");
-    setField("category", category);
-    setCategoryOpen(false);
+    setField("category", value);
   };
 
   const handleCustomCategoryChange = (value) => {
@@ -175,71 +174,149 @@ export default function AddMovementModal({
     onSave(payload);
   };
 
+  const modalStyles = {
+    overlay: {
+      position: "fixed",
+      inset: 0,
+      width: "100vw",
+      height: "100dvh",
+      background:
+        "radial-gradient(circle at top, rgba(16,185,129,0.12), transparent 35%), rgba(0,0,0,0.76)",
+      backdropFilter: "blur(10px)",
+      WebkitBackdropFilter: "blur(10px)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      zIndex: 9999,
+      padding:
+        "calc(0.75rem + env(safe-area-inset-top, 0px)) calc(0.75rem + env(safe-area-inset-right, 0px)) calc(0.75rem + env(safe-area-inset-bottom, 0px)) calc(0.75rem + env(safe-area-inset-left, 0px))",
+      overflow: "hidden",
+      overscrollBehavior: "none",
+      boxSizing: "border-box",
+    },
+    card: {
+      width: "min(760px, 100%)",
+      maxWidth: "100%",
+      maxHeight:
+        "calc(100dvh - 1.5rem - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px))",
+      overflowY: "auto",
+      overscrollBehavior: "contain",
+      WebkitOverflowScrolling: "touch",
+      background:
+        "linear-gradient(180deg, rgba(5,12,28,0.995), rgba(2,6,23,0.995))",
+      border: "1px solid rgba(52,211,153,0.22)",
+      borderRadius: "24px",
+      padding: "1.35rem",
+      boxShadow:
+        "0 32px 90px rgba(0,0,0,0.62), 0 0 0 1px rgba(255,255,255,0.02) inset",
+      boxSizing: "border-box",
+    },
+    header: {
+      display: "flex",
+      justifyContent: "space-between",
+      gap: "1rem",
+      alignItems: "flex-start",
+      position: "sticky",
+      top: 0,
+      zIndex: 4,
+      margin: "-1.35rem -1.35rem 1.25rem",
+      padding: "1.25rem 1.35rem 1rem",
+      background:
+        "linear-gradient(180deg, rgba(5,12,28,1), rgba(5,12,28,0.96))",
+      borderBottom: "1px solid rgba(148,163,184,0.1)",
+      backdropFilter: "blur(12px)",
+      WebkitBackdropFilter: "blur(12px)",
+    },
+    titleRow: {
+      display: "flex",
+      gap: "0.8rem",
+      alignItems: "center",
+      minWidth: 0,
+    },
+    icon: {
+      width: "44px",
+      height: "44px",
+      borderRadius: "14px",
+      display: "grid",
+      placeItems: "center",
+      flex: "0 0 auto",
+      background:
+        "linear-gradient(135deg, rgba(34,197,94,0.24), rgba(20,184,166,0.12))",
+      border: "1px solid rgba(74,222,128,0.28)",
+      boxShadow: "0 10px 26px rgba(34,197,94,0.12)",
+      fontSize: "1.25rem",
+    },
+    panel: {
+      padding: "1rem",
+      borderRadius: "18px",
+      background:
+        "linear-gradient(180deg, rgba(15,23,42,0.72), rgba(8,15,30,0.7))",
+      border: "1px solid rgba(148,163,184,0.1)",
+      boxShadow: "0 14px 34px rgba(0,0,0,0.16)",
+    },
+    grid: {
+      display: "grid",
+      gridTemplateColumns: "repeat(auto-fit, minmax(min(220px, 100%), 1fr))",
+      gap: "0.95rem",
+    },
+    typeSwitcher: {
+      display: "grid",
+      gridTemplateColumns: "1fr 1fr",
+      gap: "0.4rem",
+      padding: "0.35rem",
+      borderRadius: "14px",
+      background: "rgba(2,6,23,0.82)",
+      border: "1px solid rgba(100,116,139,0.35)",
+    },
+    amountWrap: {
+      position: "relative",
+    },
+    amountSymbol: {
+      position: "absolute",
+      left: "0.9rem",
+      top: "50%",
+      transform: "translateY(-50%)",
+      color: "#4ade80",
+      fontWeight: 800,
+      fontSize: "1rem",
+      pointerEvents: "none",
+      zIndex: 1,
+    },
+  };
+
   return (
     <div
       className="modal-overlay"
       role="dialog"
       aria-modal="true"
       aria-labelledby="movement-modal-title"
-      style={{
-        position: "fixed",
-        inset: 0,
-        width: "100vw",
-        height: "100dvh",
-        background: "rgba(0,0,0,0.72)",
-        backdropFilter: "blur(8px)",
-        WebkitBackdropFilter: "blur(8px)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 9999,
-        padding:
-          "calc(0.75rem + env(safe-area-inset-top, 0px)) calc(0.75rem + env(safe-area-inset-right, 0px)) calc(0.75rem + env(safe-area-inset-bottom, 0px)) calc(0.75rem + env(safe-area-inset-left, 0px))",
-        overflow: "hidden",
-        overscrollBehavior: "none",
-        boxSizing: "border-box",
-      }}
+      style={modalStyles.overlay}
     >
-      <div
-        className="modal-card"
-        style={{
-          width: "min(720px, 100%)",
-          maxWidth: "100%",
-          maxHeight:
-            "calc(100dvh - 1.5rem - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px))",
-          overflowY: "auto",
-          overscrollBehavior: "contain",
-          WebkitOverflowScrolling: "touch",
-          background: "rgba(2, 6, 23, 0.99)",
-          border: "1px solid #1e293b",
-          borderRadius: "18px",
-          padding: "1.25rem",
-          boxShadow: "0 20px 60px rgba(0,0,0,0.55)",
-          boxSizing: "border-box",
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            gap: "1rem",
-            alignItems: "flex-start",
-            position: "sticky",
-            top: 0,
-            background: "rgba(2, 6, 23, 0.99)",
-            paddingBottom: "0.75rem",
-            zIndex: 4,
-          }}
-        >
-          <div style={{ minWidth: 0 }}>
-            <h3 id="movement-modal-title" style={{ margin: 0 }}>
-              {isEdit ? "Editar movimiento" : "Agregar movimiento"}
-            </h3>
-            <p style={{ marginTop: "0.35rem", opacity: 0.8 }}>
-              {isEdit
-                ? "Ajusta el movimiento y guarda cambios."
-                : "Registra un ingreso o gasto real de tu finca."}
-            </p>
+      <div className="modal-card" style={modalStyles.card}>
+        <div style={modalStyles.header}>
+          <div style={modalStyles.titleRow}>
+            <div style={modalStyles.icon}>₡</div>
+
+            <div style={{ minWidth: 0 }}>
+              <h3
+                id="movement-modal-title"
+                style={{ margin: 0, fontSize: "1.45rem", color: "#f8fafc" }}
+              >
+                {isEdit ? "Editar movimiento" : "Agregar movimiento"}
+              </h3>
+
+              <p
+                style={{
+                  margin: "0.35rem 0 0",
+                  color: "#94a3b8",
+                  lineHeight: 1.45,
+                }}
+              >
+                {isEdit
+                  ? "Ajusta los datos financieros de este movimiento."
+                  : "Registra un ingreso o gasto real de tu finca."}
+              </p>
+            </div>
           </div>
 
           <button
@@ -247,179 +324,211 @@ export default function AddMovementModal({
             className="secondary-btn"
             onClick={onClose}
             disabled={saving}
-            style={{ height: "fit-content", flex: "0 0 auto" }}
+            style={{
+              height: "fit-content",
+              flex: "0 0 auto",
+              borderRadius: "999px",
+              paddingInline: "1rem",
+            }}
           >
             Cerrar
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} style={{ marginTop: "1rem" }}>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(min(220px, 100%), 1fr))",
-              gap: "0.9rem",
-            }}
-          >
-            <div className="task-field">
-              <label>Fecha</label>
-              <input
-                type="date"
-                value={form.date}
-                onChange={(e) => setField("date", e.target.value)}
-                disabled={saving}
-              />
-            </div>
+        <form onSubmit={handleSubmit}>
+          <div style={{ display: "grid", gap: "1rem" }}>
+            <section style={modalStyles.panel}>
+              <div style={modalStyles.grid}>
+                <div className="task-field">
+                  <label>Fecha</label>
+                  <input
+                    type="date"
+                    value={form.date}
+                    onChange={(e) => setField("date", e.target.value)}
+                    disabled={saving}
+                  />
+                </div>
 
-            <div className="task-field">
-              <label>Tipo</label>
-              <select
-                value={form.type}
-                onChange={(e) => setField("type", e.target.value)}
-                disabled={saving}
-              >
-                <option value="Ingreso">Ingreso</option>
-                <option value="Gasto">Gasto</option>
-              </select>
-            </div>
+                <div className="task-field">
+                  <label>Tipo de movimiento</label>
 
-            <div className="task-field" style={{ gridColumn: "1 / -1" }}>
-              <label>Concepto</label>
-              <input
-                type="text"
-                value={form.concept}
-                onChange={(e) => setField("concept", e.target.value)}
-                disabled={saving}
-              />
-            </div>
+                  <div style={modalStyles.typeSwitcher}>
+                    {["Ingreso", "Gasto"].map((type) => {
+                      const active = form.type === type;
+
+                      return (
+                        <button
+                          key={type}
+                          type="button"
+                          onClick={() => setField("type", type)}
+                          disabled={saving}
+                          style={{
+                            minHeight: "42px",
+                            borderRadius: "10px",
+                            border: active
+                              ? type === "Ingreso"
+                                ? "1px solid rgba(74,222,128,0.55)"
+                                : "1px solid rgba(248,113,113,0.55)"
+                              : "1px solid transparent",
+                            background: active
+                              ? type === "Ingreso"
+                                ? "linear-gradient(135deg, rgba(34,197,94,0.26), rgba(20,184,166,0.16))"
+                                : "linear-gradient(135deg, rgba(248,113,113,0.22), rgba(249,115,22,0.12))"
+                              : "transparent",
+                            color: active
+                              ? type === "Ingreso"
+                                ? "#bbf7d0"
+                                : "#fecaca"
+                              : "#94a3b8",
+                            fontWeight: 700,
+                            cursor: "pointer",
+                          }}
+                        >
+                          {type}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div
+                  className="task-field"
+                  style={{ gridColumn: "1 / -1" }}
+                >
+                  <label>Concepto</label>
+                  <input
+                    type="text"
+                    value={form.concept}
+                    onChange={(e) => setField("concept", e.target.value)}
+                    disabled={saving}
+                    placeholder="Ej: Venta de cosecha, compra de fertilizante"
+                  />
+                </div>
+              </div>
+            </section>
+
+            <section style={modalStyles.panel}>
+              <div style={modalStyles.grid}>
+                <div className="task-field">
+                  <label>Categoría</label>
+                  <select
+                    value={selectedCategory}
+                    onChange={(e) => handleCategoryChange(e.target.value)}
+                    disabled={saving}
+                  >
+                    <option value="">Seleccionar categoría</option>
+                    {CATEGORY_OPTIONS.map((category) => (
+                      <option key={category} value={category}>
+                        {category}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="task-field">
+                  <label>Monto (CRC)</label>
+                  <div style={modalStyles.amountWrap}>
+                    <span style={modalStyles.amountSymbol}>₡</span>
+                    <input
+                      type="number"
+                      value={form.amount}
+                      onChange={(e) => setField("amount", e.target.value)}
+                      disabled={saving}
+                      min="0"
+                      step="1"
+                      placeholder="0"
+                      style={{
+                        paddingLeft: "2.1rem",
+                        fontSize: "1.05rem",
+                        fontWeight: 700,
+                      }}
+                    />
+                  </div>
+                </div>
+
+                {selectedCategory === "Otro" && (
+                  <div
+                    className="task-field"
+                    style={{ gridColumn: "1 / -1" }}
+                  >
+                    <label>Otra categoría</label>
+                    <input
+                      type="text"
+                      value={customCategory}
+                      onChange={(e) =>
+                        handleCustomCategoryChange(e.target.value)
+                      }
+                      disabled={saving}
+                      placeholder="Escribe la categoría personalizada"
+                    />
+                  </div>
+                )}
+              </div>
+            </section>
+
+            <section style={modalStyles.panel}>
+              <div style={modalStyles.grid}>
+                <div
+                  className="task-field"
+                  style={{ gridColumn: "1 / -1" }}
+                >
+                  <label>Número de factura (opcional)</label>
+                  <input
+                    type="text"
+                    value={form.invoiceNumber}
+                    onChange={(e) =>
+                      setField("invoiceNumber", e.target.value)
+                    }
+                    disabled={saving}
+                    maxLength={80}
+                    placeholder="Ej: FAC-2026-001"
+                  />
+                </div>
+
+                <div
+                  className="task-field"
+                  style={{ gridColumn: "1 / -1" }}
+                >
+                  <label>Nota</label>
+                  <textarea
+                    value={form.note}
+                    onChange={(e) => setField("note", e.target.value)}
+                    disabled={saving}
+                    rows={3}
+                    placeholder="Agrega un detalle útil para este movimiento"
+                    style={{ resize: "vertical", minHeight: "96px" }}
+                  />
+                </div>
+              </div>
+            </section>
 
             <div
-              className="task-field"
-              style={{ gridColumn: "1 / -1", minWidth: 0 }}
+              style={{
+                display: "flex",
+                gap: "0.75rem",
+                justifyContent: "flex-end",
+                flexWrap: "wrap",
+                paddingTop: "0.25rem",
+              }}
             >
-              <label>Categoría</label>
-
               <button
-                type="button"
-                className="secondary-btn"
-                onClick={() => setCategoryOpen((open) => !open)}
+                type="submit"
+                className="primary-btn"
                 disabled={saving}
-                aria-expanded={categoryOpen}
                 style={{
-                  width: "100%",
-                  minHeight: "46px",
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  textAlign: "left",
-                  padding: "0.75rem 0.9rem",
-                  borderRadius: "12px",
+                  minWidth: "220px",
+                  minHeight: "48px",
+                  borderRadius: "999px",
+                  fontWeight: 800,
                 }}
               >
-                <span>
-                  {selectedCategory === "Otro"
-                    ? customCategory || "Otro"
-                    : selectedCategory || "Seleccionar categoría"}
-                </span>
-                <span aria-hidden="true">{categoryOpen ? "▲" : "▼"}</span>
+                {saving
+                  ? "Guardando…"
+                  : isEdit
+                  ? "Guardar cambios"
+                  : "Guardar movimiento"}
               </button>
-
-              {categoryOpen && (
-                <div
-                  style={{
-                    marginTop: "0.55rem",
-                    display: "grid",
-                    gridTemplateColumns:
-                      "repeat(auto-fit, minmax(min(160px, 100%), 1fr))",
-                    gap: "0.5rem",
-                    padding: "0.75rem",
-                    border: "1px solid rgba(74, 222, 128, 0.24)",
-                    borderRadius: "14px",
-                    background: "rgba(15, 23, 42, 0.88)",
-                  }}
-                >
-                  {CATEGORY_OPTIONS.map((category) => {
-                    const active = selectedCategory === category;
-
-                    return (
-                      <button
-                        key={category}
-                        type="button"
-                        className={active ? "primary-btn" : "secondary-btn"}
-                        onClick={() => handleCategorySelect(category)}
-                        disabled={saving}
-                        style={{
-                          width: "100%",
-                          minHeight: "42px",
-                          justifyContent: "center",
-                        }}
-                      >
-                        {category}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-
-              {selectedCategory === "Otro" && (
-                <input
-                  type="text"
-                  value={customCategory}
-                  onChange={(e) => handleCustomCategoryChange(e.target.value)}
-                  disabled={saving}
-                  placeholder="Escribe la categoría"
-                  style={{ marginTop: "0.55rem" }}
-                />
-              )}
             </div>
-
-            <div className="task-field">
-              <label>Monto (CRC)</label>
-              <input
-                type="number"
-                value={form.amount}
-                onChange={(e) => setField("amount", e.target.value)}
-                disabled={saving}
-                min="0"
-                step="1"
-              />
-            </div>
-
-            <div className="task-field" style={{ gridColumn: "1 / -1" }}>
-              <label>Número de factura (opcional)</label>
-              <input
-                type="text"
-                value={form.invoiceNumber}
-                onChange={(e) => setField("invoiceNumber", e.target.value)}
-                disabled={saving}
-                maxLength={80}
-              />
-            </div>
-
-            <div className="task-field" style={{ gridColumn: "1 / -1" }}>
-              <label>Nota</label>
-              <input
-                type="text"
-                value={form.note}
-                onChange={(e) => setField("note", e.target.value)}
-                disabled={saving}
-              />
-            </div>
-          </div>
-
-          <div
-            style={{
-              display: "flex",
-              gap: "0.75rem",
-              marginTop: "1rem",
-              paddingTop: "1rem",
-              paddingBottom: "0.25rem",
-              flexWrap: "wrap",
-            }}
-          >
-            <button type="submit" className="primary-btn" disabled={saving}>
-              {saving ? "Guardando…" : isEdit ? "Guardar cambios" : "Guardar"}
-            </button>
           </div>
         </form>
       </div>
