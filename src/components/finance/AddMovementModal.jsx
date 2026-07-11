@@ -215,9 +215,9 @@ export default function AddMovementModal({
     header: {
       display: "flex",
       justifyContent: "space-between",
-      gap: "1rem",
+      gap: "0.75rem",
       alignItems: "flex-start",
-      padding: "1rem 1.15rem 0.85rem",
+      padding: "0.85rem 1rem 0.75rem",
       background:
         "linear-gradient(180deg, rgba(5,12,28,1), rgba(5,12,28,0.98))",
       borderBottom: "1px solid rgba(148,163,184,0.1)",
@@ -228,22 +228,9 @@ export default function AddMovementModal({
     },
     titleRow: {
       display: "flex",
-      gap: "0.8rem",
-      alignItems: "center",
+      alignItems: "flex-start",
       minWidth: 0,
-    },
-    icon: {
-      width: "44px",
-      height: "44px",
-      borderRadius: "14px",
-      display: "grid",
-      placeItems: "center",
-      flex: "0 0 auto",
-      background:
-        "linear-gradient(135deg, rgba(34,197,94,0.24), rgba(20,184,166,0.12))",
-      border: "1px solid rgba(74,222,128,0.28)",
-      boxShadow: "0 10px 26px rgba(34,197,94,0.12)",
-      fontSize: "1.25rem",
+      flex: "1 1 auto",
     },
     panel: {
       padding: "1rem",
@@ -303,21 +290,25 @@ export default function AddMovementModal({
       <div className="modal-card" style={modalStyles.card}>
         <div style={modalStyles.header}>
           <div style={modalStyles.titleRow}>
-            <div style={modalStyles.icon}>₡</div>
-
             <div style={{ minWidth: 0 }}>
               <h3
                 id="movement-modal-title"
-                style={{ margin: 0, fontSize: "1.45rem", color: "#f8fafc" }}
+                style={{
+                  margin: 0,
+                  fontSize: "clamp(1.2rem, 4.8vw, 1.45rem)",
+                  lineHeight: 1.15,
+                  color: "#f8fafc",
+                }}
               >
                 {isEdit ? "Editar movimiento" : "Agregar movimiento"}
               </h3>
 
               <p
                 style={{
-                  margin: "0.35rem 0 0",
+                  margin: "0.3rem 0 0",
                   color: "#94a3b8",
-                  lineHeight: 1.45,
+                  lineHeight: 1.35,
+                  fontSize: "0.92rem",
                 }}
               >
                 {isEdit
@@ -333,10 +324,14 @@ export default function AddMovementModal({
             onClick={onClose}
             disabled={saving}
             style={{
-              height: "fit-content",
+              minHeight: "38px",
+              height: "38px",
               flex: "0 0 auto",
               borderRadius: "999px",
-              paddingInline: "1rem",
+              padding: "0 0.9rem",
+              fontSize: "0.9rem",
+              fontWeight: 700,
+              lineHeight: 1,
             }}
           >
             Cerrar
