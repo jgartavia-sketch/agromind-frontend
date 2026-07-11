@@ -182,17 +182,6 @@
   line-height: 1.5;
 }
 
-.dashboard-main-grid,
-.dashboard-finance-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.65fr);
-  gap: 1rem;
-}
-
-.dashboard-secondary-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
 .dashboard-panel {
   min-width: 0;
   padding: clamp(1.2rem, 2.5vw, 1.65rem);
@@ -217,75 +206,11 @@
   letter-spacing: -0.025em;
 }
 
-.dashboard-health-badge {
-  flex: 0 0 auto;
-  padding: 0.55rem 0.75rem;
-  border: 1px solid rgba(22, 163, 74, 0.15);
-  border-radius: 999px;
-  background: rgba(220, 252, 231, 0.72);
-  color: #166534;
-  font-size: 0.76rem;
-  font-weight: 800;
-}
-
-.dashboard-status-list,
 .dashboard-alert-list,
-.dashboard-upcoming-list,
-.dashboard-process-list {
+.dashboard-upcoming-list {
   display: flex;
   flex-direction: column;
   gap: 0.8rem;
-}
-
-.dashboard-status-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 0.95rem 0;
-  border-bottom: 1px solid #eef3ed;
-}
-
-.dashboard-status-row:first-child {
-  padding-top: 0;
-}
-
-.dashboard-status-row:last-child {
-  padding-bottom: 0;
-  border-bottom: 0;
-}
-
-.dashboard-status-row > div {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.dashboard-status-row strong {
-  color: #243f27;
-  font-size: 0.92rem;
-}
-
-.dashboard-status-row span:not(.dashboard-status-indicator) {
-  color: #7a897b;
-  font-size: 0.78rem;
-}
-
-.dashboard-status-indicator {
-  flex: 0 0 auto;
-  width: 11px;
-  height: 11px;
-  border-radius: 50%;
-}
-
-.dashboard-status-good {
-  background: #22c55e;
-  box-shadow: 0 0 0 6px rgba(34, 197, 94, 0.12);
-}
-
-.dashboard-status-neutral {
-  background: #a7b3a8;
-  box-shadow: 0 0 0 6px rgba(167, 179, 168, 0.13);
 }
 
 .dashboard-alert {
@@ -414,53 +339,6 @@
   line-height: 1.5;
 }
 
-.dashboard-process-item {
-  padding: 1rem;
-  border: 1px solid #edf2ec;
-  border-radius: 18px;
-  background: #fbfdfb;
-}
-
-.dashboard-process-copy {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
-}
-
-.dashboard-process-copy > div {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.dashboard-process-copy strong {
-  color: #28482b;
-  font-size: 0.92rem;
-}
-
-.dashboard-process-copy span {
-  color: #788579;
-  font-size: 0.8rem;
-}
-
-.dashboard-progress-track {
-  position: relative;
-  overflow: hidden;
-  height: 9px;
-  margin-top: 0.85rem;
-  border-radius: 999px;
-  background: #e9f0e8;
-}
-
-.dashboard-progress-track span {
-  position: absolute;
-  inset: 0 auto 0 0;
-  border-radius: inherit;
-  background: linear-gradient(90deg, #3f7f43, #76b77a);
-}
-
 .dashboard-finance-summary {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -523,7 +401,6 @@
 }
 
 @media (max-width: 1050px) {
-  .dashboard-main-grid,
   .dashboard-finance-grid {
     grid-template-columns: 1fr;
   }
@@ -540,8 +417,7 @@
     min-width: 0;
   }
 
-  .dashboard-kpi-grid,
-  .dashboard-secondary-grid {
+  .dashboard-kpi-grid {
     grid-template-columns: 1fr;
   }
 }
@@ -572,10 +448,6 @@
     flex-direction: column;
   }
 
-  .dashboard-health-badge {
-    align-self: flex-start;
-  }
-
   .dashboard-finance-summary,
   .dashboard-map-metrics {
     grid-template-columns: 1fr;
@@ -593,8 +465,7 @@
     padding: 1rem;
   }
 
-  .dashboard-timeline-content > div,
-  .dashboard-process-copy {
+  .dashboard-timeline-content > div {
     flex-direction: column;
   }
 

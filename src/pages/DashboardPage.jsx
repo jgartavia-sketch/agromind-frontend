@@ -15,19 +15,11 @@ const kpis = [
     tone: "amber",
   },
   {
-    label: "Balance del mes",
-    value: "₡0",
-    detail: "Ingresos menos gastos registrados",
+    label: "Componentes registrados",
+    value: "0",
+    detail: "Elementos registrados en la finca",
     tone: "blue",
   },
-];
-
-const systemStatus = [
-  { label: "Mapa de la finca", status: "Sin revisar", tone: "neutral" },
-  { label: "Procesos", status: "Sin actividad", tone: "neutral" },
-  { label: "Tareas", status: "Sin pendientes", tone: "good" },
-  { label: "Finanzas", status: "Sin movimientos", tone: "neutral" },
-  { label: "Bitácora", status: "Sin registros", tone: "neutral" },
 ];
 
 const recentActivity = [
@@ -43,14 +35,6 @@ const upcomingTasks = [
   {
     title: "No hay tareas próximas",
     meta: "Las próximas actividades aparecerán en esta sección.",
-  },
-];
-
-const activeProcesses = [
-  {
-    name: "Sin procesos activos",
-    zone: "Cuando inicies un proceso se mostrará aquí.",
-    progress: 0,
   },
 ];
 
@@ -105,60 +89,31 @@ export default function DashboardPage({ user, farmId }) {
         ))}
       </section>
 
-      <section className="dashboard-main-grid">
-        <article className="dashboard-panel dashboard-status-panel">
-          <div className="dashboard-panel-header">
-            <div>
-              <span className="dashboard-section-kicker">Vista general</span>
-              <h2>Estado de la finca</h2>
-            </div>
-
-            <span className="dashboard-health-badge">Operación estable</span>
+      <section className="dashboard-panel dashboard-alerts-panel">
+        <div className="dashboard-panel-header">
+          <div>
+            <span className="dashboard-section-kicker">Seguimiento</span>
+            <h2>Alertas</h2>
           </div>
+        </div>
 
-          <div className="dashboard-status-list">
-            {systemStatus.map((item) => (
-              <div className="dashboard-status-row" key={item.label}>
-                <div>
-                  <strong>{item.label}</strong>
-                  <span>{item.status}</span>
-                </div>
+        <div className="dashboard-alert-list">
+          {alerts.map((alert) => (
+            <div
+              className={`dashboard-alert dashboard-alert-${alert.level}`}
+              key={alert.title}
+            >
+              <span className="dashboard-alert-icon" aria-hidden="true">
+                ✓
+              </span>
 
-                <span
-                  className={`dashboard-status-indicator dashboard-status-${item.tone}`}
-                  aria-hidden="true"
-                />
+              <div>
+                <strong>{alert.title}</strong>
+                <p>{alert.description}</p>
               </div>
-            ))}
-          </div>
-        </article>
-
-        <article className="dashboard-panel dashboard-alerts-panel">
-          <div className="dashboard-panel-header">
-            <div>
-              <span className="dashboard-section-kicker">Seguimiento</span>
-              <h2>Alertas</h2>
             </div>
-          </div>
-
-          <div className="dashboard-alert-list">
-            {alerts.map((alert) => (
-              <div
-                className={`dashboard-alert dashboard-alert-${alert.level}`}
-                key={alert.title}
-              >
-                <span className="dashboard-alert-icon" aria-hidden="true">
-                  ✓
-                </span>
-
-                <div>
-                  <strong>{alert.title}</strong>
-                  <p>{alert.description}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </article>
+          ))}
+        </div>
       </section>
 
       <section className="dashboard-main-grid dashboard-secondary-grid">
@@ -212,40 +167,6 @@ export default function DashboardPage({ user, farmId }) {
             ))}
           </div>
         </article>
-      </section>
-
-      <section className="dashboard-panel dashboard-process-panel">
-        <div className="dashboard-panel-header">
-          <div>
-            <span className="dashboard-section-kicker">Operación</span>
-            <h2>Procesos activos</h2>
-          </div>
-        </div>
-
-        <div className="dashboard-process-list">
-          {activeProcesses.map((process) => (
-            <div className="dashboard-process-item" key={process.name}>
-              <div className="dashboard-process-copy">
-                <div>
-                  <strong>{process.name}</strong>
-                  <span>{process.zone}</span>
-                </div>
-
-                <span>{process.progress}%</span>
-              </div>
-
-              <div
-                className="dashboard-progress-track"
-                role="progressbar"
-                aria-valuemin="0"
-                aria-valuemax="100"
-                aria-valuenow={process.progress}
-              >
-                <span style={{ width: `${process.progress}%` }} />
-              </div>
-            </div>
-          ))}
-        </div>
       </section>
 
       <section className="dashboard-finance-grid">
