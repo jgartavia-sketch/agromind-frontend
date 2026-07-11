@@ -1,5 +1,6 @@
 // src/components/finance/AddMovementModal.jsx
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 
 function todayYYYYMMDD() {
   const d = new Date();
@@ -291,7 +292,7 @@ export default function AddMovementModal({
     },
   };
 
-  return (
+  return createPortal(
     <div
       className="modal-overlay"
       role="dialog"
@@ -548,6 +549,7 @@ export default function AddMovementModal({
           </form>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
