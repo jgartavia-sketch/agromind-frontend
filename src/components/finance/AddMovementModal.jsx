@@ -199,14 +199,13 @@ export default function AddMovementModal({
       maxWidth: "100%",
       maxHeight:
         "calc(100dvh - 1.5rem - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px))",
-      overflowY: "auto",
-      overscrollBehavior: "contain",
-      WebkitOverflowScrolling: "touch",
+      display: "flex",
+      flexDirection: "column",
+      overflow: "hidden",
       background:
         "linear-gradient(180deg, rgba(5,12,28,0.995), rgba(2,6,23,0.995))",
       border: "1px solid rgba(52,211,153,0.22)",
       borderRadius: "24px",
-      padding: "1.35rem",
       boxShadow:
         "0 32px 90px rgba(0,0,0,0.62), 0 0 0 1px rgba(255,255,255,0.02) inset",
       boxSizing: "border-box",
@@ -216,16 +215,21 @@ export default function AddMovementModal({
       justifyContent: "space-between",
       gap: "1rem",
       alignItems: "flex-start",
-      position: "sticky",
-      top: 0,
-      zIndex: 4,
-      margin: "-1.35rem -1.35rem 1.25rem",
-      padding: "1.25rem 1.35rem 1rem",
+      flex: "0 0 auto",
+      padding: "1.15rem 1.25rem 1rem",
       background:
-        "linear-gradient(180deg, rgba(5,12,28,1), rgba(5,12,28,0.96))",
+        "linear-gradient(180deg, rgba(5,12,28,1), rgba(5,12,28,0.98))",
       borderBottom: "1px solid rgba(148,163,184,0.1)",
       backdropFilter: "blur(12px)",
       WebkitBackdropFilter: "blur(12px)",
+    },
+    body: {
+      minHeight: 0,
+      overflowY: "auto",
+      overscrollBehavior: "contain",
+      WebkitOverflowScrolling: "touch",
+      padding: "1rem 1.25rem calc(1.35rem + env(safe-area-inset-bottom, 0px))",
+      scrollbarGutter: "stable",
     },
     titleRow: {
       display: "flex",
@@ -335,8 +339,9 @@ export default function AddMovementModal({
           </button>
         </div>
 
-        <form onSubmit={handleSubmit}>
-          <div style={{ display: "grid", gap: "1rem" }}>
+        <div style={modalStyles.body}>
+          <form onSubmit={handleSubmit}>
+            <div style={{ display: "grid", gap: "0.85rem" }}>
             <section style={modalStyles.panel}>
               <div style={modalStyles.grid}>
                 <div className="task-field">
@@ -494,9 +499,9 @@ export default function AddMovementModal({
                     value={form.note}
                     onChange={(e) => setField("note", e.target.value)}
                     disabled={saving}
-                    rows={3}
+                    rows={2}
                     placeholder="Agrega un detalle útil para este movimiento"
-                    style={{ resize: "vertical", minHeight: "96px" }}
+                    style={{ resize: "vertical", minHeight: "78px" }}
                   />
                 </div>
               </div>
@@ -529,8 +534,9 @@ export default function AddMovementModal({
                   : "Guardar movimiento"}
               </button>
             </div>
-          </div>
-        </form>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   );
