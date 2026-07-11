@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useFarm } from "../context/FarmContext";
 import { loadBitacoraEntries } from "../services/bitacoraService";
+import { downloadDashboardReport } from "../utils/dashboardReport";
 import "../styles/dashboard.css";
 
 const RAW_API_BASE =
@@ -340,6 +341,8 @@ export default function DashboardPage({ user }) {
 
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [reportLoading, setReportLoading] = useState(false);
+  const [reportError, setReportError] = useState("");
 
   const displayName =
     user?.name ||
@@ -589,6 +592,46 @@ export default function DashboardPage({ user }) {
     },
   ];
 
+  const handleDownloadReport = async () => {
+    if (!farmId || loading || reportLoading) return;
+
+    try {
+      setReportLoading(true);
+      setReportError("");
+
+      await downloadDashboardReport({
+        farmName: activeFarmLabel,
+        userName: displayName,
+        generatedAt: new Date(),
+        kpis: {
+          activeProcesses,
+          pendingTasks,
+          registeredComponents,
+        },
+        alerts,
+        recentActivity,
+        upcomingTasks,
+        finance: financeSummary,
+        map: {
+          zones: data.map.zones.length,
+          points: data.map.points.length,
+          lines: data.map.lines.length,
+        },
+        totals: {
+          processes: data.processes.length,
+          tasks: data.tasks.length,
+          movements: data.movements.length,
+        },
+      });
+    } catch (error) {
+      setReportError(
+        error?.message || "No se pudo generar el reporte PDF."
+      );
+    } finally {
+      setReportLoading(false);
+    }
+  };
+
   return (
     <div className="dashboard-page">
       <section className="dashboard-hero">
@@ -601,9 +644,73 @@ export default function DashboardPage({ user }) {
           </p>
         </div>
 
-        <div className="dashboard-farm-chip">
-          <span className="dashboard-farm-chip-label">Finca activa</span>
-          <strong>{activeFarmLabel}</strong>
+        <div
+          style={{
+            position: "relative",
+            zIndex: 1,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "stretch",
+            gap: "0.75rem",
+            width: "min(290px, 100%)",
+            flex: "0 0 auto",
+          }}
+        >
+          <div className="dashboard-farm-chip">
+            <span className="dashboard-farm-chip-label">Finca activa</span>
+            <strong>{activeFarmLabel}</strong>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleDownloadReport}
+            disabled={!farmId || loading || reportLoading}
+            aria-busy={reportLoading}
+            style={{
+              width: "100%",
+              minHeight: "48px",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "0.55rem",
+              padding: "0.72rem 1rem",
+              border: "1px solid rgba(22, 101, 52, 0.22)",
+              borderRadius: "16px",
+              background:
+                "linear-gradient(135deg, #166534 0%, #15803d 55%, #16a34a 100%)",
+              color: "#ffffff",
+              fontSize: "0.86rem",
+              fontWeight: 850,
+              letterSpacing: "0.01em",
+              cursor:
+                !farmId || loading || reportLoading
+                  ? "not-allowed"
+                  : "pointer",
+              opacity:
+                !farmId || loading || reportLoading
+                  ? 0.65
+                  : 1,
+              boxShadow:
+                "0 14px 30px rgba(22, 101, 52, 0.18), inset 0 1px 0 rgba(255,255,255,0.18)",
+              transition:
+                "transform 160ms ease, box-shadow 160ms ease, filter 160ms ease",
+            }}
+            onMouseEnter={(event) => {
+              if (!event.currentTarget.disabled) {
+                event.currentTarget.style.transform = "translateY(-2px)";
+                event.currentTarget.style.boxShadow =
+                  "0 18px 34px rgba(22, 101, 52, 0.24), inset 0 1px 0 rgba(255,255,255,0.2)";
+              }
+            }}
+            onMouseLeave={(event) => {
+              event.currentTarget.style.transform = "translateY(0)";
+              event.currentTarget.style.boxShadow =
+                "0 14px 30px rgba(22, 101, 52, 0.18), inset 0 1px 0 rgba(255,255,255,0.18)";
+            }}
+          >
+            <span aria-hidden="true">{reportLoading ? "…" : "↓"}</span>
+            {reportLoading ? "Generando reporte..." : "Descargar reporte PDF"}
+          </button>
         </div>
       </section>
 
@@ -621,6 +728,23 @@ export default function DashboardPage({ user }) {
           }}
         >
           {errorMsg}
+        </div>
+      ) : null}
+
+      {reportError ? (
+        <div
+          role="alert"
+          style={{
+            marginBottom: "1rem",
+            padding: "0.8rem 1rem",
+            borderRadius: "14px",
+            border: "1px solid rgba(248,113,113,0.24)",
+            background: "rgba(248,113,113,0.10)",
+            color: "#991b1b",
+            fontSize: "0.88rem",
+          }}
+        >
+          {reportError}
         </div>
       ) : null}
 
