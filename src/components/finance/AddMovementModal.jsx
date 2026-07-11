@@ -197,6 +197,8 @@ export default function AddMovementModal({
     card: {
       width: "min(760px, 100%)",
       maxWidth: "100%",
+      height:
+        "min(760px, calc(100dvh - 1.5rem - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)))",
       maxHeight:
         "calc(100dvh - 1.5rem - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px))",
       display: "flex",
@@ -216,7 +218,7 @@ export default function AddMovementModal({
       gap: "1rem",
       alignItems: "flex-start",
       flex: "0 0 auto",
-      padding: "1.15rem 1.25rem 1rem",
+      padding: "1rem 1.15rem 0.85rem",
       background:
         "linear-gradient(180deg, rgba(5,12,28,1), rgba(5,12,28,0.98))",
       borderBottom: "1px solid rgba(148,163,184,0.1)",
@@ -224,11 +226,12 @@ export default function AddMovementModal({
       WebkitBackdropFilter: "blur(12px)",
     },
     body: {
+      flex: "1 1 auto",
       minHeight: 0,
       overflowY: "auto",
       overscrollBehavior: "contain",
       WebkitOverflowScrolling: "touch",
-      padding: "1rem 1.25rem",
+      padding: "0.85rem 1.15rem",
       scrollbarGutter: "stable",
     },
     footer: {
@@ -238,7 +241,7 @@ export default function AddMovementModal({
       gap: "0.75rem",
       flexWrap: "wrap",
       padding:
-        "0.9rem 1.25rem calc(0.9rem + env(safe-area-inset-bottom, 0px))",
+        "0.75rem 1.15rem calc(0.75rem + env(safe-area-inset-bottom, 0px))",
       background:
         "linear-gradient(180deg, rgba(5,12,28,0.97), rgba(2,6,23,1))",
       borderTop: "1px solid rgba(148,163,184,0.1)",
