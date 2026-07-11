@@ -4,21 +4,40 @@ import { jsPDF } from "jspdf";
 const PAGE = {
   width: 210,
   height: 297,
-  margin: 16,
-  bottom: 18,
+  margin: 15,
+  top: 15,
+  footerY: 287,
+  contentBottom: 278,
 };
 
 const COLORS = {
-  green: [22, 101, 52],
-  greenLight: [240, 249, 241],
-  greenSoft: [220, 252, 231],
+  primary: [22, 101, 52],
+  primaryDark: [18, 56, 23],
+  primaryMid: [21, 128, 61],
+  primarySoft: [238, 248, 236],
+  primaryPale: [247, 252, 245],
+
+  white: [255, 255, 255],
+  paper: [252, 253, 251],
   text: [31, 41, 55],
+  textStrong: [20, 52, 25],
   muted: [100, 116, 139],
   border: [220, 229, 220],
+
+  green: [22, 163, 74],
+  greenSoft: [240, 253, 244],
+
   red: [185, 28, 28],
+  redSoft: [254, 242, 242],
+
   amber: [180, 83, 9],
+  amberSoft: [255, 247, 237],
+
   blue: [29, 78, 216],
-  white: [255, 255, 255],
+  blueSoft: [239, 246, 255],
+
+  slate: [71, 85, 105],
+  slateSoft: [248, 250, 252],
 };
 
 function sanitizeFilename(value) {
@@ -30,12 +49,16 @@ function sanitizeFilename(value) {
     .slice(0, 70);
 }
 
-function formatMoneyCRC(value) {
+function formatNumber(value) {
   return Number(value || 0).toLocaleString("es-CR", {
-    style: "currency",
-    currency: "CRC",
     maximumFractionDigits: 0,
   });
+}
+
+function formatMoneyCRC(value) {
+  const amount = Number(value || 0);
+  const sign = amount < 0 ? "-" : "";
+  return `${sign}CRC ${formatNumber(Math.abs(amount))}`;
 }
 
 function formatDate(value) {
@@ -68,102 +91,338 @@ function formatShortDate(value) {
   });
 }
 
-function addFooter(doc, pageNumber) {
-  const y = PAGE.height - 10;
+function pluralize(value, singular, plural) {
+  return Number(value) === 1 ? singular : plural;
+}
 
+function getStatusLabel({ alerts, finance }) {
+  const critical = alerts.filter((alert) => alert.level === "danger").length;
+  const warnings = alerts.filter(
+    (alert) => alert.level === "warning"
+  ).length;
+
+  if (critical > 0) {
+    return {
+      label: "Atencion prioritaria",
+      description:
+        "La finca presenta alertas criticas que requieren revision inmediata.",
+      tone: "danger",
+    };
+  }
+
+  if (warnings > 0) {
+    return {
+      label: "Seguimiento recomendado",
+      description:
+        "La operacion se mantiene activa, aunque existen puntos que requieren atencion.",
+      tone: "warning",
+    };
+  }
+
+  if (Number(finance?.balance || 0) < 0) {
+    return {
+      label: "Balance bajo observacion",
+      description:
+        "La operacion se mantiene estable, pero el balance financiero del periodo es negativo.",
+      tone: "warning",
+    };
+  }
+
+  return {
+    label: "Operacion estable",
+    description:
+      "La finca mantiene una operacion general estable durante el periodo analizado.",
+    tone: "success",
+  };
+}
+
+function getTonePalette(tone) {
+  if (tone === "danger") {
+    return {
+      fill: COLORS.redSoft,
+      border: [248, 113, 113],
+      text: COLORS.red,
+      accent: COLORS.red,
+    };
+  }
+
+  if (tone === "warning") {
+    return {
+      fill: COLORS.amberSoft,
+      border: [251, 191, 36],
+      text: COLORS.amber,
+      accent: COLORS.amber,
+    };
+  }
+
+  if (tone === "info") {
+    return {
+      fill: COLORS.blueSoft,
+      border: [96, 165, 250],
+      text: COLORS.blue,
+      accent: COLORS.blue,
+    };
+  }
+
+  return {
+    fill: COLORS.greenSoft,
+    border: [74, 222, 128],
+    text: COLORS.primary,
+    accent: COLORS.green,
+  };
+}
+
+function addPageFooter(doc, pageNumber) {
   doc.setDrawColor(...COLORS.border);
-  doc.line(PAGE.margin, y - 4, PAGE.width - PAGE.margin, y - 4);
+  doc.line(PAGE.margin, PAGE.footerY - 6, PAGE.width - PAGE.margin, PAGE.footerY - 6);
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
   doc.setTextColor(...COLORS.muted);
-  doc.text("AgroMind CR - La finca que piensa.", PAGE.margin, y);
-  doc.text(`Pagina ${pageNumber}`, PAGE.width - PAGE.margin, y, {
+
+  doc.text("AgroMind Business Intelligence", PAGE.margin, PAGE.footerY);
+  doc.text("La finca que piensa.", PAGE.width / 2, PAGE.footerY, {
+    align: "center",
+  });
+  doc.text(`Pagina ${pageNumber}`, PAGE.width - PAGE.margin, PAGE.footerY, {
     align: "right",
   });
 }
 
-function ensureSpace(doc, y, requiredHeight, pageNumberRef) {
-  if (y + requiredHeight <= PAGE.height - PAGE.bottom) return y;
-
-  addFooter(doc, pageNumberRef.value);
+function addPage(doc, pageNumberRef, pageTitle = "") {
+  addPageFooter(doc, pageNumberRef.value);
   doc.addPage();
   pageNumberRef.value += 1;
 
-  return PAGE.margin;
+  if (pageTitle) {
+    drawPageHeader(doc, pageTitle, pageNumberRef.value);
+    return 28;
+  }
+
+  return PAGE.top;
 }
 
-function drawSectionTitle(doc, title, y, pageNumberRef) {
-  y = ensureSpace(doc, y, 14, pageNumberRef);
+function ensureSpace(doc, y, requiredHeight, pageNumberRef, pageTitle = "") {
+  if (y + requiredHeight <= PAGE.contentBottom) return y;
+  return addPage(doc, pageNumberRef, pageTitle);
+}
 
-  doc.setFillColor(...COLORS.greenLight);
-  doc.roundedRect(PAGE.margin, y, PAGE.width - PAGE.margin * 2, 11, 3, 3, "F");
+function drawPageHeader(doc, title, pageNumber) {
+  doc.setFillColor(...COLORS.primaryDark);
+  doc.rect(0, 0, PAGE.width, 18, "F");
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
-  doc.setTextColor(...COLORS.green);
-  doc.text(title, PAGE.margin + 4, y + 7.2);
-
-  return y + 17;
-}
-
-function drawKpiCard(doc, { x, y, width, label, value }) {
-  doc.setFillColor(...COLORS.white);
-  doc.setDrawColor(...COLORS.border);
-  doc.roundedRect(x, y, width, 25, 3, 3, "FD");
+  doc.setTextColor(...COLORS.white);
+  doc.text("AgroMind CR", PAGE.margin, 11);
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
-  doc.setTextColor(...COLORS.muted);
-  doc.text(label, x + 4, y + 7);
+  doc.text(title, PAGE.width - PAGE.margin, 11, { align: "right" });
 
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(17);
-  doc.setTextColor(...COLORS.green);
-  doc.text(String(value ?? 0), x + 4, y + 18);
+  doc.setDrawColor(...COLORS.border);
+  doc.line(PAGE.margin, 23, PAGE.width - PAGE.margin, 23);
+
+  doc.setFontSize(7.5);
+  doc.setTextColor(...COLORS.muted);
+  doc.text(`Reporte ejecutivo · Pagina ${pageNumber}`, PAGE.margin, 27);
 }
 
-function drawInfoRow(
-  doc,
-  { title, description, meta = "", level = "success" },
-  y,
-  pageNumberRef
-) {
-  const availableWidth = PAGE.width - PAGE.margin * 2;
-  const descriptionLines = doc.splitTextToSize(
-    String(description || ""),
-    availableWidth - 14
+function drawCoverHeader(doc, { farmName, userName, generatedAt }) {
+  doc.setFillColor(...COLORS.primaryDark);
+  doc.roundedRect(PAGE.margin, PAGE.top, PAGE.width - PAGE.margin * 2, 57, 5, 5, "F");
+
+  doc.setFillColor(...COLORS.primaryMid);
+  doc.circle(PAGE.width - 35, 23, 24, "F");
+
+  doc.setFillColor(...COLORS.primary);
+  doc.circle(PAGE.width - 28, 35, 14, "F");
+
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...COLORS.white);
+  doc.setFontSize(23);
+  doc.text("AgroMind CR", PAGE.margin + 8, PAGE.top + 14);
+
+  doc.setFontSize(12);
+  doc.text("Reporte Ejecutivo de Finca", PAGE.margin + 8, PAGE.top + 26);
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8.5);
+  doc.text("Business Intelligence", PAGE.margin + 8, PAGE.top + 35);
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(10);
+  doc.text(String(farmName), PAGE.margin + 8, PAGE.top + 45);
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.text(
+    `Generado: ${formatDate(generatedAt)}`,
+    PAGE.width - PAGE.margin - 8,
+    PAGE.top + 45,
+    { align: "right" }
   );
 
-  const rowHeight = Math.max(18, 12 + descriptionLines.length * 4);
-  y = ensureSpace(doc, y, rowHeight + 3, pageNumberRef);
+  doc.text(
+    `Responsable: ${userName || "Usuario AgroMind"}`,
+    PAGE.width - PAGE.margin - 8,
+    PAGE.top + 51,
+    { align: "right" }
+  );
+}
 
-  const palette =
-    level === "danger"
-      ? { fill: [254, 242, 242], text: COLORS.red }
-      : level === "warning"
-      ? { fill: [255, 247, 237], text: COLORS.amber }
-      : level === "info"
-      ? { fill: [239, 246, 255], text: COLORS.blue }
-      : { fill: COLORS.greenLight, text: COLORS.green };
+function drawSectionLabel(doc, title, subtitle, y, pageNumberRef, pageTitle = "") {
+  y = ensureSpace(doc, y, subtitle ? 18 : 13, pageNumberRef, pageTitle);
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(12);
+  doc.setTextColor(...COLORS.textStrong);
+  doc.text(title, PAGE.margin, y + 5);
+
+  if (subtitle) {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(...COLORS.muted);
+    doc.text(subtitle, PAGE.margin, y + 11);
+  }
+
+  doc.setDrawColor(...COLORS.border);
+  doc.line(PAGE.margin, y + (subtitle ? 14 : 9), PAGE.width - PAGE.margin, y + (subtitle ? 14 : 9));
+
+  return y + (subtitle ? 20 : 15);
+}
+
+function drawStatusCard(doc, status, y) {
+  const palette = getTonePalette(status.tone);
+
+  doc.setFillColor(...palette.fill);
+  doc.setDrawColor(...palette.border);
+  doc.roundedRect(PAGE.margin, y, PAGE.width - PAGE.margin * 2, 29, 4, 4, "FD");
+
+  doc.setFillColor(...palette.accent);
+  doc.roundedRect(PAGE.margin + 4, y + 4, 20, 21, 3, 3, "F");
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(15);
+  doc.setTextColor(...COLORS.white);
+  doc.text("BI", PAGE.margin + 14, y + 17, { align: "center" });
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  doc.setTextColor(...palette.text);
+  doc.text(status.label, PAGE.margin + 30, y + 10);
+
+  const lines = doc.splitTextToSize(status.description, 142);
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.setTextColor(...COLORS.text);
+  doc.text(lines, PAGE.margin + 30, y + 17);
+
+  return y + 35;
+}
+
+function drawKpiCard(doc, {
+  x,
+  y,
+  width,
+  height = 28,
+  label,
+  value,
+  tone = "green",
+  subtitle = "",
+}) {
+  const palette = getTonePalette(tone);
+
+  doc.setFillColor(...COLORS.white);
+  doc.setDrawColor(...COLORS.border);
+  doc.roundedRect(x, y, width, height, 4, 4, "FD");
+
+  doc.setFillColor(...palette.accent);
+  doc.roundedRect(x + 4, y + 4, 3, height - 8, 1.5, 1.5, "F");
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7.5);
+  doc.setTextColor(...COLORS.muted);
+  doc.text(String(label), x + 11, y + 8);
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(16);
+  doc.setTextColor(...palette.text);
+
+  const valueText = String(value ?? 0);
+  const maxWidth = width - 15;
+
+  if (doc.getTextWidth(valueText) > maxWidth) {
+    doc.setFontSize(11);
+  }
+
+  doc.text(valueText, x + 11, y + 19);
+
+  if (subtitle) {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(6.8);
+    doc.setTextColor(...COLORS.muted);
+    doc.text(subtitle, x + 11, y + height - 4);
+  }
+}
+
+function drawSummaryBox(doc, text, y, pageNumberRef, pageTitle = "") {
+  const width = PAGE.width - PAGE.margin * 2;
+  const lines = doc.splitTextToSize(String(text), width - 12);
+  const height = 12 + lines.length * 4.2;
+
+  y = ensureSpace(doc, y, height + 4, pageNumberRef, pageTitle);
+
+  doc.setFillColor(...COLORS.primaryPale);
+  doc.setDrawColor(...COLORS.border);
+  doc.roundedRect(PAGE.margin, y, width, height, 4, 4, "FD");
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8);
+  doc.setTextColor(...COLORS.primary);
+  doc.text("LECTURA EJECUTIVA", PAGE.margin + 6, y + 7);
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8.5);
+  doc.setTextColor(...COLORS.text);
+  doc.text(lines, PAGE.margin + 6, y + 13);
+
+  return y + height + 6;
+}
+
+function drawListCard(
+  doc,
+  { title, description, meta = "", tone = "success" },
+  y,
+  pageNumberRef,
+  pageTitle = ""
+) {
+  const palette = getTonePalette(tone);
+  const availableWidth = PAGE.width - PAGE.margin * 2;
+  const textWidth = meta ? availableWidth - 54 : availableWidth - 18;
+  const lines = doc.splitTextToSize(String(description || ""), textWidth);
+  const height = Math.max(20, 13 + lines.length * 4.1);
+
+  y = ensureSpace(doc, y, height + 4, pageNumberRef, pageTitle);
 
   doc.setFillColor(...palette.fill);
   doc.setDrawColor(...COLORS.border);
-  doc.roundedRect(PAGE.margin, y, availableWidth, rowHeight, 3, 3, "FD");
+  doc.roundedRect(PAGE.margin, y, availableWidth, height, 4, 4, "FD");
 
-  doc.setFillColor(...palette.text);
-  doc.circle(PAGE.margin + 5, y + 6, 1.6, "F");
+  doc.setFillColor(...palette.accent);
+  doc.circle(PAGE.margin + 6, y + 7, 2, "F");
 
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(9);
+  doc.setFontSize(8.8);
   doc.setTextColor(...palette.text);
-  doc.text(String(title || "Registro"), PAGE.margin + 10, y + 7);
+  doc.text(String(title || "Registro"), PAGE.margin + 12, y + 8);
 
   if (meta) {
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(7.5);
+    doc.setFontSize(7);
     doc.setTextColor(...COLORS.muted);
-    doc.text(String(meta), PAGE.width - PAGE.margin - 4, y + 7, {
+    doc.text(String(meta), PAGE.width - PAGE.margin - 5, y + 8, {
       align: "right",
     });
   }
@@ -171,35 +430,178 @@ function drawInfoRow(
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
   doc.setTextColor(...COLORS.text);
-  doc.text(descriptionLines, PAGE.margin + 10, y + 12);
+  doc.text(lines, PAGE.margin + 12, y + 14);
 
-  return y + rowHeight + 4;
+  return y + height + 4;
+}
+
+function drawBarComparison(doc, {
+  y,
+  income,
+  expense,
+  balance,
+}) {
+  const maxValue = Math.max(Math.abs(income), Math.abs(expense), 1);
+  const chartWidth = PAGE.width - PAGE.margin * 2 - 42;
+  const incomeWidth = Math.max(4, (Math.abs(income) / maxValue) * chartWidth);
+  const expenseWidth = Math.max(4, (Math.abs(expense) / maxValue) * chartWidth);
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8);
+  doc.setTextColor(...COLORS.textStrong);
+  doc.text("Ingresos", PAGE.margin, y + 4);
+
+  doc.setFillColor(...COLORS.border);
+  doc.roundedRect(PAGE.margin + 32, y, chartWidth, 7, 3.5, 3.5, "F");
+
+  doc.setFillColor(...COLORS.green);
+  doc.roundedRect(PAGE.margin + 32, y, incomeWidth, 7, 3.5, 3.5, "F");
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7.5);
+  doc.setTextColor(...COLORS.muted);
+  doc.text(formatMoneyCRC(income), PAGE.width - PAGE.margin, y + 5, {
+    align: "right",
+  });
+
+  y += 15;
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8);
+  doc.setTextColor(...COLORS.textStrong);
+  doc.text("Gastos", PAGE.margin, y + 4);
+
+  doc.setFillColor(...COLORS.border);
+  doc.roundedRect(PAGE.margin + 32, y, chartWidth, 7, 3.5, 3.5, "F");
+
+  doc.setFillColor(...COLORS.red);
+  doc.roundedRect(PAGE.margin + 32, y, expenseWidth, 7, 3.5, 3.5, "F");
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7.5);
+  doc.setTextColor(...COLORS.muted);
+  doc.text(formatMoneyCRC(expense), PAGE.width - PAGE.margin, y + 5, {
+    align: "right",
+  });
+
+  y += 17;
+
+  const balanceTone = balance < 0 ? "danger" : "success";
+  const palette = getTonePalette(balanceTone);
+
+  doc.setFillColor(...palette.fill);
+  doc.setDrawColor(...palette.border);
+  doc.roundedRect(PAGE.margin, y, PAGE.width - PAGE.margin * 2, 20, 4, 4, "FD");
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8.5);
+  doc.setTextColor(...palette.text);
+  doc.text("Balance del periodo", PAGE.margin + 6, y + 7);
+
+  doc.setFontSize(15);
+  doc.text(formatMoneyCRC(balance), PAGE.margin + 6, y + 16);
+
+  return y + 27;
 }
 
 function buildExecutiveSummary({ kpis, alerts, finance }) {
-  const parts = [
-    `La finca registra ${kpis.activeProcesses} procesos activos`,
-    `${kpis.pendingTasks} tareas pendientes`,
-    `y ${kpis.registeredComponents} componentes`,
-  ];
+  const processText = `${kpis.activeProcesses} ${pluralize(
+    kpis.activeProcesses,
+    "proceso activo",
+    "procesos activos"
+  )}`;
+
+  const taskText = `${kpis.pendingTasks} ${pluralize(
+    kpis.pendingTasks,
+    "tarea pendiente",
+    "tareas pendientes"
+  )}`;
+
+  const componentText = `${kpis.registeredComponents} ${pluralize(
+    kpis.registeredComponents,
+    "componente registrado",
+    "componentes registrados"
+  )}`;
 
   const warningCount = alerts.filter(
     (alert) => alert.level !== "success"
   ).length;
 
-  if (warningCount > 0) {
-    parts.push(
-      `Se identificaron ${warningCount} alertas que requieren seguimiento`
-    );
-  } else {
-    parts.push("No se identificaron alertas operativas críticas");
+  const alertText =
+    warningCount > 0
+      ? `${warningCount} ${pluralize(
+          warningCount,
+          "alerta requiere",
+          "alertas requieren"
+        )} seguimiento`
+      : "no se identifican alertas operativas criticas";
+
+  const financeText =
+    Number(finance.balance || 0) >= 0
+      ? `el balance del periodo es positivo por ${formatMoneyCRC(
+          finance.balance
+        )}`
+      : `el balance del periodo es negativo por ${formatMoneyCRC(
+          finance.balance
+        )}`;
+
+  return `Durante el periodo analizado, la finca registra ${processText}, ${taskText} y ${componentText}. Ademas, ${alertText}. En el frente financiero, ${financeText}.`;
+}
+
+function buildOperationalConclusion({ alerts, upcomingTasks, recentActivity }) {
+  const dangerCount = alerts.filter((alert) => alert.level === "danger").length;
+  const warningCount = alerts.filter((alert) => alert.level === "warning").length;
+
+  if (dangerCount > 0) {
+    return "La prioridad operativa debe concentrarse en resolver las alertas criticas antes de ampliar nuevas actividades o procesos.";
   }
 
-  parts.push(
-    `El balance del mes es ${formatMoneyCRC(finance.balance)}`
-  );
+  if (warningCount > 0) {
+    return "La operacion se mantiene activa, pero conviene atender primero las alertas pendientes y luego continuar con la planificacion.";
+  }
 
-  return `${parts.join(". ")}.`;
+  if (upcomingTasks.length === 0 && recentActivity.length === 0) {
+    return "No se observan alertas relevantes, aunque la finca presenta poca actividad registrada durante el periodo.";
+  }
+
+  return "La operacion presenta continuidad y no muestra alertas criticas. El enfoque debe mantenerse en el cumplimiento de las proximas actividades.";
+}
+
+function buildFinancialConclusion(finance) {
+  const income = Number(finance.income ?? finance.ingresos ?? 0);
+  const expense = Number(finance.expense ?? finance.gastos ?? 0);
+  const balance = Number(finance.balance || 0);
+
+  if (balance < 0) {
+    return "El balance del periodo es negativo. Se recomienda revisar los gastos recientes y priorizar movimientos directamente vinculados con la operacion productiva.";
+  }
+
+  if (income === 0 && expense === 0) {
+    return "No existen movimientos financieros registrados para el periodo analizado. La lectura financiera aun no es representativa.";
+  }
+
+  if (expense > income * 0.8) {
+    return "El balance es positivo, aunque los gastos consumen una proporcion alta de los ingresos. Conviene revisar eficiencia y margen operativo.";
+  }
+
+  return "La finca mantiene un balance financiero positivo durante el periodo. El siguiente paso es sostener el control de gastos y registrar cada movimiento oportunamente.";
+}
+
+function buildTerritoryConclusion({ map, totals }) {
+  const territoryElements =
+    Number(map.zones || 0) +
+    Number(map.points || 0) +
+    Number(map.lines || 0);
+
+  if (territoryElements === 0) {
+    return "La finca aun no tiene una estructura territorial registrada en el mapa. Completar esta informacion aumentara el valor de los analisis.";
+  }
+
+  if (Number(map.zones || 0) > 0 && Number(totals.processes || 0) === 0) {
+    return "La finca cuenta con estructura territorial registrada, pero todavia no existen procesos asociados. Vincular procesos con zonas mejorara el seguimiento.";
+  }
+
+  return "La finca cuenta con una base territorial organizada y suficiente para sostener el seguimiento de procesos, tareas y componentes.";
 }
 
 export async function downloadDashboardReport(payload) {
@@ -211,14 +613,20 @@ export async function downloadDashboardReport(payload) {
     farmName,
     userName,
     generatedAt,
-    kpis,
+    kpis = {},
     alerts = [],
     recentActivity = [],
     upcomingTasks = [],
-    finance,
-    map,
-    totals,
+    finance = {},
+    map = {},
+    totals = {},
   } = payload;
+
+  const normalizedFinance = {
+    income: Number(finance.ingresos ?? finance.income ?? 0),
+    expense: Number(finance.gastos ?? finance.expense ?? 0),
+    balance: Number(finance.balance || 0),
+  };
 
   const doc = new jsPDF({
     orientation: "portrait",
@@ -228,226 +636,507 @@ export async function downloadDashboardReport(payload) {
   });
 
   const pageNumberRef = { value: 1 };
-  let y = PAGE.margin;
 
-  doc.setFillColor(...COLORS.green);
-  doc.roundedRect(
-    PAGE.margin,
+  // PAGE 1 — EXECUTIVE COVER
+  drawCoverHeader(doc, {
+    farmName,
+    userName,
+    generatedAt,
+  });
+
+  let y = 80;
+
+  const status = getStatusLabel({
+    alerts,
+    finance: normalizedFinance,
+  });
+
+  y = drawStatusCard(doc, status, y);
+
+  y = drawSectionLabel(
+    doc,
+    "Resumen ejecutivo",
+    "Lectura general del estado actual de la finca",
     y,
-    PAGE.width - PAGE.margin * 2,
-    38,
-    4,
-    4,
-    "F"
+    pageNumberRef
   );
 
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(20);
-  doc.setTextColor(...COLORS.white);
-  doc.text("AgroMind CR", PAGE.margin + 7, y + 12);
-
-  doc.setFontSize(12);
-  doc.text("Reporte ejecutivo de finca", PAGE.margin + 7, y + 21);
-
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8.5);
-  doc.text(`Finca: ${farmName}`, PAGE.margin + 7, y + 29);
-  doc.text(
-    `Generado: ${formatDate(generatedAt)}`,
-    PAGE.width - PAGE.margin - 7,
-    y + 12,
-    { align: "right" }
-  );
-  doc.text(
-    `Responsable: ${userName || "Usuario AgroMind"}`,
-    PAGE.width - PAGE.margin - 7,
-    y + 21,
-    { align: "right" }
-  );
-
-  y += 46;
-
-  y = drawSectionTitle(doc, "Resumen ejecutivo", y, pageNumberRef);
-
-  const cardGap = 4;
-  const cardWidth =
-    (PAGE.width - PAGE.margin * 2 - cardGap * 2) / 3;
+  const gap = 4;
+  const width = (PAGE.width - PAGE.margin * 2 - gap * 2) / 3;
 
   drawKpiCard(doc, {
     x: PAGE.margin,
     y,
-    width: cardWidth,
+    width,
     label: "Procesos activos",
-    value: kpis.activeProcesses,
+    value: kpis.activeProcesses || 0,
+    tone: "success",
+    subtitle: "En ejecucion",
   });
 
   drawKpiCard(doc, {
-    x: PAGE.margin + cardWidth + cardGap,
+    x: PAGE.margin + width + gap,
     y,
-    width: cardWidth,
+    width,
     label: "Tareas pendientes",
-    value: kpis.pendingTasks,
+    value: kpis.pendingTasks || 0,
+    tone: "warning",
+    subtitle: "Por atender",
   });
 
   drawKpiCard(doc, {
-    x: PAGE.margin + (cardWidth + cardGap) * 2,
+    x: PAGE.margin + (width + gap) * 2,
     y,
-    width: cardWidth,
+    width,
     label: "Componentes",
-    value: kpis.registeredComponents,
+    value: kpis.registeredComponents || 0,
+    tone: "info",
+    subtitle: "Registrados",
   });
 
-  y += 32;
+  y += 35;
 
-  const summaryLines = doc.splitTextToSize(
-    buildExecutiveSummary({ kpis, alerts, finance }),
-    PAGE.width - PAGE.margin * 2
+  y = drawSummaryBox(
+    doc,
+    buildExecutiveSummary({
+      kpis,
+      alerts,
+      finance: normalizedFinance,
+    }),
+    y,
+    pageNumberRef
   );
 
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
-  doc.setTextColor(...COLORS.text);
-  doc.text(summaryLines, PAGE.margin, y);
-  y += summaryLines.length * 4.5 + 8;
+  y = drawSectionLabel(
+    doc,
+    "Indicadores clave",
+    "Panorama compacto para toma de decisiones",
+    y,
+    pageNumberRef
+  );
 
-  y = drawSectionTitle(doc, "Alertas y seguimiento", y, pageNumberRef);
+  const secondaryWidth = (PAGE.width - PAGE.margin * 2 - gap) / 2;
 
-  alerts.forEach((alert) => {
-    y = drawInfoRow(
-      doc,
-      {
-        title: alert.title,
-        description: alert.description,
-        level: alert.level,
-      },
-      y,
-      pageNumberRef
-    );
+  drawKpiCard(doc, {
+    x: PAGE.margin,
+    y,
+    width: secondaryWidth,
+    label: "Alertas activas",
+    value: alerts.filter((alert) => alert.level !== "success").length,
+    tone:
+      alerts.some((alert) => alert.level === "danger")
+        ? "danger"
+        : alerts.some((alert) => alert.level === "warning")
+        ? "warning"
+        : "success",
   });
 
-  y = drawSectionTitle(doc, "Proximas actividades", y, pageNumberRef);
+  drawKpiCard(doc, {
+    x: PAGE.margin + secondaryWidth + gap,
+    y,
+    width: secondaryWidth,
+    label: "Balance del periodo",
+    value: formatMoneyCRC(normalizedFinance.balance),
+    tone: normalizedFinance.balance < 0 ? "danger" : "success",
+  });
+
+  y += 35;
+
+  y = drawSummaryBox(
+    doc,
+    buildOperationalConclusion({
+      alerts,
+      upcomingTasks,
+      recentActivity,
+    }),
+    y,
+    pageNumberRef
+  );
+
+  addPageFooter(doc, pageNumberRef.value);
+
+  // PAGE 2 — OPERATION
+  doc.addPage();
+  pageNumberRef.value += 1;
+  drawPageHeader(doc, "Operacion y seguimiento", pageNumberRef.value);
+  y = 32;
+
+  y = drawSectionLabel(
+    doc,
+    "Alertas y seguimiento",
+    "Situaciones que requieren atencion operativa",
+    y,
+    pageNumberRef,
+    "Operacion y seguimiento"
+  );
+
+  if (alerts.length === 0) {
+    y = drawListCard(
+      doc,
+      {
+        title: "Sin alertas activas",
+        description:
+          "No existen alertas relevantes para la finca en este momento.",
+        tone: "success",
+      },
+      y,
+      pageNumberRef,
+      "Operacion y seguimiento"
+    );
+  } else {
+    alerts.forEach((alert) => {
+      y = drawListCard(
+        doc,
+        {
+          title: alert.title,
+          description: alert.description,
+          tone: alert.level,
+        },
+        y,
+        pageNumberRef,
+        "Operacion y seguimiento"
+      );
+    });
+  }
+
+  y = drawSectionLabel(
+    doc,
+    "Proximas actividades",
+    "Tareas pendientes con fecha futura",
+    y + 4,
+    pageNumberRef,
+    "Operacion y seguimiento"
+  );
 
   if (upcomingTasks.length === 0) {
-    y = drawInfoRow(
+    y = drawListCard(
       doc,
       {
         title: "Sin actividades proximas",
         description:
           "No existen tareas pendientes con fecha futura registrada.",
-        level: "info",
+        tone: "info",
       },
       y,
-      pageNumberRef
+      pageNumberRef,
+      "Operacion y seguimiento"
     );
   } else {
     upcomingTasks.forEach((task) => {
-      y = drawInfoRow(
+      y = drawListCard(
         doc,
         {
           title: task.title || "Actividad",
           description: `${task.zone || "Zona general"}${
-            task.owner ? ` - Responsable: ${task.owner}` : ""
+            task.owner ? ` · Responsable: ${task.owner}` : ""
           }`,
           meta: formatShortDate(task.due),
-          level: "success",
+          tone: "success",
         },
         y,
-        pageNumberRef
+        pageNumberRef,
+        "Operacion y seguimiento"
       );
     });
   }
 
-  y = drawSectionTitle(doc, "Finanzas del mes", y, pageNumberRef);
-
-  const financeWidth =
-    (PAGE.width - PAGE.margin * 2 - cardGap * 2) / 3;
-
-  drawKpiCard(doc, {
-    x: PAGE.margin,
-    y,
-    width: financeWidth,
-    label: "Ingresos",
-    value: formatMoneyCRC(finance.ingresos),
-  });
-
-  drawKpiCard(doc, {
-    x: PAGE.margin + financeWidth + cardGap,
-    y,
-    width: financeWidth,
-    label: "Gastos",
-    value: formatMoneyCRC(finance.gastos),
-  });
-
-  drawKpiCard(doc, {
-    x: PAGE.margin + (financeWidth + cardGap) * 2,
-    y,
-    width: financeWidth,
-    label: "Balance",
-    value: formatMoneyCRC(finance.balance),
-  });
-
-  y += 32;
-
-  y = drawSectionTitle(doc, "Territorio y estructura", y, pageNumberRef);
-
-  const mapItems = [
-    ["Zonas", map.zones],
-    ["Puntos", map.points],
-    ["Lineas", map.lines],
-    ["Procesos totales", totals.processes],
-    ["Tareas totales", totals.tasks],
-    ["Movimientos financieros", totals.movements],
-  ];
-
-  const rowWidth =
-    (PAGE.width - PAGE.margin * 2 - cardGap * 2) / 3;
-
-  mapItems.forEach(([label, value], index) => {
-    if (index === 3) y += 29;
-
-    const column = index % 3;
-    drawKpiCard(doc, {
-      x: PAGE.margin + column * (rowWidth + cardGap),
-      y,
-      width: rowWidth,
-      label,
-      value,
-    });
-  });
-
-  y += 32;
-
-  y = drawSectionTitle(doc, "Actividad reciente", y, pageNumberRef);
+  y = drawSectionLabel(
+    doc,
+    "Actividad reciente",
+    "Ultimos registros relevantes de la finca",
+    y + 4,
+    pageNumberRef,
+    "Operacion y seguimiento"
+  );
 
   if (recentActivity.length === 0) {
-    y = drawInfoRow(
+    y = drawListCard(
       doc,
       {
         title: "Sin actividad reciente",
         description:
-          "Las acciones registradas en AgroMind aparecerán en esta sección.",
-        level: "info",
+          "Las acciones registradas en AgroMind apareceran en esta seccion.",
+        tone: "info",
       },
       y,
-      pageNumberRef
+      pageNumberRef,
+      "Operacion y seguimiento"
     );
   } else {
     recentActivity.forEach((activity) => {
-      y = drawInfoRow(
+      y = drawListCard(
         doc,
         {
           title: activity.title,
           description: activity.description,
           meta: formatShortDate(activity.date),
-          level: "success",
+          tone: "success",
         },
         y,
-        pageNumberRef
+        pageNumberRef,
+        "Operacion y seguimiento"
       );
     });
   }
 
-  addFooter(doc, pageNumberRef.value);
+  addPageFooter(doc, pageNumberRef.value);
+
+  // PAGE 3 — FINANCE
+  doc.addPage();
+  pageNumberRef.value += 1;
+  drawPageHeader(doc, "Finanzas del periodo", pageNumberRef.value);
+  y = 32;
+
+  y = drawSectionLabel(
+    doc,
+    "Resumen financiero",
+    "Ingresos, gastos y balance del periodo actual",
+    y,
+    pageNumberRef,
+    "Finanzas del periodo"
+  );
+
+  const financeCardWidth = (PAGE.width - PAGE.margin * 2 - gap * 2) / 3;
+
+  drawKpiCard(doc, {
+    x: PAGE.margin,
+    y,
+    width: financeCardWidth,
+    height: 31,
+    label: "Ingresos",
+    value: formatMoneyCRC(normalizedFinance.income),
+    tone: "success",
+  });
+
+  drawKpiCard(doc, {
+    x: PAGE.margin + financeCardWidth + gap,
+    y,
+    width: financeCardWidth,
+    height: 31,
+    label: "Gastos",
+    value: formatMoneyCRC(normalizedFinance.expense),
+    tone: "danger",
+  });
+
+  drawKpiCard(doc, {
+    x: PAGE.margin + (financeCardWidth + gap) * 2,
+    y,
+    width: financeCardWidth,
+    height: 31,
+    label: "Balance",
+    value: formatMoneyCRC(normalizedFinance.balance),
+    tone: normalizedFinance.balance < 0 ? "danger" : "success",
+  });
+
+  y += 42;
+
+  y = drawSectionLabel(
+    doc,
+    "Relacion ingresos-gastos",
+    "Comparacion visual del movimiento financiero",
+    y,
+    pageNumberRef,
+    "Finanzas del periodo"
+  );
+
+  y = drawBarComparison(doc, {
+    y,
+    income: normalizedFinance.income,
+    expense: normalizedFinance.expense,
+    balance: normalizedFinance.balance,
+  });
+
+  y = drawSectionLabel(
+    doc,
+    "Lectura financiera",
+    "Interpretacion ejecutiva del periodo",
+    y,
+    pageNumberRef,
+    "Finanzas del periodo"
+  );
+
+  y = drawSummaryBox(
+    doc,
+    buildFinancialConclusion(normalizedFinance),
+    y,
+    pageNumberRef,
+    "Finanzas del periodo"
+  );
+
+  y = drawSectionLabel(
+    doc,
+    "Datos de control",
+    "Volumen de registros utilizados en el analisis",
+    y,
+    pageNumberRef,
+    "Finanzas del periodo"
+  );
+
+  const controlWidth = (PAGE.width - PAGE.margin * 2 - gap) / 2;
+
+  drawKpiCard(doc, {
+    x: PAGE.margin,
+    y,
+    width: controlWidth,
+    label: "Movimientos financieros",
+    value: totals.movements || 0,
+    tone: "info",
+  });
+
+  drawKpiCard(doc, {
+    x: PAGE.margin + controlWidth + gap,
+    y,
+    width: controlWidth,
+    label: "Tareas totales",
+    value: totals.tasks || 0,
+    tone: "warning",
+  });
+
+  addPageFooter(doc, pageNumberRef.value);
+
+  // PAGE 4 — TERRITORY
+  doc.addPage();
+  pageNumberRef.value += 1;
+  drawPageHeader(doc, "Territorio y estructura", pageNumberRef.value);
+  y = 32;
+
+  y = drawSectionLabel(
+    doc,
+    "Mapa de la finca",
+    "Estructura territorial registrada en AgroMind",
+    y,
+    pageNumberRef,
+    "Territorio y estructura"
+  );
+
+  const mapWidth = (PAGE.width - PAGE.margin * 2 - gap) / 2;
+
+  drawKpiCard(doc, {
+    x: PAGE.margin,
+    y,
+    width: mapWidth,
+    height: 32,
+    label: "Zonas",
+    value: map.zones || 0,
+    tone: "success",
+    subtitle: "Areas delimitadas",
+  });
+
+  drawKpiCard(doc, {
+    x: PAGE.margin + mapWidth + gap,
+    y,
+    width: mapWidth,
+    height: 32,
+    label: "Puntos",
+    value: map.points || 0,
+    tone: "info",
+    subtitle: "Referencias puntuales",
+  });
+
+  y += 39;
+
+  drawKpiCard(doc, {
+    x: PAGE.margin,
+    y,
+    width: mapWidth,
+    height: 32,
+    label: "Lineas",
+    value: map.lines || 0,
+    tone: "warning",
+    subtitle: "Trazos registrados",
+  });
+
+  drawKpiCard(doc, {
+    x: PAGE.margin + mapWidth + gap,
+    y,
+    width: mapWidth,
+    height: 32,
+    label: "Componentes",
+    value: kpis.registeredComponents || 0,
+    tone: "success",
+    subtitle: "Elementos de finca",
+  });
+
+  y += 42;
+
+  y = drawSectionLabel(
+    doc,
+    "Estructura operativa",
+    "Relacion entre territorio, procesos y actividades",
+    y,
+    pageNumberRef,
+    "Territorio y estructura"
+  );
+
+  const operationalWidth = (PAGE.width - PAGE.margin * 2 - gap * 2) / 3;
+
+  drawKpiCard(doc, {
+    x: PAGE.margin,
+    y,
+    width: operationalWidth,
+    label: "Procesos totales",
+    value: totals.processes || 0,
+    tone: "success",
+  });
+
+  drawKpiCard(doc, {
+    x: PAGE.margin + operationalWidth + gap,
+    y,
+    width: operationalWidth,
+    label: "Tareas totales",
+    value: totals.tasks || 0,
+    tone: "warning",
+  });
+
+  drawKpiCard(doc, {
+    x: PAGE.margin + (operationalWidth + gap) * 2,
+    y,
+    width: operationalWidth,
+    label: "Movimientos",
+    value: totals.movements || 0,
+    tone: "info",
+  });
+
+  y += 36;
+
+  y = drawSectionLabel(
+    doc,
+    "Lectura territorial",
+    "Interpretacion ejecutiva de la estructura registrada",
+    y,
+    pageNumberRef,
+    "Territorio y estructura"
+  );
+
+  y = drawSummaryBox(
+    doc,
+    buildTerritoryConclusion({
+      map,
+      totals,
+    }),
+    y,
+    pageNumberRef,
+    "Territorio y estructura"
+  );
+
+  y = drawSectionLabel(
+    doc,
+    "Cierre ejecutivo",
+    "Vision general para seguimiento",
+    y,
+    pageNumberRef,
+    "Territorio y estructura"
+  );
+
+  y = drawSummaryBox(
+    doc,
+    "Este reporte resume el estado actual de la finca con base en los datos registrados en AgroMind. Su valor aumenta conforme se mantienen actualizados los procesos, tareas, movimientos financieros, componentes y registros de bitacora.",
+    y,
+    pageNumberRef,
+    "Territorio y estructura"
+  );
+
+  addPageFooter(doc, pageNumberRef.value);
 
   const dateKey = new Date(generatedAt || Date.now())
     .toISOString()
