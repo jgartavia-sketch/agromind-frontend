@@ -552,7 +552,9 @@ export default function BitacoraPage({
                     return (
                       <article
                         key={item.id}
-                        className="bitacora-note-card"
+                        className={`bitacora-note-card ${
+                          isMenuOpen ? "bitacora-note-card-active" : ""
+                        }`}
                       >
                         <div className="bitacora-note-icon">
                           📝
@@ -1267,6 +1269,7 @@ const BITACORA_STYLES = `
 
   .bitacora-note-card {
     position: relative;
+    z-index: 1;
     display: grid;
     grid-template-columns: 38px minmax(0, 1fr);
     gap: 0.9rem;
@@ -1281,6 +1284,11 @@ const BITACORA_STYLES = `
       transform 160ms ease,
       border-color 160ms ease,
       box-shadow 160ms ease;
+  }
+
+
+  .bitacora-note-card-active {
+    z-index: 500;
   }
 
   .bitacora-note-card:hover {
@@ -1347,7 +1355,7 @@ const BITACORA_STYLES = `
 
   .bitacora-note-menu {
     position: absolute;
-    z-index: 999;
+    z-index: 9999;
     top: calc(100% + 0.45rem);
     right: 0;
     display: grid;
