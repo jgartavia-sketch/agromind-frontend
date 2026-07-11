@@ -49,6 +49,10 @@ export default function BitacoraPage({
   const [searchTerm, setSearchTerm] = useState("");
   const [menuOpenId, setMenuOpenId] = useState("");
 
+  const [selectedMonthKey, setSelectedMonthKey] = useState("");
+  const [selectedWeekKey, setSelectedWeekKey] = useState("");
+  const [selectedDayKey, setSelectedDayKey] = useState("");
+
   const filteredEntries = useMemo(() => {
     const cleanSearch = searchTerm.trim().toLowerCase();
 
@@ -73,6 +77,30 @@ export default function BitacoraPage({
       (item) => toLocalDateKey(getEntryDate(item)) === todayKey
     ).length;
   }, [entries]);
+
+  const selectedMonth = useMemo(
+    () =>
+      groupedEntries.find(
+        (monthGroup) => monthGroup.key === selectedMonthKey
+      ) || null,
+    [groupedEntries, selectedMonthKey]
+  );
+
+  const selectedWeek = useMemo(
+    () =>
+      selectedMonth?.weeks.find(
+        (weekGroup) => weekGroup.key === selectedWeekKey
+      ) || null,
+    [selectedMonth, selectedWeekKey]
+  );
+
+  const selectedDay = useMemo(
+    () =>
+      selectedWeek?.days.find(
+        (dayGroup) => dayGroup.key === selectedDayKey
+      ) || null,
+    [selectedWeek, selectedDayKey]
+  );
 
   useEffect(() => {
     let isMounted = true;
@@ -114,6 +142,13 @@ export default function BitacoraPage({
   }, [farmId]);
 
   useEffect(() => {
+    setSelectedMonthKey("");
+    setSelectedWeekKey("");
+    setSelectedDayKey("");
+    setMenuOpenId("");
+  }, [farmId]);
+
+  useEffect(() => {
     if (!successMessage) return undefined;
 
     const timeoutId = window.setTimeout(() => {
@@ -122,6 +157,17 @@ export default function BitacoraPage({
 
     return () => window.clearTimeout(timeoutId);
   }, [successMessage]);
+
+  useEffect(() => {
+    if (
+      selectedMonthKey &&
+      !groupedEntries.some((item) => item.key === selectedMonthKey)
+    ) {
+      setSelectedMonthKey("");
+      setSelectedWeekKey("");
+      setSelectedDayKey("");
+    }
+  }, [groupedEntries, selectedMonthKey]);
 
   const handleSave = async () => {
     const cleanText = entry.trim();
@@ -240,6 +286,42 @@ export default function BitacoraPage({
     }
   };
 
+  const openMonth = (monthKey) => {
+    setSelectedMonthKey(monthKey);
+    setSelectedWeekKey("");
+    setSelectedDayKey("");
+    setMenuOpenId("");
+  };
+
+  const openWeek = (weekKey) => {
+    setSelectedWeekKey(weekKey);
+    setSelectedDayKey("");
+    setMenuOpenId("");
+  };
+
+  const openDay = (dayKey) => {
+    setSelectedDayKey(dayKey);
+    setMenuOpenId("");
+  };
+
+  const goToRoot = () => {
+    setSelectedMonthKey("");
+    setSelectedWeekKey("");
+    setSelectedDayKey("");
+    setMenuOpenId("");
+  };
+
+  const goToMonth = () => {
+    setSelectedWeekKey("");
+    setSelectedDayKey("");
+    setMenuOpenId("");
+  };
+
+  const goToWeek = () => {
+    setSelectedDayKey("");
+    setMenuOpenId("");
+  };
+
   return (
     <div className="page bitacora-page">
       <style>{BITACORA_STYLES}</style>
@@ -348,7 +430,12 @@ export default function BitacoraPage({
               <input
                 type="search"
                 value={searchTerm}
-                onChange={(event) => setSearchTerm(event.target.value)}
+                onChange={(event) => {
+                  setSearchTerm(event.target.value);
+                  setSelectedMonthKey("");
+                  setSelectedWeekKey("");
+                  setSelectedDayKey("");
+                }}
                 placeholder="Buscar en notas..."
               />
             </label>
@@ -362,225 +449,260 @@ export default function BitacoraPage({
           </div>
         </div>
 
-        {isLoading ? (
-          <div className="bitacora-empty-state">
-            Cargando Bitácora...
-          </div>
-        ) : groupedEntries.length === 0 ? (
-          <div className="bitacora-empty-state">
-            {searchTerm.trim()
-              ? "No encontramos notas con esa búsqueda."
-              : "Todavía no hay notas registradas."}
-          </div>
-        ) : (
-          <div className="bitacora-accordion-list">
-            {groupedEntries.map((monthGroup, monthIndex) => (
-              <details
-                key={monthGroup.key}
-                open={monthIndex === 0}
-                className="bitacora-month"
-              >
-                <summary className="bitacora-month-summary">
+        <div className="bitacora-explorer-shell">
+          <nav className="bitacora-breadcrumb" aria-label="Ruta del historial">
+            <button type="button" onClick={goToRoot}>
+              Historial
+            </button>
+
+            {selectedMonth && (
+              <>
+                <span>›</span>
+                <button type="button" onClick={goToMonth}>
+                  {capitalize(selectedMonth.label)}
+                </button>
+              </>
+            )}
+
+            {selectedWeek && (
+              <>
+                <span>›</span>
+                <button type="button" onClick={goToWeek}>
+                  {selectedWeek.shortLabel}
+                </button>
+              </>
+            )}
+
+            {selectedDay && (
+              <>
+                <span>›</span>
+                <strong>{capitalize(selectedDay.label)}</strong>
+              </>
+            )}
+          </nav>
+
+          <div className="bitacora-explorer-body">
+            {isLoading ? (
+              <div className="bitacora-empty-state">
+                Cargando Bitácora...
+              </div>
+            ) : groupedEntries.length === 0 ? (
+              <div className="bitacora-empty-state">
+                {searchTerm.trim()
+                  ? "No encontramos notas con esa búsqueda."
+                  : "Todavía no hay notas registradas."}
+              </div>
+            ) : !selectedMonth ? (
+              <FolderGrid
+                items={groupedEntries.map((monthGroup) => ({
+                  key: monthGroup.key,
+                  title: capitalize(monthGroup.label),
+                  subtitle: `${monthGroup.count} ${
+                    monthGroup.count === 1 ? "nota" : "notas"
+                  }`,
+                  icon: "📁",
+                  onOpen: () => openMonth(monthGroup.key),
+                }))}
+              />
+            ) : !selectedWeek ? (
+              <FolderGrid
+                items={selectedMonth.weeks.map((weekGroup) => ({
+                  key: weekGroup.key,
+                  title: weekGroup.label,
+                  subtitle: `${weekGroup.count} ${
+                    weekGroup.count === 1 ? "nota" : "notas"
+                  }`,
+                  icon: "📁",
+                  onOpen: () => openWeek(weekGroup.key),
+                }))}
+              />
+            ) : !selectedDay ? (
+              <FolderGrid
+                items={selectedWeek.days.map((dayGroup) => ({
+                  key: dayGroup.key,
+                  title: capitalize(dayGroup.label),
+                  subtitle: `${dayGroup.entries.length} ${
+                    dayGroup.entries.length === 1 ? "nota" : "notas"
+                  }`,
+                  icon: "📅",
+                  onOpen: () => openDay(dayGroup.key),
+                }))}
+              />
+            ) : (
+              <div className="bitacora-notes-view">
+                <div className="bitacora-day-heading">
                   <div>
-                    <span className="bitacora-summary-dot" />
-                    <strong>{capitalize(monthGroup.label)}</strong>
+                    <span className="bitacora-kicker">Día seleccionado</span>
+                    <h4>{capitalize(selectedDay.label)}</h4>
                   </div>
 
                   <span className="bitacora-count-badge">
-                    {monthGroup.count}{" "}
-                    {monthGroup.count === 1 ? "nota" : "notas"}
+                    {selectedDay.entries.length}{" "}
+                    {selectedDay.entries.length === 1 ? "nota" : "notas"}
                   </span>
-                </summary>
-
-                <div className="bitacora-month-content">
-                  {monthGroup.weeks.map((weekGroup, weekIndex) => (
-                    <details
-                      key={weekGroup.key}
-                      open={monthIndex === 0 && weekIndex === 0}
-                      className="bitacora-week"
-                    >
-                      <summary className="bitacora-week-summary">
-                        <span>{weekGroup.label}</span>
-                        <span className="bitacora-count-badge subtle">
-                          {weekGroup.count}
-                        </span>
-                      </summary>
-
-                      <div className="bitacora-week-content">
-                        {weekGroup.days.map((dayGroup, dayIndex) => (
-                          <details
-                            key={dayGroup.key}
-                            open={
-                              monthIndex === 0 &&
-                              weekIndex === 0 &&
-                              dayIndex === 0
-                            }
-                            className="bitacora-day"
-                          >
-                            <summary className="bitacora-day-summary">
-                              <span>{capitalize(dayGroup.label)}</span>
-                              <span className="bitacora-count-badge subtle">
-                                {dayGroup.entries.length}
-                              </span>
-                            </summary>
-
-                            <div className="bitacora-day-content">
-                              {dayGroup.entries.map((item) => {
-                                const isEditing = editingId === item.id;
-                                const isDeleting = deletingId === item.id;
-                                const isBusy = busyEntryId === item.id;
-                                const isMenuOpen = menuOpenId === item.id;
-
-                                return (
-                                  <article
-                                    key={item.id}
-                                    className="bitacora-note-card"
-                                  >
-                                    <div className="bitacora-note-icon">
-                                      📝
-                                    </div>
-
-                                    <div className="bitacora-note-main">
-                                      <div className="bitacora-note-header">
-                                        <time>
-                                          {formatEntryTime(item)}
-                                        </time>
-
-                                        {!isEditing && !isDeleting && (
-                                          <div className="bitacora-note-menu-wrap">
-                                            <button
-                                              type="button"
-                                              className="bitacora-menu-trigger"
-                                              onClick={() =>
-                                                setMenuOpenId(
-                                                  isMenuOpen ? "" : item.id
-                                                )
-                                              }
-                                              aria-label="Opciones de la nota"
-                                            >
-                                              ⋮
-                                            </button>
-
-                                            {isMenuOpen && (
-                                              <div className="bitacora-note-menu">
-                                                <button
-                                                  type="button"
-                                                  onClick={() =>
-                                                    startEditing(item)
-                                                  }
-                                                >
-                                                  Editar nota
-                                                </button>
-
-                                                <button
-                                                  type="button"
-                                                  className="danger"
-                                                  onClick={() => {
-                                                    setMenuOpenId("");
-                                                    setDeletingId(item.id);
-                                                  }}
-                                                >
-                                                  Eliminar nota
-                                                </button>
-                                              </div>
-                                            )}
-                                          </div>
-                                        )}
-                                      </div>
-
-                                      {isEditing ? (
-                                        <div className="bitacora-edit-panel">
-                                          <textarea
-                                            value={editingText}
-                                            onChange={(event) =>
-                                              setEditingText(event.target.value)
-                                            }
-                                            className="bitacora-edit-textarea"
-                                            disabled={isBusy}
-                                          />
-
-                                          <div className="bitacora-inline-actions">
-                                            <button
-                                              type="button"
-                                              className="bitacora-btn bitacora-btn-primary"
-                                              onClick={() =>
-                                                handleUpdate(item.id)
-                                              }
-                                              disabled={
-                                                !editingText.trim() || isBusy
-                                              }
-                                            >
-                                              {isBusy
-                                                ? "Guardando..."
-                                                : "Guardar cambios"}
-                                            </button>
-
-                                            <button
-                                              type="button"
-                                              className="bitacora-btn bitacora-btn-ghost"
-                                              onClick={cancelEditing}
-                                              disabled={isBusy}
-                                            >
-                                              Cancelar
-                                            </button>
-                                          </div>
-                                        </div>
-                                      ) : (
-                                        <p className="bitacora-note-text">
-                                          {item.text}
-                                        </p>
-                                      )}
-
-                                      {isDeleting && (
-                                        <div className="bitacora-delete-panel">
-                                          <strong>¿Eliminar esta nota?</strong>
-                                          <p>
-                                            Esta acción no se puede deshacer.
-                                          </p>
-
-                                          <div className="bitacora-inline-actions">
-                                            <button
-                                              type="button"
-                                              className="bitacora-btn bitacora-btn-danger"
-                                              onClick={() =>
-                                                handleDelete(item.id)
-                                              }
-                                              disabled={isBusy}
-                                            >
-                                              {isBusy
-                                                ? "Eliminando..."
-                                                : "Sí, eliminar"}
-                                            </button>
-
-                                            <button
-                                              type="button"
-                                              className="bitacora-btn bitacora-btn-ghost"
-                                              onClick={() =>
-                                                setDeletingId("")
-                                              }
-                                              disabled={isBusy}
-                                            >
-                                              Cancelar
-                                            </button>
-                                          </div>
-                                        </div>
-                                      )}
-                                    </div>
-                                  </article>
-                                );
-                              })}
-                            </div>
-                          </details>
-                        ))}
-                      </div>
-                    </details>
-                  ))}
                 </div>
-              </details>
-            ))}
+
+                <div className="bitacora-note-list">
+                  {selectedDay.entries.map((item) => {
+                    const isEditing = editingId === item.id;
+                    const isDeleting = deletingId === item.id;
+                    const isBusy = busyEntryId === item.id;
+                    const isMenuOpen = menuOpenId === item.id;
+
+                    return (
+                      <article
+                        key={item.id}
+                        className="bitacora-note-card"
+                      >
+                        <div className="bitacora-note-icon">
+                          📝
+                        </div>
+
+                        <div className="bitacora-note-main">
+                          <div className="bitacora-note-header">
+                            <time>{formatEntryTime(item)}</time>
+
+                            {!isEditing && !isDeleting && (
+                              <div className="bitacora-note-menu-wrap">
+                                <button
+                                  type="button"
+                                  className="bitacora-menu-trigger"
+                                  onClick={() =>
+                                    setMenuOpenId(
+                                      isMenuOpen ? "" : item.id
+                                    )
+                                  }
+                                  aria-label="Opciones de la nota"
+                                >
+                                  ⋮
+                                </button>
+
+                                {isMenuOpen && (
+                                  <div className="bitacora-note-menu">
+                                    <button
+                                      type="button"
+                                      onClick={() => startEditing(item)}
+                                    >
+                                      Editar nota
+                                    </button>
+
+                                    <button
+                                      type="button"
+                                      className="danger"
+                                      onClick={() => {
+                                        setMenuOpenId("");
+                                        setDeletingId(item.id);
+                                      }}
+                                    >
+                                      Eliminar nota
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+
+                          {isEditing ? (
+                            <div className="bitacora-edit-panel">
+                              <textarea
+                                value={editingText}
+                                onChange={(event) =>
+                                  setEditingText(event.target.value)
+                                }
+                                className="bitacora-edit-textarea"
+                                disabled={isBusy}
+                              />
+
+                              <div className="bitacora-inline-actions">
+                                <button
+                                  type="button"
+                                  className="bitacora-btn bitacora-btn-primary"
+                                  onClick={() => handleUpdate(item.id)}
+                                  disabled={!editingText.trim() || isBusy}
+                                >
+                                  {isBusy
+                                    ? "Guardando..."
+                                    : "Guardar cambios"}
+                                </button>
+
+                                <button
+                                  type="button"
+                                  className="bitacora-btn bitacora-btn-ghost"
+                                  onClick={cancelEditing}
+                                  disabled={isBusy}
+                                >
+                                  Cancelar
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <p className="bitacora-note-text">
+                              {item.text}
+                            </p>
+                          )}
+
+                          {isDeleting && (
+                            <div className="bitacora-delete-panel">
+                              <strong>¿Eliminar esta nota?</strong>
+                              <p>Esta acción no se puede deshacer.</p>
+
+                              <div className="bitacora-inline-actions">
+                                <button
+                                  type="button"
+                                  className="bitacora-btn bitacora-btn-danger"
+                                  onClick={() => handleDelete(item.id)}
+                                  disabled={isBusy}
+                                >
+                                  {isBusy
+                                    ? "Eliminando..."
+                                    : "Sí, eliminar"}
+                                </button>
+
+                                <button
+                                  type="button"
+                                  className="bitacora-btn bitacora-btn-ghost"
+                                  onClick={() => setDeletingId("")}
+                                  disabled={isBusy}
+                                >
+                                  Cancelar
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </section>
+    </div>
+  );
+}
+
+function FolderGrid({ items }) {
+  return (
+    <div className="bitacora-folder-grid">
+      {items.map((item) => (
+        <button
+          key={item.key}
+          type="button"
+          className="bitacora-folder-card"
+          onClick={item.onOpen}
+        >
+          <span className="bitacora-folder-icon">{item.icon}</span>
+
+          <span className="bitacora-folder-content">
+            <strong>{item.title}</strong>
+            <small>{item.subtitle}</small>
+          </span>
+
+          <span className="bitacora-folder-arrow">→</span>
+        </button>
+      ))}
     </div>
   );
 }
@@ -613,15 +735,17 @@ function groupEntriesByDate(entries) {
     const weekStart = getStartOfWeek(date);
     const weekEnd = getEndOfWeek(date);
     const weekKey = toLocalDateKey(weekStart);
+    const weekLabel = `Semana del ${weekStart.getDate()} al ${weekEnd.getDate()} de ${capitalize(
+      new Intl.DateTimeFormat("es-CR", {
+        month: "long",
+      }).format(weekEnd)
+    )}`;
 
     if (!monthGroup.weeksMap.has(weekKey)) {
       monthGroup.weeksMap.set(weekKey, {
         key: weekKey,
-        label: `Semana del ${weekStart.getDate()} al ${weekEnd.getDate()} de ${capitalize(
-          new Intl.DateTimeFormat("es-CR", {
-            month: "long",
-          }).format(weekEnd)
-        )}`,
+        label: weekLabel,
+        shortLabel: `Semana ${weekStart.getDate()}–${weekEnd.getDate()}`,
         count: 0,
         daysMap: new Map(),
       });
@@ -651,6 +775,7 @@ function groupEntriesByDate(entries) {
       (weekGroup) => ({
         key: weekGroup.key,
         label: weekGroup.label,
+        shortLabel: weekGroup.shortLabel,
         count: weekGroup.count,
         days: Array.from(weekGroup.daysMap.values()),
       })
@@ -713,6 +838,7 @@ const BITACORA_STYLES = `
   .bitacora-page {
     display: grid;
     gap: 1rem;
+    min-width: 0;
   }
 
   .bitacora-farm-banner,
@@ -779,7 +905,8 @@ const BITACORA_STYLES = `
   }
 
   .bitacora-title,
-  .bitacora-history h3 {
+  .bitacora-history h3,
+  .bitacora-day-heading h4 {
     margin: 0;
     color: #f8fafc;
   }
@@ -912,10 +1039,6 @@ const BITACORA_STYLES = `
     box-shadow: 0 10px 24px rgba(34, 197, 94, 0.22);
   }
 
-  .bitacora-btn-primary:hover:not(:disabled) {
-    box-shadow: 0 14px 30px rgba(34, 197, 94, 0.3);
-  }
-
   .bitacora-btn-secondary,
   .bitacora-btn-ghost {
     border: 1px solid rgba(148, 163, 184, 0.24);
@@ -954,6 +1077,10 @@ const BITACORA_STYLES = `
     color: #fecaca;
   }
 
+  .bitacora-history {
+    min-height: min(74vh, 860px);
+  }
+
   .bitacora-history-header {
     margin-bottom: 1rem;
   }
@@ -962,20 +1089,12 @@ const BITACORA_STYLES = `
     display: flex;
     align-items: center;
     gap: 0.55rem;
-    min-width: min(100%, 240px);
+    min-width: min(100%, 250px);
     padding: 0.7rem 0.85rem;
     border: 1px solid rgba(148, 163, 184, 0.2);
     border-radius: 999px;
     background: rgba(2, 6, 23, 0.56);
     color: #64748b;
-    transition:
-      border-color 160ms ease,
-      box-shadow 160ms ease;
-  }
-
-  .bitacora-search:focus-within {
-    border-color: rgba(34, 197, 94, 0.5);
-    box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.08);
   }
 
   .bitacora-search input {
@@ -1000,158 +1119,164 @@ const BITACORA_STYLES = `
     font-weight: 900;
   }
 
-  .bitacora-total-count {
-    padding: 0.62rem 0.8rem;
-  }
-
+  .bitacora-total-count,
   .bitacora-count-badge {
-    min-width: 34px;
-    min-height: 30px;
-    padding: 0.25rem 0.7rem;
+    padding: 0.6rem 0.8rem;
   }
 
-  .bitacora-count-badge.subtle {
-    min-width: 30px;
-    background: rgba(15, 23, 42, 0.78);
+  .bitacora-explorer-shell {
+    display: grid;
+    grid-template-rows: auto minmax(420px, 1fr);
+    min-height: 620px;
+    overflow: visible;
+    border: 1px solid rgba(148, 163, 184, 0.14);
+    border-radius: 18px;
+    background: rgba(2, 6, 23, 0.42);
+  }
+
+  .bitacora-breadcrumb {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 0.9rem 1rem;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+    color: #64748b;
+  }
+
+  .bitacora-breadcrumb button {
+    border: 0;
+    padding: 0;
+    background: transparent;
+    color: #86efac;
+    cursor: pointer;
+    font: inherit;
+    font-weight: 800;
+  }
+
+  .bitacora-breadcrumb button:hover {
+    color: #bbf7d0;
+  }
+
+  .bitacora-breadcrumb strong {
+    color: #e2e8f0;
+  }
+
+  .bitacora-explorer-body {
+    min-width: 0;
+    padding: 1rem;
+    overflow: visible;
   }
 
   .bitacora-empty-state {
+    display: grid;
+    min-height: 320px;
+    place-items: center;
     padding: 2rem 1rem;
-    border: 1px dashed rgba(148, 163, 184, 0.18);
-    border-radius: 16px;
     color: #94a3b8;
     text-align: center;
   }
 
-  .bitacora-accordion-list {
+  .bitacora-folder-grid {
     display: grid;
-    gap: 0.85rem;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 0.9rem;
   }
 
-  .bitacora-month,
-  .bitacora-week,
-  .bitacora-day {
-    overflow: hidden;
-    border-radius: 16px;
-  }
-
-  .bitacora-month {
-    border: 1px solid rgba(34, 197, 94, 0.2);
-    background: rgba(2, 6, 23, 0.28);
-  }
-
-  .bitacora-week {
+  .bitacora-folder-card {
+    display: grid;
+    grid-template-columns: 46px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.9rem;
+    min-height: 110px;
+    padding: 1rem;
     border: 1px solid rgba(148, 163, 184, 0.14);
-    background: rgba(15, 23, 42, 0.42);
+    border-radius: 16px;
+    background:
+      linear-gradient(180deg, rgba(15, 23, 42, 0.84), rgba(15, 23, 42, 0.62));
+    color: #e2e8f0;
+    cursor: pointer;
+    text-align: left;
+    transition:
+      transform 160ms ease,
+      border-color 160ms ease,
+      box-shadow 160ms ease,
+      background 160ms ease;
   }
 
-  .bitacora-day {
-    border: 1px solid rgba(148, 163, 184, 0.12);
-    background: rgba(2, 6, 23, 0.36);
+  .bitacora-folder-card:hover {
+    transform: translateY(-2px);
+    border-color: rgba(34, 197, 94, 0.34);
+    background:
+      linear-gradient(180deg, rgba(20, 83, 45, 0.28), rgba(15, 23, 42, 0.72));
+    box-shadow: 0 14px 30px rgba(2, 6, 23, 0.26);
   }
 
-  .bitacora-month-summary,
-  .bitacora-week-summary,
-  .bitacora-day-summary {
+  .bitacora-folder-icon {
+    display: grid;
+    width: 46px;
+    height: 46px;
+    place-items: center;
+    border: 1px solid rgba(34, 197, 94, 0.24);
+    border-radius: 14px;
+    background: rgba(5, 46, 22, 0.72);
+    font-size: 1.35rem;
+  }
+
+  .bitacora-folder-content {
+    display: grid;
+    gap: 0.28rem;
+    min-width: 0;
+  }
+
+  .bitacora-folder-content strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .bitacora-folder-content small {
+    color: #94a3b8;
+  }
+
+  .bitacora-folder-arrow {
+    color: #86efac;
+    font-size: 1.2rem;
+  }
+
+  .bitacora-notes-view {
+    display: grid;
+    gap: 1rem;
+  }
+
+  .bitacora-day-heading {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 1rem;
-    cursor: pointer;
-    list-style: none;
-    transition:
-      background 160ms ease,
-      color 160ms ease;
+    padding-bottom: 0.9rem;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.12);
   }
 
-  .bitacora-month-summary::-webkit-details-marker,
-  .bitacora-week-summary::-webkit-details-marker,
-  .bitacora-day-summary::-webkit-details-marker {
-    display: none;
-  }
-
-  .bitacora-month-summary {
-    padding: 1rem;
-    color: #dcfce7;
-    font-size: 1rem;
-  }
-
-  .bitacora-month-summary > div {
-    display: flex;
-    align-items: center;
-    gap: 0.7rem;
-  }
-
-  .bitacora-week-summary {
-    padding: 0.9rem 0.95rem;
-    color: #e2e8f0;
-    font-weight: 800;
-  }
-
-  .bitacora-day-summary {
-    padding: 0.85rem 0.9rem;
-    color: #cbd5e1;
-    font-weight: 800;
-  }
-
-  .bitacora-month-summary:hover,
-  .bitacora-week-summary:hover,
-  .bitacora-day-summary:hover {
-    background: rgba(34, 197, 94, 0.06);
-  }
-
-  .bitacora-summary-dot {
-    width: 10px;
-    height: 10px;
-    border-radius: 999px;
-    background: #22c55e;
-    box-shadow: 0 0 16px rgba(34, 197, 94, 0.65);
-  }
-
-  .bitacora-month-content,
-  .bitacora-week-content,
-  .bitacora-day-content {
+  .bitacora-note-list {
     display: grid;
-    gap: 0.7rem;
-  }
-
-  .bitacora-month-content {
-    padding: 0 0.85rem 0.85rem;
-  }
-
-  .bitacora-week-content {
-    padding: 0 0.7rem 0.7rem;
-  }
-
-  .bitacora-day-content {
-    position: relative;
-    padding: 0 0.8rem 0.8rem 1rem;
-  }
-
-  .bitacora-day-content::before {
-    content: "";
-    position: absolute;
-    top: 0;
-    bottom: 0.8rem;
-    left: 1.25rem;
-    width: 1px;
-    background: linear-gradient(
-      180deg,
-      rgba(34, 197, 94, 0.55),
-      rgba(34, 197, 94, 0.06)
-    );
+    gap: 0.85rem;
+    padding-bottom: 1.5rem;
+    overflow: visible;
   }
 
   .bitacora-note-card {
     position: relative;
     display: grid;
-    grid-template-columns: 34px minmax(0, 1fr);
-    gap: 0.8rem;
-    padding: 0.95rem;
+    grid-template-columns: 38px minmax(0, 1fr);
+    gap: 0.9rem;
+    min-height: 120px;
+    padding: 1rem;
     border: 1px solid rgba(148, 163, 184, 0.12);
-    border-radius: 15px;
+    border-radius: 16px;
     background:
-      linear-gradient(180deg, rgba(15, 23, 42, 0.82), rgba(15, 23, 42, 0.66));
+      linear-gradient(180deg, rgba(15, 23, 42, 0.86), rgba(15, 23, 42, 0.68));
+    overflow: visible;
     transition:
       transform 160ms ease,
       border-color 160ms ease,
@@ -1160,25 +1285,24 @@ const BITACORA_STYLES = `
 
   .bitacora-note-card:hover {
     transform: translateY(-2px);
-    border-color: rgba(34, 197, 94, 0.26);
+    border-color: rgba(34, 197, 94, 0.28);
     box-shadow: 0 14px 28px rgba(2, 6, 23, 0.26);
   }
 
   .bitacora-note-icon {
-    position: relative;
-    z-index: 1;
     display: grid;
-    width: 34px;
-    height: 34px;
+    width: 38px;
+    height: 38px;
     place-items: center;
     border: 1px solid rgba(34, 197, 94, 0.28);
     border-radius: 50%;
     background: #052e16;
-    font-size: 0.9rem;
+    font-size: 0.95rem;
   }
 
   .bitacora-note-main {
     min-width: 0;
+    overflow: visible;
   }
 
   .bitacora-note-header {
@@ -1190,13 +1314,12 @@ const BITACORA_STYLES = `
 
   .bitacora-note-header time {
     color: #86efac;
-    font-size: 0.78rem;
+    font-size: 0.8rem;
     font-weight: 900;
-    letter-spacing: 0.02em;
   }
 
   .bitacora-note-text {
-    margin: 0.55rem 0 0;
+    margin: 0.65rem 0 0;
     color: #e5e7eb;
     line-height: 1.65;
     white-space: pre-wrap;
@@ -1205,47 +1328,41 @@ const BITACORA_STYLES = `
 
   .bitacora-note-menu-wrap {
     position: relative;
+    z-index: 40;
+    overflow: visible;
   }
 
   .bitacora-menu-trigger {
     display: grid;
-    width: 34px;
-    height: 34px;
+    width: 36px;
+    height: 36px;
     place-items: center;
     border: 1px solid rgba(148, 163, 184, 0.18);
     border-radius: 50%;
-    background: rgba(2, 6, 23, 0.56);
+    background: rgba(2, 6, 23, 0.72);
     color: #cbd5e1;
     cursor: pointer;
     font-size: 1.1rem;
-    transition:
-      border-color 160ms ease,
-      background 160ms ease;
-  }
-
-  .bitacora-menu-trigger:hover {
-    border-color: rgba(34, 197, 94, 0.38);
-    background: rgba(22, 163, 74, 0.1);
   }
 
   .bitacora-note-menu {
     position: absolute;
-    z-index: 20;
-    top: calc(100% + 0.4rem);
+    z-index: 999;
+    top: calc(100% + 0.45rem);
     right: 0;
     display: grid;
-    min-width: 150px;
-    padding: 0.4rem;
-    border: 1px solid rgba(148, 163, 184, 0.18);
+    min-width: 180px;
+    padding: 0.45rem;
+    border: 1px solid rgba(148, 163, 184, 0.22);
     border-radius: 12px;
     background: #0f172a;
-    box-shadow: 0 16px 36px rgba(2, 6, 23, 0.42);
+    box-shadow: 0 18px 44px rgba(2, 6, 23, 0.58);
   }
 
   .bitacora-note-menu button {
     border: 0;
     border-radius: 9px;
-    padding: 0.65rem 0.75rem;
+    padding: 0.72rem 0.8rem;
     background: transparent;
     color: #e2e8f0;
     text-align: left;
@@ -1270,8 +1387,8 @@ const BITACORA_STYLES = `
   .bitacora-delete-panel {
     display: grid;
     gap: 0.7rem;
-    margin-top: 0.75rem;
-    padding: 0.85rem;
+    margin-top: 0.85rem;
+    padding: 0.9rem;
     border-radius: 13px;
   }
 
@@ -1281,7 +1398,7 @@ const BITACORA_STYLES = `
   }
 
   .bitacora-edit-textarea {
-    min-height: 120px;
+    min-height: 130px;
     padding: 0.85rem;
     border: 1px solid rgba(148, 163, 184, 0.18);
     border-radius: 11px;
@@ -1309,7 +1426,8 @@ const BITACORA_STYLES = `
     }
 
     .bitacora-hero-top,
-    .bitacora-history-header {
+    .bitacora-history-header,
+    .bitacora-day-heading {
       align-items: stretch;
       flex-direction: column;
     }
@@ -1322,6 +1440,10 @@ const BITACORA_STYLES = `
     .bitacora-history-tools,
     .bitacora-search {
       width: 100%;
+    }
+
+    .bitacora-folder-grid {
+      grid-template-columns: 1fr;
     }
   }
 
@@ -1352,42 +1474,43 @@ const BITACORA_STYLES = `
 
     .bitacora-btn {
       width: 100%;
-      justify-content: center;
       text-align: center;
     }
 
-    .bitacora-month-summary,
-    .bitacora-week-summary,
-    .bitacora-day-summary {
-      align-items: flex-start;
+    .bitacora-explorer-shell {
+      min-height: 520px;
+      grid-template-rows: auto minmax(340px, 1fr);
     }
 
-    .bitacora-count-badge {
-      flex-shrink: 0;
+    .bitacora-explorer-body {
+      padding: 0.75rem;
     }
 
-    .bitacora-day-content {
-      padding-left: 0.5rem;
-      padding-right: 0.5rem;
+    .bitacora-folder-card {
+      grid-template-columns: 42px minmax(0, 1fr) auto;
+      min-height: 96px;
+      padding: 0.85rem;
     }
 
-    .bitacora-day-content::before {
-      left: 1rem;
+    .bitacora-folder-icon {
+      width: 42px;
+      height: 42px;
     }
 
     .bitacora-note-card {
-      grid-template-columns: 30px minmax(0, 1fr);
+      grid-template-columns: 32px minmax(0, 1fr);
       gap: 0.65rem;
       padding: 0.8rem;
     }
 
     .bitacora-note-icon {
-      width: 30px;
-      height: 30px;
+      width: 32px;
+      height: 32px;
     }
 
     .bitacora-note-menu {
-      right: -0.25rem;
+      right: -0.1rem;
+      min-width: 165px;
     }
   }
 `;
