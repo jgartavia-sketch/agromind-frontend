@@ -587,18 +587,18 @@ export default function FinanzasPage({ token: tokenProp } = {}) {
             <FinanceCard label="Margen" value={`${summary.margin.toFixed(1)}%`} />
           </section>
 
-          <section className="finance-table card" aria-label="Movimientos financieros">
+          <section className="finance-table card finance-movements-table" aria-label="Movimientos financieros">
             <table className="data-table">
               <thead>
                 <tr>
-                  <th>Fecha</th>
-                  <th>Concepto</th>
-                  <th>Categoría</th>
-                  <th>Tipo</th>
-                  <th style={{ textAlign: "right" }}>Monto</th>
-                  <th>Factura</th>
-                  <th>Nota</th>
-                  <th>Acciones</th>
+                  <th className="finance-col-date">Fecha</th>
+                  <th className="finance-col-concept">Concepto</th>
+                  <th className="finance-col-category">Categoría</th>
+                  <th className="finance-col-type">Tipo</th>
+                  <th className="finance-col-amount">Monto</th>
+                  <th className="finance-col-invoice">Factura</th>
+                  <th className="finance-col-note">Nota</th>
+                  <th className="finance-col-actions">Acciones</th>
                 </tr>
               </thead>
               <tbody>
@@ -607,34 +607,55 @@ export default function FinanzasPage({ token: tokenProp } = {}) {
 
                   return (
                     <tr key={mov.id} className={isPlaceholder ? "row-placeholder" : ""}>
-                      <td>{toYYYYMMDD(mov.date)}</td>
-                      <td>{mov.concept}</td>
-                      <td>{mov.category}</td>
-                      <td>
+                      <td className="finance-col-date">{toYYYYMMDD(mov.date)}</td>
+                      <td className="finance-col-concept">
+                        <span className="finance-cell-text">{mov.concept || "—"}</span>
+                      </td>
+                      <td className="finance-col-category">
+                        <span className="finance-cell-text">{mov.category || "—"}</span>
+                      </td>
+                      <td className="finance-col-type">
                         <span className={getTypePillClass(mov.type)}>{mov.type}</span>
                       </td>
-                      <td style={{ textAlign: "right" }}>
-                        {formatMoneyCRC(mov.amount)}
+                      <td className="finance-col-amount">
+                        <span className="finance-amount-value">
+                          {formatMoneyCRC(mov.amount)}
+                        </span>
                       </td>
-                      <td>{mov.invoiceNumber || "—"}</td>
-                      <td>{mov.note}</td>
-                      <td>
+                      <td className="finance-col-invoice">
+                        <span className="finance-invoice-value">
+                          {mov.invoiceNumber || "—"}
+                        </span>
+                      </td>
+                      <td className="finance-col-note">
+                        <span
+                          className="finance-note-clamp"
+                          title={mov.note || ""}
+                        >
+                          {mov.note || "—"}
+                        </span>
+                      </td>
+                      <td className="finance-col-actions">
                         <div className="task-actions">
                           <button
                             type="button"
-                            className="small-btn"
+                            className="finance-action-btn finance-action-btn-edit"
                             disabled={saving || isPlaceholder}
                             onClick={() => handleEditMovement(mov)}
+                            aria-label={`Editar movimiento ${mov.concept || ""}`}
                           >
-                            Editar
+                            <span aria-hidden="true">✎</span>
+                            <span>Editar</span>
                           </button>
                           <button
                             type="button"
-                            className="small-btn small-btn-danger"
+                            className="finance-action-btn finance-action-btn-delete"
                             disabled={saving || isPlaceholder}
                             onClick={() => handleDeleteMovement(mov.id)}
+                            aria-label={`Eliminar movimiento ${mov.concept || ""}`}
                           >
-                            Borrar
+                            <span aria-hidden="true">⌫</span>
+                            <span>Eliminar</span>
                           </button>
                         </div>
                       </td>
@@ -756,11 +777,13 @@ export default function FinanzasPage({ token: tokenProp } = {}) {
                           <div className="task-actions">
                             <button
                               type="button"
-                              className="small-btn small-btn-danger"
+                              className="finance-action-btn finance-action-btn-delete"
                               disabled={assetsSaving}
                               onClick={() => handleDeleteAsset(a.id)}
+                              aria-label={`Eliminar activo ${a.name || ""}`}
                             >
-                              Borrar
+                              <span aria-hidden="true">⌫</span>
+                              <span>Eliminar</span>
                             </button>
                           </div>
                         </td>

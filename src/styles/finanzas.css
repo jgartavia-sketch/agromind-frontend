@@ -707,6 +707,117 @@ body {
   min-width: 145px;
 }
 
+
+/* =========================
+   COLUMNAS DE MOVIMIENTOS
+========================= */
+
+.finance-movements-table .data-table {
+  table-layout: fixed;
+  width: 100%;
+  min-width: 1180px;
+}
+
+.finance-movements-table .data-table th,
+.finance-movements-table .data-table td {
+  min-width: 0;
+  max-width: none;
+  overflow: hidden;
+  vertical-align: middle;
+}
+
+.finance-movements-table .finance-col-date {
+  width: 118px;
+  min-width: 118px;
+  white-space: nowrap;
+}
+
+.finance-movements-table .finance-col-concept {
+  width: 190px;
+  min-width: 190px;
+}
+
+.finance-movements-table .finance-col-category {
+  width: 170px;
+  min-width: 170px;
+}
+
+.finance-movements-table .finance-col-type {
+  width: 115px;
+  min-width: 115px;
+}
+
+.finance-movements-table .finance-col-amount {
+  width: 165px;
+  min-width: 165px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.finance-movements-table .finance-col-invoice {
+  width: 170px;
+  min-width: 170px;
+}
+
+.finance-movements-table .finance-col-note {
+  width: 230px;
+  min-width: 230px;
+}
+
+.finance-movements-table .finance-col-actions {
+  width: 190px;
+  min-width: 190px;
+}
+
+.finance-cell-text,
+.finance-invoice-value,
+.finance-note-clamp {
+  display: block;
+  min-width: 0;
+}
+
+.finance-cell-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.finance-amount-value {
+  display: block;
+  width: 100%;
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+  font-weight: 700;
+}
+
+.finance-invoice-value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    "Liberation Mono", monospace;
+  font-size: 0.88em;
+  color: #cbd5e1;
+}
+
+.finance-note-clamp {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.35;
+}
+
+.finance-movements-table .finance-col-actions .task-actions {
+  justify-content: flex-start;
+  flex-wrap: nowrap;
+}
+
 .finance-table .task-actions {
   display: flex;
   flex-wrap: wrap;
@@ -720,9 +831,119 @@ body {
   white-space: nowrap;
 }
 
+.finance-table .finance-action-btn {
+  flex: 0 1 auto;
+}
+
 .page-header-actions .btn-secondary {
   max-width: 100%;
   white-space: normal;
+}
+
+/* =========================
+   ACCIONES DE TABLA
+========================= */
+
+.finance-table .task-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.finance-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.42rem;
+  min-height: 38px;
+  padding: 0.58rem 0.82rem;
+  border: 1px solid rgba(100, 116, 139, 0.28);
+  border-radius: 11px;
+  background: linear-gradient(
+    180deg,
+    rgba(15, 23, 42, 0.92),
+    rgba(8, 15, 30, 0.96)
+  );
+  color: #dbeafe;
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow:
+    0 8px 20px rgba(2, 6, 23, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  transition:
+    transform 0.16s ease,
+    border-color 0.16s ease,
+    background 0.16s ease,
+    color 0.16s ease,
+    box-shadow 0.16s ease;
+}
+
+.finance-action-btn > span:first-child {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.finance-action-btn-edit:hover:not(:disabled) {
+  color: #ccfbf1;
+  border-color: rgba(45, 212, 191, 0.52);
+  background: linear-gradient(
+    180deg,
+    rgba(13, 148, 136, 0.18),
+    rgba(15, 23, 42, 0.96)
+  );
+  box-shadow:
+    0 10px 24px rgba(20, 184, 166, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.finance-action-btn-delete {
+  color: #fecaca;
+  border-color: rgba(248, 113, 113, 0.24);
+}
+
+.finance-action-btn-delete:hover:not(:disabled) {
+  color: #fee2e2;
+  border-color: rgba(248, 113, 113, 0.58);
+  background: linear-gradient(
+    180deg,
+    rgba(127, 29, 29, 0.28),
+    rgba(15, 23, 42, 0.96)
+  );
+  box-shadow:
+    0 10px 24px rgba(239, 68, 68, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.finance-action-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.finance-action-btn:active:not(:disabled) {
+  transform: translateY(0) scale(0.98);
+}
+
+.finance-action-btn:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 3px rgba(45, 212, 191, 0.16),
+    0 8px 20px rgba(2, 6, 23, 0.28);
+}
+
+.finance-action-btn-delete:focus-visible {
+  box-shadow:
+    0 0 0 3px rgba(248, 113, 113, 0.16),
+    0 8px 20px rgba(2, 6, 23, 0.28);
+}
+
+.finance-action-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
 .modal-overlay {
@@ -755,6 +976,25 @@ body {
 }
 
 @media (max-width: 900px) {
+  .finance-movements-table .data-table {
+    min-width: 1080px;
+  }
+
+  .finance-movements-table .finance-col-concept {
+    width: 170px;
+    min-width: 170px;
+  }
+
+  .finance-movements-table .finance-col-category {
+    width: 155px;
+    min-width: 155px;
+  }
+
+  .finance-movements-table .finance-col-note {
+    width: 205px;
+    min-width: 205px;
+  }
+
   .finance-active-farm {
     grid-template-columns: 1fr;
   }
@@ -846,6 +1086,66 @@ body {
   .finance-table .data-table th:last-child,
   .finance-table .data-table td:last-child {
     min-width: 132px;
+  }
+
+  .finance-movements-table .data-table {
+    min-width: 1010px;
+  }
+
+  .finance-movements-table .finance-col-date {
+    width: 108px;
+    min-width: 108px;
+  }
+
+  .finance-movements-table .finance-col-concept {
+    width: 155px;
+    min-width: 155px;
+  }
+
+  .finance-movements-table .finance-col-category {
+    width: 145px;
+    min-width: 145px;
+  }
+
+  .finance-movements-table .finance-col-type {
+    width: 105px;
+    min-width: 105px;
+  }
+
+  .finance-movements-table .finance-col-amount {
+    width: 150px;
+    min-width: 150px;
+  }
+
+  .finance-movements-table .finance-col-invoice {
+    width: 145px;
+    min-width: 145px;
+  }
+
+  .finance-movements-table .finance-col-note {
+    width: 180px;
+    min-width: 180px;
+  }
+
+  .finance-movements-table .finance-col-actions {
+    width: 150px;
+    min-width: 150px;
+  }
+
+  .finance-movements-table .finance-col-actions .task-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .finance-table .task-actions {
+    gap: 0.4rem;
+  }
+
+  .finance-action-btn {
+    flex: 1 1 100%;
+    width: 100%;
+    min-height: 42px;
+    padding: 0.62rem 0.72rem;
   }
 
   .modal-overlay {
