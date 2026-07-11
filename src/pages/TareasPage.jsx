@@ -169,6 +169,18 @@ function formatWeekHeaderDate(date) {
   }
 }
 
+function formatWeekHeaderShortName(date) {
+  if (!date) return "";
+
+  try {
+    return date
+      .toLocaleDateString("es-CR", { weekday: "short" })
+      .replace(/\.$/, "");
+  } catch {
+    return "";
+  }
+}
+
 const PROCESS_START_DATE_KEYS = [
   "start",
   "startDate",
@@ -2047,6 +2059,9 @@ export default function TareasPage({
 
         .calendar-shell-pro {
           position: relative;
+          width: 100%;
+          max-width: 100%;
+          min-width: 0;
           border-radius: 24px;
           overflow: hidden;
           border: 1px solid rgba(148,163,184,0.14);
@@ -2057,8 +2072,15 @@ export default function TareasPage({
         }
 
         .calendar-shell-pro .fc {
+          width: 100%;
+          max-width: 100%;
+          min-width: 0;
           color: #e5e7eb;
           min-height: 720px;
+        }
+
+        .calendar-week-header-name-short {
+          display: none;
         }
 
         .calendar-shell-pro .fc-toolbar-title {
@@ -2920,10 +2942,28 @@ export default function TareasPage({
         }
 
         @media (max-width: 720px) {
+          .tareas-master-page {
+            width: 100%;
+            max-width: 100%;
+            min-width: 0;
+            overflow-x: hidden;
+          }
+
           .tasks-command-hero,
           .control-center-panel,
           .calendar-shell-pro {
+            width: 100%;
+            max-width: 100%;
+            min-width: 0;
             border-radius: 20px;
+          }
+
+          .tasks-command-hero {
+            padding: 0.8rem;
+          }
+
+          .control-center-panel {
+            padding: 0.72rem;
           }
 
           .master-stats-grid,
@@ -2937,23 +2977,215 @@ export default function TareasPage({
           }
 
           .calendar-shell-pro {
-            min-height: 680px;
+            min-height: 0;
+            padding: 0.42rem;
+            contain: none;
           }
 
           .calendar-shell-pro .fc {
-            min-height: 640px;
+            min-height: 0;
+            font-size: 0.84rem;
           }
 
           .calendar-shell-pro .fc-header-toolbar {
             display: grid;
             grid-template-columns: 1fr;
-            gap: 0.7rem;
+            gap: 0.55rem;
+            margin-bottom: 0.65rem !important;
           }
 
           .calendar-shell-pro .fc-toolbar-chunk {
+            width: 100%;
+            min-width: 0;
             display: flex;
             justify-content: center;
             flex-wrap: wrap;
+          }
+
+          .calendar-shell-pro .fc-toolbar-chunk:first-child {
+            order: 2;
+          }
+
+          .calendar-shell-pro .fc-toolbar-chunk:nth-child(2) {
+            order: 1;
+          }
+
+          .calendar-shell-pro .fc-toolbar-chunk:last-child {
+            order: 3;
+          }
+
+          .calendar-shell-pro .fc-toolbar-title {
+            width: 100%;
+            text-align: center;
+            font-size: 1.08rem;
+            line-height: 1.15;
+          }
+
+          .calendar-shell-pro .fc-button-group {
+            width: 100%;
+            display: grid !important;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 0.35rem;
+          }
+
+          .calendar-shell-pro .fc-button-group > .fc-button {
+            margin: 0 !important;
+            border-radius: 11px !important;
+          }
+
+          .calendar-shell-pro .fc-button {
+            min-width: 0;
+            min-height: 38px;
+            padding: 0.42rem 0.48rem !important;
+            font-size: 0.78rem !important;
+          }
+
+          .calendar-shell-pro .fc-col-header-cell-cushion {
+            min-height: 42px;
+            max-width: 100%;
+            padding: 0.42rem 0.08rem !important;
+            overflow: hidden;
+            font-size: 0.68rem;
+            line-height: 1;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+          }
+
+          .calendar-shell-pro .fc-daygrid-day-frame {
+            min-width: 0;
+            padding: 0.06rem;
+          }
+
+          .calendar-shell-pro .fc-daygrid-day-number {
+            padding: 0.34rem 0.28rem !important;
+            font-size: 0.78rem;
+          }
+
+          .calendar-shell-pro .fc-daygrid-event,
+          .calendar-shell-pro .fc-timegrid-event {
+            min-height: 24px;
+            margin: 0.08rem 0.1rem;
+          }
+
+          .calendar-event-inner-pro {
+            min-height: 24px;
+            gap: 0.28rem;
+            padding: 0.2rem 0.34rem 0.2rem 0.24rem;
+            font-size: 0.68rem;
+          }
+
+          .calendar-event-kind {
+            width: 17px;
+            height: 17px;
+            font-size: 0.58rem;
+          }
+
+          .calendar-event-stage-pro {
+            display: none;
+          }
+
+          .calendar-shell-pro .fc-timeGridWeek-view .calendar-week-header-pro {
+            width: 100%;
+            min-width: 0;
+            flex-direction: column;
+            gap: 0.12rem;
+          }
+
+          .calendar-week-header-name-full {
+            display: none;
+          }
+
+          .calendar-week-header-name-short {
+            display: inline;
+            font-size: 0.68rem;
+            text-transform: capitalize;
+          }
+
+          .calendar-week-header-date {
+            font-size: 0.62rem;
+          }
+
+          .calendar-week-header-pro.is-today {
+            padding: 0.28rem 0.16rem;
+            border-radius: 10px;
+          }
+
+          .calendar-shell-pro .fc-timeGridWeek-view .fc-timegrid-axis,
+          .calendar-shell-pro .fc-timeGridWeek-view .fc-timegrid-slot-label {
+            width: 34px !important;
+            min-width: 34px !important;
+            font-size: 0.62rem;
+          }
+
+          .calendar-shell-pro .fc-timeGridDay-view .fc-col-header-cell-cushion {
+            min-height: 48px;
+          }
+
+          .calendar-day-header-name {
+            font-size: 0.9rem;
+          }
+
+          .calendar-day-header-date {
+            font-size: 0.7rem;
+          }
+
+          .calendar-shell-pro .fc-list-table {
+            padding: 0.3rem !important;
+            border-spacing: 0 0.38rem !important;
+          }
+
+          .calendar-shell-pro .fc-list-day-cushion {
+            padding: 0.68rem 0.72rem !important;
+            border-radius: 14px !important;
+          }
+        }
+
+        @media (max-width: 430px) {
+          .tasks-command-hero {
+            padding-left: max(0.65rem, env(safe-area-inset-left));
+            padding-right: max(0.65rem, env(safe-area-inset-right));
+          }
+
+          .control-center-panel {
+            padding: 0.58rem;
+          }
+
+          .calendar-shell-pro {
+            padding: 0.3rem;
+          }
+
+          .calendar-shell-pro .fc-button-group {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+          }
+
+          .calendar-shell-pro .fc-toolbar-chunk:first-child .fc-button-group {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            width: auto;
+          }
+
+          .calendar-shell-pro .fc-toolbar-chunk:first-child .fc-today-button {
+            width: 100%;
+          }
+
+          .calendar-shell-pro .fc-col-header-cell-cushion {
+            font-size: 0.62rem;
+            padding-left: 0 !important;
+            padding-right: 0 !important;
+          }
+
+          .calendar-shell-pro .fc-daygrid-day-number {
+            font-size: 0.72rem;
+            padding: 0.28rem 0.2rem !important;
+          }
+
+          .calendar-event-inner-pro {
+            font-size: 0.62rem;
+          }
+
+          .calendar-event-kind {
+            width: 16px;
+            height: 16px;
+            font-size: 0.54rem;
           }
         }
       `}</style>
@@ -3143,10 +3375,11 @@ export default function TareasPage({
                 list: "Agenda",
               }}
               locale="es"
-              height={720}
-              contentHeight={650}
+              height="auto"
+              contentHeight="auto"
               expandRows={true}
-              handleWindowResize={false}
+              handleWindowResize={true}
+              windowResizeDelay={120}
               stickyHeaderDates={true}
               allDaySlot={true}
               allDayText="Todo el día"
@@ -3171,8 +3404,11 @@ export default function TareasPage({
                     <div
                       className={`calendar-week-header-pro${arg.isToday ? " is-today" : ""}`}
                     >
-                      <span className="calendar-week-header-name">
+                      <span className="calendar-week-header-name calendar-week-header-name-full">
                         {formatDayHeaderName(arg.date)}
+                      </span>
+                      <span className="calendar-week-header-name calendar-week-header-name-short">
+                        {formatWeekHeaderShortName(arg.date)}
                       </span>
                       <span className="calendar-week-header-date">
                         {formatWeekHeaderDate(arg.date)}
