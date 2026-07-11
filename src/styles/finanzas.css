@@ -712,61 +712,71 @@ body {
    COLUMNAS DE MOVIMIENTOS
 ========================= */
 
+.finance-movements-table {
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-behavior: smooth;
+  scrollbar-gutter: stable;
+}
+
 .finance-movements-table .data-table {
-  table-layout: fixed;
   width: 100%;
-  min-width: 1180px;
+  min-width: 0;
+  table-layout: fixed;
+  border-collapse: separate;
+  border-spacing: 0;
 }
 
 .finance-movements-table .data-table th,
 .finance-movements-table .data-table td {
-  min-width: 0;
+  min-width: 0 !important;
   max-width: none;
+  padding: 0.85rem 0.75rem;
   overflow: hidden;
   vertical-align: middle;
 }
 
+.finance-movements-table .data-table th {
+  white-space: nowrap;
+}
+
 .finance-movements-table .finance-col-date {
-  width: 118px;
-  min-width: 118px;
+  width: 9%;
   white-space: nowrap;
 }
 
 .finance-movements-table .finance-col-concept {
-  width: 190px;
-  min-width: 190px;
+  width: 14%;
 }
 
 .finance-movements-table .finance-col-category {
-  width: 170px;
-  min-width: 170px;
+  width: 13%;
 }
 
 .finance-movements-table .finance-col-type {
-  width: 115px;
-  min-width: 115px;
+  width: 9%;
 }
 
 .finance-movements-table .finance-col-amount {
-  width: 165px;
-  min-width: 165px;
+  width: 13%;
   text-align: right;
   white-space: nowrap;
+  padding-right: 1rem;
 }
 
 .finance-movements-table .finance-col-invoice {
-  width: 170px;
-  min-width: 170px;
+  width: 12%;
+  padding-left: 1rem;
 }
 
 .finance-movements-table .finance-col-note {
-  width: 230px;
-  min-width: 230px;
+  width: 14%;
+  padding-left: 1rem;
 }
 
 .finance-movements-table .finance-col-actions {
-  width: 190px;
-  min-width: 190px;
+  width: 16%;
+  padding-left: 1rem;
 }
 
 .finance-cell-text,
@@ -785,7 +795,9 @@ body {
 .finance-amount-value {
   display: block;
   width: 100%;
+  overflow: hidden;
   text-align: right;
+  text-overflow: ellipsis;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum" 1;
@@ -814,30 +826,54 @@ body {
 }
 
 .finance-movements-table .finance-col-actions .task-actions {
-  justify-content: flex-start;
-  flex-wrap: nowrap;
-}
-
-.finance-table .task-actions {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.45rem;
+  width: 100%;
+}
+
+.finance-movements-table .finance-col-actions .finance-action-btn {
+  width: 100%;
   min-width: 0;
+  padding-inline: 0.65rem;
 }
 
-.finance-table .small-btn {
-  min-height: 40px;
-  flex: 1 1 auto;
-  white-space: nowrap;
-}
+@media (max-width: 1180px) {
+  .finance-movements-table .data-table {
+    min-width: 1060px;
+  }
 
-.finance-table .finance-action-btn {
-  flex: 0 1 auto;
-}
+  .finance-movements-table .finance-col-date {
+    width: 110px;
+  }
 
-.page-header-actions .btn-secondary {
-  max-width: 100%;
-  white-space: normal;
+  .finance-movements-table .finance-col-concept {
+    width: 155px;
+  }
+
+  .finance-movements-table .finance-col-category {
+    width: 145px;
+  }
+
+  .finance-movements-table .finance-col-type {
+    width: 105px;
+  }
+
+  .finance-movements-table .finance-col-amount {
+    width: 150px;
+  }
+
+  .finance-movements-table .finance-col-invoice {
+    width: 145px;
+  }
+
+  .finance-movements-table .finance-col-note {
+    width: 165px;
+  }
+
+  .finance-movements-table .finance-col-actions {
+    width: 185px;
+  }
 }
 
 /* =========================
@@ -976,25 +1012,6 @@ body {
 }
 
 @media (max-width: 900px) {
-  .finance-movements-table .data-table {
-    min-width: 1080px;
-  }
-
-  .finance-movements-table .finance-col-concept {
-    width: 170px;
-    min-width: 170px;
-  }
-
-  .finance-movements-table .finance-col-category {
-    width: 155px;
-    min-width: 155px;
-  }
-
-  .finance-movements-table .finance-col-note {
-    width: 205px;
-    min-width: 205px;
-  }
-
   .finance-active-farm {
     grid-template-columns: 1fr;
   }
@@ -1088,57 +1105,17 @@ body {
     min-width: 132px;
   }
 
-  .finance-movements-table .data-table {
-    min-width: 1010px;
-  }
-
-  .finance-movements-table .finance-col-date {
-    width: 108px;
-    min-width: 108px;
-  }
-
-  .finance-movements-table .finance-col-concept {
-    width: 155px;
-    min-width: 155px;
-  }
-
-  .finance-movements-table .finance-col-category {
-    width: 145px;
-    min-width: 145px;
-  }
-
-  .finance-movements-table .finance-col-type {
-    width: 105px;
-    min-width: 105px;
-  }
-
-  .finance-movements-table .finance-col-amount {
-    width: 150px;
-    min-width: 150px;
-  }
-
-  .finance-movements-table .finance-col-invoice {
-    width: 145px;
-    min-width: 145px;
-  }
-
-  .finance-movements-table .finance-col-note {
-    width: 180px;
-    min-width: 180px;
-  }
-
-  .finance-movements-table .finance-col-actions {
-    width: 150px;
-    min-width: 150px;
-  }
-
-  .finance-movements-table .finance-col-actions .task-actions {
-    flex-direction: column;
-    align-items: stretch;
-  }
 
   .finance-table .task-actions {
     gap: 0.4rem;
+  }
+
+  .finance-movements-table .data-table {
+    min-width: 980px;
+  }
+
+  .finance-movements-table .finance-col-actions .task-actions {
+    grid-template-columns: 1fr;
   }
 
   .finance-action-btn {
