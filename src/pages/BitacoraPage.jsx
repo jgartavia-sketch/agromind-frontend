@@ -398,7 +398,7 @@ export default function BitacoraPage({
                 className="bitacora-btn bitacora-btn-secondary"
                 onClick={onOpenFinance}
               >
-                $ Agregar movimiento
+                Agregar movimiento
               </button>
             </div>
           </div>
