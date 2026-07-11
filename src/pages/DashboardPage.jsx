@@ -77,6 +77,7 @@ export default function DashboardPage({ user, farmId }) {
           <article
             key={item.label}
             className={`dashboard-kpi-card dashboard-kpi-${item.tone}`}
+            tabIndex="0"
           >
             <div className="dashboard-kpi-top">
               <span>{item.label}</span>
@@ -89,7 +90,7 @@ export default function DashboardPage({ user, farmId }) {
         ))}
       </section>
 
-      <section className="dashboard-panel dashboard-alerts-panel">
+      <section className="dashboard-panel dashboard-alerts-panel dashboard-interactive-panel">
         <div className="dashboard-panel-header">
           <div>
             <span className="dashboard-section-kicker">Seguimiento</span>
@@ -117,7 +118,7 @@ export default function DashboardPage({ user, farmId }) {
       </section>
 
       <section className="dashboard-main-grid dashboard-secondary-grid">
-        <article className="dashboard-panel">
+        <article className="dashboard-panel dashboard-interactive-panel">
           <div className="dashboard-panel-header">
             <div>
               <span className="dashboard-section-kicker">Últimos movimientos</span>
@@ -143,7 +144,7 @@ export default function DashboardPage({ user, farmId }) {
           </div>
         </article>
 
-        <article className="dashboard-panel">
+        <article className="dashboard-panel dashboard-interactive-panel">
           <div className="dashboard-panel-header">
             <div>
               <span className="dashboard-section-kicker">Planificación</span>
@@ -170,7 +171,7 @@ export default function DashboardPage({ user, farmId }) {
       </section>
 
       <section className="dashboard-finance-grid">
-        <article className="dashboard-panel dashboard-finance-card">
+        <article className="dashboard-panel dashboard-finance-card dashboard-interactive-panel">
           <div className="dashboard-panel-header">
             <div>
               <span className="dashboard-section-kicker">Finanzas</span>
@@ -196,7 +197,7 @@ export default function DashboardPage({ user, farmId }) {
           </div>
         </article>
 
-        <article className="dashboard-panel dashboard-map-summary">
+        <article className="dashboard-panel dashboard-map-summary dashboard-interactive-panel">
           <div className="dashboard-panel-header">
             <div>
               <span className="dashboard-section-kicker">Territorio</span>
