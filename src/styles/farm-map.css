@@ -1349,3 +1349,93 @@
     overscroll-behavior-y:auto;
   }
 }
+
+/* ===========================================================
+   Farm switcher dropdown — iPhone Safari / Android
+   Evita recortes por overflow y mantiene el menú dentro del viewport.
+   =========================================================== */
+
+.agromind-farm-switcher {
+  position: relative;
+  z-index: 80;
+  max-width: 100%;
+}
+
+.agromind-farm-switcher > .primary-btn {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.agromind-farm-switcher > .primary-btn > span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 900px) {
+  .farm-map-shell {
+    overflow-x: visible;
+  }
+
+  .farm-map-toolbar {
+    overflow: visible;
+  }
+
+  .agromind-farm-switcher {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    overflow: visible;
+  }
+
+  .agromind-farm-switcher > div {
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+    overflow-x: hidden !important;
+  }
+
+  .agromind-farm-switcher > div > div:nth-child(2) {
+    max-height: min(
+      260px,
+      calc(
+        100svh - env(safe-area-inset-top, 0px) -
+          env(safe-area-inset-bottom, 0px) - 220px
+      )
+    ) !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+@media (max-width: 640px) {
+  .farm-map-shell {
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+  }
+
+  .agromind-farm-switcher > div {
+    width: 100% !important;
+    max-width: 100% !important;
+    transform: translateZ(0);
+  }
+
+  .agromind-farm-switcher > div > div {
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .agromind-farm-switcher > div button {
+    min-width: 0 !important;
+    max-width: 100% !important;
+  }
+}
+
