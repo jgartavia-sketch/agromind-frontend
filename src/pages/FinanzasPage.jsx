@@ -5,7 +5,6 @@ import { useEffect, useMemo, useState } from "react";
 import "../styles/finanzas.css";
 
 /* ===== Componentes ===== */
-import FinanceSummaryIA from "../components/finance/FinanceSummaryIA";
 import FinanceCard from "../components/finance/FinanceCard";
 import ZoneMonthlyChart from "../components/finance/ZoneMonthlyChart";
 import AddMovementModal from "../components/finance/AddMovementModal";
@@ -509,57 +508,28 @@ export default function FinanzasPage({ token: tokenProp } = {}) {
   return (
     <div className="page finance-page">
       <div className="finance-container">
-        <section
-          className="card"
-          style={{
-            marginBottom: "1rem",
-            padding: "1.1rem 1.25rem",
-            border: "1px solid rgba(34,197,94,0.28)",
-            background:
-              "linear-gradient(135deg, rgba(6,78,59,0.28), rgba(2,6,23,0.72))",
-            display: "grid",
-            gridTemplateColumns: "minmax(220px, 1fr) minmax(260px, 1.2fr)",
-            gap: "1rem",
-            alignItems: "center",
-          }}
-        >
-          <div>
-            <div
-              style={{
-                color: "#60a5fa",
-                fontSize: "0.78rem",
-                letterSpacing: "0.08em",
-                textTransform: "uppercase",
-                marginBottom: "0.45rem",
-              }}
-            >
+        <section className="card finance-active-farm">
+          <div className="finance-active-farm__identity">
+            <div className="finance-active-farm__eyebrow">
               🌱 Finca activa
             </div>
-            <strong style={{ color: "#f8fafc", fontSize: "1.05rem" }}>
+            <strong className="finance-active-farm__name">
               {activeFarmLabel}
             </strong>
           </div>
 
-          <p
-            style={{
-              margin: 0,
-              color: "rgba(226,232,240,0.88)",
-              lineHeight: 1.6,
-              fontSize: "0.92rem",
-            }}
-          >
+          <p className="finance-active-farm__description">
             Los ingresos, gastos, activos y análisis financiero pertenecen a esta finca.
             Para trabajar en otra, cambiá la finca activa desde el mapa.
           </p>
         </section>
 
-        <section className="finance-top-action card" style={{ marginBottom: "1rem" }}>
+        <section className="finance-top-action card">
           <button
             className="btn-primary"
             type="button"
             onClick={handleOpenNewMovement}
             disabled={saving}
-            style={{ width: "100%" }}
           >
             {saving ? "Procesando…" : "+ Agregar movimiento"}
           </button>
@@ -617,7 +587,7 @@ export default function FinanzasPage({ token: tokenProp } = {}) {
             <FinanceCard label="Margen" value={`${summary.margin.toFixed(1)}%`} />
           </section>
 
-          <section className="finance-table card">
+          <section className="finance-table card" aria-label="Movimientos financieros">
             <table className="data-table">
               <thead>
                 <tr>
@@ -675,7 +645,7 @@ export default function FinanzasPage({ token: tokenProp } = {}) {
             </table>
           </section>
 
-          <section className="finance-assets card" style={{ marginTop: "1rem" }}>
+          <section className="finance-assets card">
             <header className="page-header page-header-actions">
               <div>
                 <h2>Activos</h2>
@@ -701,14 +671,8 @@ export default function FinanzasPage({ token: tokenProp } = {}) {
               </div>
             )}
 
-            <div className="asset-form" style={{ display: "grid", gap: "0.75rem" }}>
-              <div
-                style={{
-                  display: "grid",
-                  gap: "0.5rem",
-                  gridTemplateColumns: "2fr 1fr",
-                }}
-              >
+            <div className="asset-form">
+              <div className="asset-form-row asset-form-row-primary">
                 <input
                   className="input"
                   type="text"
@@ -731,13 +695,7 @@ export default function FinanzasPage({ token: tokenProp } = {}) {
                 </select>
               </div>
 
-              <div
-                style={{
-                  display: "grid",
-                  gap: "0.5rem",
-                  gridTemplateColumns: "1fr 1fr 1fr",
-                }}
-              >
+              <div className="asset-form-row asset-form-row-values">
                 <input
                   className="input"
                   type="number"
@@ -756,23 +714,14 @@ export default function FinanzasPage({ token: tokenProp } = {}) {
                   value={assetUnitValue}
                   onChange={(e) => setAssetUnitValue(e.target.value)}
                 />
-                <div
-                  className="input"
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    padding: "0.6rem 0.75rem",
-                    opacity: 0.9,
-                  }}
-                >
+                <div className="input asset-total-field">
                   <span>Total activos</span>
                   <strong>{formatMoneyCRC(totalAssetsValue)}</strong>
                 </div>
               </div>
             </div>
 
-            <div className="finance-table" style={{ marginTop: "0.75rem" }}>
+            <div className="finance-table finance-assets-table">
               <table className="data-table">
                 <thead>
                   <tr>
@@ -822,20 +771,6 @@ export default function FinanzasPage({ token: tokenProp } = {}) {
               </table>
             </div>
           </section>
-        </section>
-
-        <section className="finance-ia-section" style={{ marginTop: "1rem" }}>
-          <FinanceSummaryIA
-            movements={movements}
-            assets={assets}
-            summary={summary}
-            resumenZona={resumenZona}
-            loading={loading}
-            errorMsg={errorMsg}
-            farmId={farmId}
-            token={token}
-            apiBase={API_BASE}
-          />
         </section>
 
         {showModal && (

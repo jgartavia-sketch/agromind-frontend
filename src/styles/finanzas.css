@@ -16,22 +16,6 @@
 }
 
 /* =========================
-   SECCIÓN IA / PROYECCIÓN
-========================= */
-
-.finance-ia-section {
-  background: linear-gradient(
-    145deg,
-    rgba(15, 23, 42, 0.9),
-    rgba(2, 6, 23, 0.95)
-  );
-  border: 1px solid rgba(56, 189, 248, 0.25);
-  border-radius: 1.25rem;
-  padding: 1.75rem;
-  box-shadow: 0 30px 80px rgba(2, 6, 23, 0.85);
-}
-
-/* =========================
    SECCIÓN FINANZAS REALES
 ========================= */
 
@@ -478,7 +462,6 @@
   }
 
   .finance-table,
-  .finance-ia-section,
   .assets-section,
   .finance-assets-section {
     padding: 1rem;
@@ -519,5 +502,399 @@
   .finance-page .btn-primary,
   .modal-card .btn-primary {
     width: 100%;
+  }
+}
+
+/* =========================================================
+   RESPONSIVE UNIVERSAL — iPhone Safari, Android y tabletas
+========================================================= */
+
+.finance-page,
+.finance-page *,
+.modal-overlay,
+.modal-overlay * {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.finance-page {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding-top: max(1.25rem, env(safe-area-inset-top, 0px));
+  padding-right: max(1rem, env(safe-area-inset-right, 0px));
+  padding-bottom: max(2rem, env(safe-area-inset-bottom, 0px));
+  padding-left: max(1rem, env(safe-area-inset-left, 0px));
+  overflow-x: clip;
+  -webkit-text-size-adjust: 100%;
+}
+
+.finance-container,
+.finance-container > *,
+.finance-real-section,
+.finance-summary,
+.finance-assets,
+.finance-top-action,
+.asset-form,
+.asset-form-row,
+.page-header,
+.page-header > *,
+.finance-table {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.finance-container {
+  width: 100%;
+}
+
+.finance-active-farm {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+  gap: 1rem;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding: 1.1rem 1.25rem;
+  border: 1px solid rgba(34, 197, 94, 0.28);
+  background: linear-gradient(
+    135deg,
+    rgba(6, 78, 59, 0.28),
+    rgba(2, 6, 23, 0.72)
+  );
+  overflow: hidden;
+}
+
+.finance-active-farm__identity,
+.finance-active-farm__description {
+  min-width: 0;
+}
+
+.finance-active-farm__eyebrow {
+  margin-bottom: 0.45rem;
+  color: #60a5fa;
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.finance-active-farm__name {
+  display: block;
+  color: #f8fafc;
+  font-size: 1.05rem;
+  overflow-wrap: anywhere;
+}
+
+.finance-active-farm__description {
+  margin: 0;
+  color: rgba(226, 232, 240, 0.88);
+  font-size: 0.92rem;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.finance-top-action {
+  margin-bottom: 1rem;
+  overflow: hidden;
+}
+
+.finance-top-action .btn-primary {
+  width: 100%;
+  max-width: 100%;
+  white-space: normal;
+}
+
+.finance-summary {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
+}
+
+.finance-card,
+.finance-value,
+.finance-label {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.finance-value {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.asset-form {
+  display: grid;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.asset-form-row {
+  display: grid;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.asset-form-row-primary {
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+}
+
+.asset-form-row-values {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.asset-total-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-width: 0;
+  padding: 0.6rem 0.75rem;
+  opacity: 0.9;
+}
+
+.asset-total-field span,
+.asset-total-field strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.finance-assets {
+  margin-top: 1rem;
+  overflow: hidden;
+}
+
+.finance-assets-table {
+  margin-top: 0.75rem;
+}
+
+
+/* Las tablas conservan su estructura y se desplazan dentro de su tarjeta. */
+.finance-table {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+.finance-table .data-table {
+  width: max-content;
+  min-width: 100%;
+  border-collapse: collapse;
+}
+
+.finance-table .data-table th,
+.finance-table .data-table td {
+  min-width: 110px;
+  max-width: 260px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  vertical-align: middle;
+}
+
+.finance-table .data-table th:first-child,
+.finance-table .data-table td:first-child {
+  min-width: 108px;
+}
+
+.finance-table .data-table th:last-child,
+.finance-table .data-table td:last-child {
+  min-width: 145px;
+}
+
+.finance-table .task-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.finance-table .small-btn {
+  min-height: 40px;
+  flex: 1 1 auto;
+  white-space: nowrap;
+}
+
+.page-header-actions .btn-secondary {
+  max-width: 100%;
+  white-space: normal;
+}
+
+.modal-overlay {
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  padding-top: max(16px, env(safe-area-inset-top, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-bottom: max(16px, env(safe-area-inset-bottom, 0px));
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  overflow: hidden;
+}
+
+.modal-card {
+  max-width: min(420px, 100%);
+  max-height: calc(
+    100dvh - max(16px, env(safe-area-inset-top, 0px)) -
+      max(16px, env(safe-area-inset-bottom, 0px))
+  );
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+@supports not (height: 100dvh) {
+  .modal-card {
+    max-height: calc(100vh - 32px);
+  }
+}
+
+@media (max-width: 900px) {
+  .finance-active-farm {
+    grid-template-columns: 1fr;
+  }
+
+  .asset-form-row-values {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .asset-total-field {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 640px) {
+  .finance-page {
+    padding-top: max(1rem, env(safe-area-inset-top, 0px));
+    padding-right: max(0.75rem, env(safe-area-inset-right, 0px));
+    padding-bottom: max(1.5rem, env(safe-area-inset-bottom, 0px));
+    padding-left: max(0.75rem, env(safe-area-inset-left, 0px));
+  }
+
+  .finance-container {
+    gap: 1.25rem;
+  }
+
+  .finance-real-section {
+    gap: 1rem;
+  }
+
+  .finance-active-farm,
+  .finance-table,
+  .finance-assets,
+  .finance-top-action,
+  .finance-container > .card {
+    border-radius: 1rem;
+  }
+
+  .finance-active-farm {
+    padding: 1rem;
+  }
+
+  .finance-active-farm__description {
+    font-size: 0.87rem;
+    line-height: 1.5;
+  }
+
+  .finance-summary {
+    grid-template-columns: 1fr;
+    gap: 0.85rem;
+  }
+
+  .finance-card {
+    padding: 0.95rem 1rem;
+  }
+
+  .finance-value {
+    font-size: clamp(1.15rem, 7vw, 1.35rem);
+  }
+
+  .asset-form-row-primary,
+  .asset-form-row-values {
+    grid-template-columns: 1fr;
+  }
+
+  .asset-total-field {
+    grid-column: auto;
+  }
+
+  .page-header-actions {
+    align-items: stretch;
+  }
+
+  .page-header-actions .btn-secondary {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  .finance-table {
+    padding: 0.85rem;
+  }
+
+  .finance-table .data-table th,
+  .finance-table .data-table td {
+    min-width: 105px;
+    padding: 0.7rem 0.65rem;
+    font-size: 0.82rem;
+  }
+
+  .finance-table .data-table th:last-child,
+  .finance-table .data-table td:last-child {
+    min-width: 132px;
+  }
+
+  .modal-overlay {
+    align-items: flex-end;
+    padding-top: max(10px, env(safe-area-inset-top, 0px));
+    padding-right: max(10px, env(safe-area-inset-right, 0px));
+    padding-bottom: max(10px, env(safe-area-inset-bottom, 0px));
+    padding-left: max(10px, env(safe-area-inset-left, 0px));
+  }
+
+  .modal-card {
+    width: 100%;
+    max-width: 100%;
+    max-height: calc(
+      100dvh - max(10px, env(safe-area-inset-top, 0px)) -
+        max(10px, env(safe-area-inset-bottom, 0px))
+    );
+    padding: 1rem;
+  }
+
+  .modal-actions > button {
+    flex: 1 1 100%;
+    width: 100%;
+    min-height: 44px;
+  }
+}
+
+@media (max-width: 390px) {
+  .finance-page {
+    padding-right: max(0.6rem, env(safe-area-inset-right, 0px));
+    padding-left: max(0.6rem, env(safe-area-inset-left, 0px));
+  }
+
+  .finance-active-farm,
+  .finance-table,
+  .finance-assets {
+    padding: 0.8rem;
+  }
+
+  .finance-active-farm__name {
+    font-size: 1rem;
+  }
+
+  .finance-page input,
+  .finance-page select,
+  .finance-page textarea,
+  .modal-card input,
+  .modal-card select,
+  .modal-card textarea {
+    font-size: 16px;
   }
 }
