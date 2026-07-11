@@ -178,32 +178,31 @@ export default function AddMovementModal({
     overlay: {
       position: "fixed",
       inset: 0,
-      width: "100vw",
+      width: "100%",
       height: "100dvh",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      padding:
+        "calc(0.75rem + env(safe-area-inset-top, 0px)) calc(0.75rem + env(safe-area-inset-right, 0px)) calc(0.75rem + env(safe-area-inset-bottom, 0px)) calc(0.75rem + env(safe-area-inset-left, 0px))",
       background:
         "radial-gradient(circle at top, rgba(16,185,129,0.12), transparent 35%), rgba(0,0,0,0.76)",
       backdropFilter: "blur(10px)",
       WebkitBackdropFilter: "blur(10px)",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      zIndex: 9999,
-      padding:
-        "calc(0.75rem + env(safe-area-inset-top, 0px)) calc(0.75rem + env(safe-area-inset-right, 0px)) calc(0.75rem + env(safe-area-inset-bottom, 0px)) calc(0.75rem + env(safe-area-inset-left, 0px))",
       overflow: "hidden",
       overscrollBehavior: "none",
       boxSizing: "border-box",
+      zIndex: 9999,
     },
     card: {
       width: "min(760px, 100%)",
       maxWidth: "100%",
-      height:
-        "min(760px, calc(100dvh - 1.5rem - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)))",
       maxHeight:
         "calc(100dvh - 1.5rem - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px))",
-      display: "flex",
-      flexDirection: "column",
-      overflow: "hidden",
+      overflowY: "auto",
+      overflowX: "hidden",
+      overscrollBehavior: "contain",
+      WebkitOverflowScrolling: "touch",
       background:
         "linear-gradient(180deg, rgba(5,12,28,0.995), rgba(2,6,23,0.995))",
       border: "1px solid rgba(52,211,153,0.22)",
@@ -217,36 +216,14 @@ export default function AddMovementModal({
       justifyContent: "space-between",
       gap: "1rem",
       alignItems: "flex-start",
-      flex: "0 0 auto",
       padding: "1rem 1.15rem 0.85rem",
       background:
         "linear-gradient(180deg, rgba(5,12,28,1), rgba(5,12,28,0.98))",
       borderBottom: "1px solid rgba(148,163,184,0.1)",
-      backdropFilter: "blur(12px)",
-      WebkitBackdropFilter: "blur(12px)",
     },
-    body: {
-      flex: "1 1 auto",
-      minHeight: 0,
-      overflowY: "auto",
-      overscrollBehavior: "contain",
-      WebkitOverflowScrolling: "touch",
-      padding: "0.85rem 1.15rem",
-      scrollbarGutter: "stable",
-    },
-    footer: {
-      flex: "0 0 auto",
-      display: "flex",
-      justifyContent: "flex-end",
-      gap: "0.75rem",
-      flexWrap: "wrap",
+    content: {
       padding:
-        "0.75rem 1.15rem calc(0.75rem + env(safe-area-inset-bottom, 0px))",
-      background:
-        "linear-gradient(180deg, rgba(5,12,28,0.97), rgba(2,6,23,1))",
-      borderTop: "1px solid rgba(148,163,184,0.1)",
-      boxShadow: "0 -14px 30px rgba(0,0,0,0.2)",
-      zIndex: 5,
+        "0.9rem 1.15rem calc(1.15rem + env(safe-area-inset-bottom, 0px))",
     },
     titleRow: {
       display: "flex",
@@ -303,6 +280,15 @@ export default function AddMovementModal({
       pointerEvents: "none",
       zIndex: 1,
     },
+    footer: {
+      display: "flex",
+      justifyContent: "flex-end",
+      gap: "0.75rem",
+      flexWrap: "wrap",
+      marginTop: "1rem",
+      paddingTop: "1rem",
+      borderTop: "1px solid rgba(148,163,184,0.1)",
+    },
   };
 
   return (
@@ -356,212 +342,210 @@ export default function AddMovementModal({
           </button>
         </div>
 
-        <div style={modalStyles.body}>
+        <div style={modalStyles.content}>
           <form id="movement-form" onSubmit={handleSubmit}>
             <div style={{ display: "grid", gap: "0.85rem" }}>
-            <section style={modalStyles.panel}>
-              <div style={modalStyles.grid}>
-                <div className="task-field">
-                  <label>Fecha</label>
-                  <input
-                    type="date"
-                    value={form.date}
-                    onChange={(e) => setField("date", e.target.value)}
-                    disabled={saving}
-                  />
-                </div>
-
-                <div className="task-field">
-                  <label>Tipo de movimiento</label>
-
-                  <div style={modalStyles.typeSwitcher}>
-                    {["Ingreso", "Gasto"].map((type) => {
-                      const active = form.type === type;
-
-                      return (
-                        <button
-                          key={type}
-                          type="button"
-                          onClick={() => setField("type", type)}
-                          disabled={saving}
-                          style={{
-                            minHeight: "42px",
-                            borderRadius: "10px",
-                            border: active
-                              ? type === "Ingreso"
-                                ? "1px solid rgba(74,222,128,0.55)"
-                                : "1px solid rgba(248,113,113,0.55)"
-                              : "1px solid transparent",
-                            background: active
-                              ? type === "Ingreso"
-                                ? "linear-gradient(135deg, rgba(34,197,94,0.26), rgba(20,184,166,0.16))"
-                                : "linear-gradient(135deg, rgba(248,113,113,0.22), rgba(249,115,22,0.12))"
-                              : "transparent",
-                            color: active
-                              ? type === "Ingreso"
-                                ? "#bbf7d0"
-                                : "#fecaca"
-                              : "#94a3b8",
-                            fontWeight: 700,
-                            cursor: "pointer",
-                          }}
-                        >
-                          {type}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <div
-                  className="task-field"
-                  style={{ gridColumn: "1 / -1" }}
-                >
-                  <label>Concepto</label>
-                  <input
-                    type="text"
-                    value={form.concept}
-                    onChange={(e) => setField("concept", e.target.value)}
-                    disabled={saving}
-                    placeholder="Ej: Venta de cosecha, compra de fertilizante"
-                  />
-                </div>
-              </div>
-            </section>
-
-            <section style={modalStyles.panel}>
-              <div style={modalStyles.grid}>
-                <div className="task-field">
-                  <label>Categoría</label>
-                  <select
-                    value={selectedCategory}
-                    onChange={(e) => handleCategoryChange(e.target.value)}
-                    disabled={saving}
-                  >
-                    <option value="">Seleccionar categoría</option>
-                    {CATEGORY_OPTIONS.map((category) => (
-                      <option key={category} value={category}>
-                        {category}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="task-field">
-                  <label>Monto (CRC)</label>
-                  <div style={modalStyles.amountWrap}>
-                    <span style={modalStyles.amountSymbol}>₡</span>
+              <section style={modalStyles.panel}>
+                <div style={modalStyles.grid}>
+                  <div className="task-field">
+                    <label>Fecha</label>
                     <input
-                      type="number"
-                      value={form.amount}
-                      onChange={(e) => setField("amount", e.target.value)}
+                      type="date"
+                      value={form.date}
+                      onChange={(e) => setField("date", e.target.value)}
                       disabled={saving}
-                      min="0"
-                      step="1"
-                      placeholder="0"
-                      style={{
-                        paddingLeft: "2.1rem",
-                        fontSize: "1.05rem",
-                        fontWeight: 700,
-                      }}
                     />
                   </div>
-                </div>
 
-                {selectedCategory === "Otro" && (
+                  <div className="task-field">
+                    <label>Tipo de movimiento</label>
+
+                    <div style={modalStyles.typeSwitcher}>
+                      {["Ingreso", "Gasto"].map((type) => {
+                        const active = form.type === type;
+
+                        return (
+                          <button
+                            key={type}
+                            type="button"
+                            onClick={() => setField("type", type)}
+                            disabled={saving}
+                            style={{
+                              minHeight: "42px",
+                              borderRadius: "10px",
+                              border: active
+                                ? type === "Ingreso"
+                                  ? "1px solid rgba(74,222,128,0.55)"
+                                  : "1px solid rgba(248,113,113,0.55)"
+                                : "1px solid transparent",
+                              background: active
+                                ? type === "Ingreso"
+                                  ? "linear-gradient(135deg, rgba(34,197,94,0.26), rgba(20,184,166,0.16))"
+                                  : "linear-gradient(135deg, rgba(248,113,113,0.22), rgba(249,115,22,0.12))"
+                                : "transparent",
+                              color: active
+                                ? type === "Ingreso"
+                                  ? "#bbf7d0"
+                                  : "#fecaca"
+                                : "#94a3b8",
+                              fontWeight: 700,
+                              cursor: "pointer",
+                            }}
+                          >
+                            {type}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
                   <div
                     className="task-field"
                     style={{ gridColumn: "1 / -1" }}
                   >
-                    <label>Otra categoría</label>
+                    <label>Concepto</label>
                     <input
                       type="text"
-                      value={customCategory}
-                      onChange={(e) =>
-                        handleCustomCategoryChange(e.target.value)
-                      }
+                      value={form.concept}
+                      onChange={(e) => setField("concept", e.target.value)}
                       disabled={saving}
-                      placeholder="Escribe la categoría personalizada"
+                      placeholder="Ej: Venta de cosecha, compra de fertilizante"
                     />
                   </div>
-                )}
-              </div>
-            </section>
-
-            <section style={modalStyles.panel}>
-              <div style={modalStyles.grid}>
-                <div
-                  className="task-field"
-                  style={{ gridColumn: "1 / -1" }}
-                >
-                  <label>Número de factura (opcional)</label>
-                  <input
-                    type="text"
-                    value={form.invoiceNumber}
-                    onChange={(e) =>
-                      setField("invoiceNumber", e.target.value)
-                    }
-                    disabled={saving}
-                    maxLength={80}
-                    placeholder="Ej: FAC-2026-001"
-                  />
                 </div>
+              </section>
 
-                <div
-                  className="task-field"
-                  style={{ gridColumn: "1 / -1" }}
-                >
-                  <label>Nota</label>
-                  <textarea
-                    value={form.note}
-                    onChange={(e) => setField("note", e.target.value)}
-                    disabled={saving}
-                    rows={2}
-                    placeholder="Agrega un detalle útil para este movimiento"
-                    style={{ resize: "vertical", minHeight: "78px" }}
-                  />
+              <section style={modalStyles.panel}>
+                <div style={modalStyles.grid}>
+                  <div className="task-field">
+                    <label>Categoría</label>
+                    <select
+                      value={selectedCategory}
+                      onChange={(e) => handleCategoryChange(e.target.value)}
+                      disabled={saving}
+                    >
+                      <option value="">Seleccionar categoría</option>
+                      {CATEGORY_OPTIONS.map((category) => (
+                        <option key={category} value={category}>
+                          {category}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="task-field">
+                    <label>Monto (CRC)</label>
+                    <div style={modalStyles.amountWrap}>
+                      <span style={modalStyles.amountSymbol}>₡</span>
+                      <input
+                        type="number"
+                        value={form.amount}
+                        onChange={(e) => setField("amount", e.target.value)}
+                        disabled={saving}
+                        min="0"
+                        step="1"
+                        placeholder="0"
+                        style={{
+                          paddingLeft: "2.1rem",
+                          fontSize: "1.05rem",
+                          fontWeight: 700,
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {selectedCategory === "Otro" && (
+                    <div
+                      className="task-field"
+                      style={{ gridColumn: "1 / -1" }}
+                    >
+                      <label>Otra categoría</label>
+                      <input
+                        type="text"
+                        value={customCategory}
+                        onChange={(e) =>
+                          handleCustomCategoryChange(e.target.value)
+                        }
+                        disabled={saving}
+                        placeholder="Escribe la categoría personalizada"
+                      />
+                    </div>
+                  )}
                 </div>
-              </div>
-            </section>
+              </section>
 
+              <section style={modalStyles.panel}>
+                <div style={modalStyles.grid}>
+                  <div
+                    className="task-field"
+                    style={{ gridColumn: "1 / -1" }}
+                  >
+                    <label>Número de factura (opcional)</label>
+                    <input
+                      type="text"
+                      value={form.invoiceNumber}
+                      onChange={(e) =>
+                        setField("invoiceNumber", e.target.value)
+                      }
+                      disabled={saving}
+                      maxLength={80}
+                      placeholder="Ej: FAC-2026-001"
+                    />
+                  </div>
+
+                  <div
+                    className="task-field"
+                    style={{ gridColumn: "1 / -1" }}
+                  >
+                    <label>Nota</label>
+                    <textarea
+                      value={form.note}
+                      onChange={(e) => setField("note", e.target.value)}
+                      disabled={saving}
+                      rows={3}
+                      placeholder="Agrega un detalle útil para este movimiento"
+                      style={{ resize: "vertical", minHeight: "96px" }}
+                    />
+                  </div>
+                </div>
+              </section>
+            </div>
+
+            <div style={modalStyles.footer}>
+              <button
+                type="button"
+                className="secondary-btn"
+                onClick={onClose}
+                disabled={saving}
+                style={{
+                  minWidth: "140px",
+                  minHeight: "48px",
+                  borderRadius: "999px",
+                  fontWeight: 700,
+                }}
+              >
+                Cancelar
+              </button>
+
+              <button
+                type="submit"
+                className="primary-btn"
+                disabled={saving}
+                style={{
+                  minWidth: "220px",
+                  minHeight: "48px",
+                  borderRadius: "999px",
+                  fontWeight: 800,
+                }}
+              >
+                {saving
+                  ? "Guardando…"
+                  : isEdit
+                  ? "Guardar cambios"
+                  : "Guardar movimiento"}
+              </button>
             </div>
           </form>
-        </div>
-
-        <div style={modalStyles.footer}>
-          <button
-            type="button"
-            className="secondary-btn"
-            onClick={onClose}
-            disabled={saving}
-            style={{
-              minWidth: "140px",
-              minHeight: "48px",
-              borderRadius: "999px",
-              fontWeight: 700,
-            }}
-          >
-            Cancelar
-          </button>
-
-          <button
-            type="submit"
-            form="movement-form"
-            className="primary-btn"
-            disabled={saving}
-            style={{
-              minWidth: "220px",
-              minHeight: "48px",
-              borderRadius: "999px",
-              fontWeight: 800,
-            }}
-          >
-            {saving
-              ? "Guardando…"
-              : isEdit
-              ? "Guardar cambios"
-              : "Guardar movimiento"}
-          </button>
         </div>
       </div>
     </div>
