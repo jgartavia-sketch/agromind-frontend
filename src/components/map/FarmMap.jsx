@@ -2961,7 +2961,13 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
 
         <div
           className="agromind-farm-switcher"
-          style={{ position: "relative" }}
+          style={{
+            position: "relative",
+            minWidth: 0,
+            maxWidth:
+              "calc(100vw - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px) - 24px)",
+            boxSizing: "border-box",
+          }}
         >
           <button
             type="button"
@@ -2975,10 +2981,23 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
               alignItems: "center",
               gap: "0.5rem",
               whiteSpace: "nowrap",
+              minWidth: 0,
+              maxWidth: "100%",
+              boxSizing: "border-box",
+              overflow: "hidden",
             }}
             title="Cambiar o crear finca"
           >
-            <span>🌱 {farmsLoading ? "Cargando fincas..." : activeFarmName}</span>
+            <span
+              style={{
+                minWidth: 0,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
+              🌱 {farmsLoading ? "Cargando fincas..." : activeFarmName}
+            </span>
             <span style={{ opacity: 0.75 }}>{farmMenuOpen ? "▲" : "▼"}</span>
           </button>
 
@@ -2988,19 +3007,30 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
                 position: "absolute",
                 top: "calc(100% + 8px)",
                 right: 0,
-                width: "min(320px, 90vw)",
+                left: "auto",
+                width:
+                  "min(320px, calc(100vw - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px) - 24px))",
+                maxWidth:
+                  "calc(100vw - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px) - 24px)",
+                minWidth: 0,
                 zIndex: 60,
                 background: "rgba(2,6,23,0.97)",
                 border: "1px solid rgba(148,163,184,0.25)",
                 borderRadius: "16px",
                 overflow: "hidden",
+                overflowX: "hidden",
                 boxShadow: "0 18px 44px rgba(0,0,0,0.42)",
+                boxSizing: "border-box",
+                WebkitTransform: "translateZ(0)",
               }}
             >
               <div
                 style={{
                   padding: "0.75rem 0.85rem",
                   borderBottom: "1px solid rgba(148,163,184,0.16)",
+                  minWidth: 0,
+                  overflow: "hidden",
+                  boxSizing: "border-box",
                 }}
               >
                 <div style={{ color: "#e5e7eb", fontWeight: 800, fontSize: "0.9rem" }}>
@@ -3011,13 +3041,27 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
                     marginTop: "0.2rem",
                     color: "rgba(226,232,240,0.62)",
                     fontSize: "0.75rem",
+                    overflowWrap: "anywhere",
                   }}
                 >
                   Cada finca carga su propio mapa, zonas y procesos.
                 </div>
               </div>
 
-              <div style={{ maxHeight: 260, overflow: "auto" }}>
+              <div
+                style={{
+                  maxHeight:
+                    "min(260px, calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 220px))",
+                  overflowY: "auto",
+                  overflowX: "hidden",
+                  overscrollBehavior: "contain",
+                  WebkitOverflowScrolling: "touch",
+                  scrollbarGutter: "stable",
+                  minWidth: 0,
+                  width: "100%",
+                  boxSizing: "border-box",
+                }}
+              >
                 {farms.length === 0 ? (
                   <div
                     style={{
@@ -3062,6 +3106,10 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
                           borderBottom: "1px solid rgba(148,163,184,0.10)",
                           cursor: farmActionLoading || isEditing ? "default" : "pointer",
                           textAlign: "left",
+                          minWidth: 0,
+                          maxWidth: "100%",
+                          overflow: "hidden",
+                          boxSizing: "border-box",
                         }}
                         title={`Abrir ${displayName}`}
                       >
@@ -3155,6 +3203,8 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
                               alignItems: "center",
                               gap: "0.45rem",
                               color: isActiveFarm ? "#86efac" : "#94a3b8",
+                              flex: "0 0 auto",
+                              minWidth: 0,
                             }}
                           >
                             {isActiveFarm && farmViewPinned ? (
@@ -3186,6 +3236,10 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
                   gap: "0.5rem",
                   flexWrap: "wrap",
                   borderTop: "1px solid rgba(148,163,184,0.16)",
+                  minWidth: 0,
+                  width: "100%",
+                  overflow: "hidden",
+                  boxSizing: "border-box",
                 }}
               >
                 <button
@@ -3193,7 +3247,12 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
                   className="primary-btn"
                   onClick={handleCreateFarmFromCurrentView}
                   disabled={farmActionLoading || farmsLoading}
-                  style={{ flex: "1 1 150px", justifyContent: "center" }}
+                  style={{
+                    flex: "1 1 150px",
+                    justifyContent: "center",
+                    minWidth: 0,
+                    maxWidth: "100%",
+                  }}
                   title="Crear una finca nueva desde la vista actual del mapa"
                 >
                   {farmActionLoading ? "Procesando..." : "➕ Nueva finca"}
@@ -3204,7 +3263,12 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
                   className="secondary-btn"
                   onClick={handleSaveViewClick}
                   disabled={farmActionLoading || !contextFarmId}
-                  style={{ flex: "1 1 130px", justifyContent: "center" }}
+                  style={{
+                    flex: "1 1 130px",
+                    justifyContent: "center",
+                    minWidth: 0,
+                    maxWidth: "100%",
+                  }}
                   title="Actualizar la ubicación base de la finca activa"
                 >
                   {farmViewPinned ? "✅ Vista establecida" : "📌 Establecer vista"}
