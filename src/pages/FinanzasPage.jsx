@@ -60,6 +60,89 @@ function toYYYYMMDD(value) {
   return d.toISOString().slice(0, 10);
 }
 
+
+function getMonthKey(value) {
+  const date = toYYYYMMDD(value);
+  return date.includes("—") ? "sin-fecha" : date.slice(0, 7);
+}
+
+function getDayKey(value) {
+  const date = toYYYYMMDD(value);
+  return date.includes("—") ? "sin-fecha" : date;
+}
+
+function formatMonthLabel(monthKey) {
+  if (!monthKey || monthKey === "sin-fecha") return "Sin fecha";
+
+  const [year, month] = monthKey.split("-").map(Number);
+  const date = new Date(year, month - 1, 1);
+
+  return date.toLocaleDateString("es-CR", {
+    month: "long",
+    year: "numeric",
+  });
+}
+
+function formatDayLabel(dayKey) {
+  if (!dayKey || dayKey === "sin-fecha") return "Sin fecha";
+
+  const [year, month, day] = dayKey.split("-").map(Number);
+  const date = new Date(year, month - 1, day);
+
+  return date.toLocaleDateString("es-CR", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  });
+}
+
+function groupMovementsByMonthAndDay(movements) {
+  const monthMap = new Map();
+
+  for (const movement of movements) {
+    const monthKey = getMonthKey(movement.date);
+    const dayKey = getDayKey(movement.date);
+
+    if (!monthMap.has(monthKey)) {
+      monthMap.set(monthKey, {
+        key: monthKey,
+        label: formatMonthLabel(monthKey),
+        movements: [],
+        days: new Map(),
+        ingresos: 0,
+        gastos: 0,
+      });
+    }
+
+    const month = monthMap.get(monthKey);
+    month.movements.push(movement);
+
+    if (!month.days.has(dayKey)) {
+      month.days.set(dayKey, {
+        key: dayKey,
+        label: formatDayLabel(dayKey),
+        movements: [],
+      });
+    }
+
+    month.days.get(dayKey).movements.push(movement);
+
+    const amount = Number(movement.amount || 0);
+    if (movement.type === "Ingreso") month.ingresos += amount;
+    if (movement.type === "Gasto") month.gastos += amount;
+  }
+
+  return Array.from(monthMap.values())
+    .sort((a, b) => b.key.localeCompare(a.key))
+    .map((month) => ({
+      ...month,
+      balance: month.ingresos - month.gastos,
+      days: Array.from(month.days.values()).sort((a, b) =>
+        b.key.localeCompare(a.key)
+      ),
+    }));
+}
+
 function buildMonthlyChartData(movements) {
   const map = new Map();
 
@@ -105,6 +188,7 @@ export default function FinanzasPage({ token: tokenProp } = {}) {
   const [movements, setMovements] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [editingMovement, setEditingMovement] = useState(null);
+  const [openMonths, setOpenMonths] = useState({});
 
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -292,6 +376,27 @@ export default function FinanzasPage({ token: tokenProp } = {}) {
   );
 
   const rowsToRender = movements;
+
+  const groupedMovements = useMemo(
+    () => groupMovementsByMonthAndDay(rowsToRender),
+    [rowsToRender]
+  );
+
+  useEffect(() => {
+    if (!groupedMovements.length) return;
+
+    setOpenMonths((previous) => {
+      if (Object.keys(previous).length > 0) return previous;
+      return { [groupedMovements[0].key]: true };
+    });
+  }, [groupedMovements]);
+
+  const toggleMonth = (monthKey) => {
+    setOpenMonths((previous) => ({
+      ...previous,
+      [monthKey]: !previous[monthKey],
+    }));
+  };
 
   const handleOpenNewMovement = () => {
     setEditingMovement(null);
@@ -587,83 +692,168 @@ export default function FinanzasPage({ token: tokenProp } = {}) {
             <FinanceCard label="Margen" value={`${summary.margin.toFixed(1)}%`} />
           </section>
 
-          <section className="finance-table card finance-movements-table" aria-label="Movimientos financieros">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th className="finance-col-date">Fecha</th>
-                  <th className="finance-col-concept">Concepto</th>
-                  <th className="finance-col-category">Categoría</th>
-                  <th className="finance-col-type">Tipo</th>
-                  <th className="finance-col-amount">Monto</th>
-                  <th className="finance-col-invoice">Factura</th>
-                  <th className="finance-col-note">Nota</th>
-                  <th className="finance-col-actions">Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rowsToRender.map((mov) => {
-                  const isPlaceholder = mov.id?.toString().includes("placeholder");
+          <section
+            className="finance-movements card"
+            aria-label="Movimientos financieros"
+          >
+            <header className="finance-movements-header">
+              <div>
+                <h2>Movimientos</h2>
+                <p>Historial organizado por mes y día</p>
+              </div>
+
+              <span className="finance-movements-count">
+                {rowsToRender.length}{" "}
+                {rowsToRender.length === 1 ? "movimiento" : "movimientos"}
+              </span>
+            </header>
+
+            {groupedMovements.length === 0 ? (
+              <div className="finance-empty-state">
+                Todavía no hay movimientos registrados.
+              </div>
+            ) : (
+              <div className="finance-month-list">
+                {groupedMovements.map((month) => {
+                  const isOpen = !!openMonths[month.key];
 
                   return (
-                    <tr key={mov.id} className={isPlaceholder ? "row-placeholder" : ""}>
-                      <td className="finance-col-date">{toYYYYMMDD(mov.date)}</td>
-                      <td className="finance-col-concept">
-                        <span className="finance-cell-text">{mov.concept || "—"}</span>
-                      </td>
-                      <td className="finance-col-category">
-                        <span className="finance-cell-text">{mov.category || "—"}</span>
-                      </td>
-                      <td className="finance-col-type">
-                        <span className={getTypePillClass(mov.type)}>{mov.type}</span>
-                      </td>
-                      <td className="finance-col-amount">
-                        <span className="finance-amount-value">
-                          {formatMoneyCRC(mov.amount)}
-                        </span>
-                      </td>
-                      <td className="finance-col-invoice">
-                        <span className="finance-invoice-value">
-                          {mov.invoiceNumber || "—"}
-                        </span>
-                      </td>
-                      <td className="finance-col-note">
+                    <section className="finance-month-folder" key={month.key}>
+                      <button
+                        type="button"
+                        className="finance-month-trigger"
+                        onClick={() => toggleMonth(month.key)}
+                        aria-expanded={isOpen}
+                      >
                         <span
-                          className="finance-note-clamp"
-                          title={mov.note || ""}
+                          className={`finance-month-chevron ${
+                            isOpen ? "is-open" : ""
+                          }`}
+                          aria-hidden="true"
                         >
-                          {mov.note || "—"}
+                          ›
                         </span>
-                      </td>
-                      <td className="finance-col-actions">
-                        <div className="task-actions">
-                          <button
-                            type="button"
-                            className="finance-action-btn finance-action-btn-edit"
-                            disabled={saving || isPlaceholder}
-                            onClick={() => handleEditMovement(mov)}
-                            aria-label={`Editar movimiento ${mov.concept || ""}`}
+
+                        <span className="finance-month-title">
+                          {month.label}
+                        </span>
+
+                        <span className="finance-month-meta">
+                          <span>{month.movements.length} movimientos</span>
+                          <strong
+                            className={
+                              month.balance >= 0
+                                ? "finance-month-balance is-positive"
+                                : "finance-month-balance is-negative"
+                            }
                           >
-                            <span aria-hidden="true">✎</span>
-                            <span>Editar</span>
-                          </button>
-                          <button
-                            type="button"
-                            className="finance-action-btn finance-action-btn-delete"
-                            disabled={saving || isPlaceholder}
-                            onClick={() => handleDeleteMovement(mov.id)}
-                            aria-label={`Eliminar movimiento ${mov.concept || ""}`}
-                          >
-                            <span aria-hidden="true">⌫</span>
-                            <span>Eliminar</span>
-                          </button>
+                            {formatMoneyCRC(month.balance)}
+                          </strong>
+                        </span>
+                      </button>
+
+                      {isOpen && (
+                        <div className="finance-month-content">
+                          {month.days.map((day) => (
+                            <section className="finance-day-folder" key={day.key}>
+                              <header className="finance-day-header">
+                                <div>
+                                  <strong>{day.label}</strong>
+                                  <span>
+                                    {day.movements.length}{" "}
+                                    {day.movements.length === 1
+                                      ? "movimiento"
+                                      : "movimientos"}
+                                  </span>
+                                </div>
+                              </header>
+
+                              <div className="finance-day-movements">
+                                {day.movements.map((mov) => {
+                                  const isPlaceholder = mov.id
+                                    ?.toString()
+                                    .includes("placeholder");
+
+                                  return (
+                                    <article
+                                      className="finance-movement-card"
+                                      key={mov.id}
+                                    >
+                                      <div className="finance-movement-main">
+                                        <div className="finance-movement-heading">
+                                          <span
+                                            className={getTypePillClass(mov.type)}
+                                          >
+                                            {mov.type}
+                                          </span>
+
+                                          <div>
+                                            <h3>{mov.concept || "Sin concepto"}</h3>
+                                            <p>{mov.category || "Sin categoría"}</p>
+                                          </div>
+                                        </div>
+
+                                        <strong
+                                          className={
+                                            mov.type === "Ingreso"
+                                              ? "finance-movement-amount is-income"
+                                              : "finance-movement-amount is-expense"
+                                          }
+                                        >
+                                          {formatMoneyCRC(mov.amount)}
+                                        </strong>
+                                      </div>
+
+                                      <div className="finance-movement-details">
+                                        <div>
+                                          <span>Factura</span>
+                                          <strong>
+                                            {mov.invoiceNumber || "Sin factura"}
+                                          </strong>
+                                        </div>
+
+                                        <div>
+                                          <span>Nota</span>
+                                          <strong title={mov.note || ""}>
+                                            {mov.note || "Sin nota"}
+                                          </strong>
+                                        </div>
+                                      </div>
+
+                                      <div className="finance-movement-actions">
+                                        <button
+                                          type="button"
+                                          className="finance-action-btn finance-action-btn-edit"
+                                          disabled={saving || isPlaceholder}
+                                          onClick={() => handleEditMovement(mov)}
+                                        >
+                                          Editar
+                                        </button>
+
+                                        <button
+                                          type="button"
+                                          className="finance-action-btn finance-action-btn-delete"
+                                          disabled={saving || isPlaceholder}
+                                          onClick={() =>
+                                            handleDeleteMovement(mov.id)
+                                          }
+                                        >
+                                          Eliminar
+                                        </button>
+                                      </div>
+                                    </article>
+                                  );
+                                })}
+                              </div>
+                            </section>
+                          ))}
                         </div>
-                      </td>
-                    </tr>
+                      )}
+                    </section>
                   );
                 })}
-              </tbody>
-            </table>
+              </div>
+            )}
           </section>
 
           <section className="finance-assets card">
@@ -676,7 +866,7 @@ export default function FinanzasPage({ token: tokenProp } = {}) {
               </div>
 
               <button
-                className="btn-secondary"
+                className="btn-secondary finance-add-asset-btn"
                 type="button"
                 onClick={handleAddAsset}
                 disabled={assetsSaving || !assetName.trim()}
@@ -782,7 +972,6 @@ export default function FinanzasPage({ token: tokenProp } = {}) {
                               onClick={() => handleDeleteAsset(a.id)}
                               aria-label={`Eliminar activo ${a.name || ""}`}
                             >
-                              <span aria-hidden="true">⌫</span>
                               <span>Eliminar</span>
                             </button>
                           </div>
