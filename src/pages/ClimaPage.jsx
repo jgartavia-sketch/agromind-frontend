@@ -273,6 +273,7 @@ function getCoordsFromFarmContext(activeFarm) {
 function AccordionSection({
   title,
   subtitle,
+  icon,
   children,
   defaultOpen = false,
   className = "",
@@ -281,80 +282,25 @@ function AccordionSection({
     <details
       className={`clima-accordion ${className}`.trim()}
       open={defaultOpen}
-      style={{
-        borderRadius: "20px",
-        border: "1px solid rgba(148, 163, 184, 0.22)",
-        background: "rgba(15, 23, 42, 0.82)",
-        boxShadow: "0 16px 38px rgba(0, 0, 0, 0.18)",
-        overflow: "hidden",
-      }}
     >
-      <summary
-        style={{
-          cursor: "pointer",
-          listStyle: "none",
-          padding: "1rem 1.15rem",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: "1rem",
-          color: "#f8fafc",
-          WebkitTapHighlightColor: "transparent",
-          userSelect: "none",
-        }}
-      >
-        <span style={{ minWidth: 0 }}>
-          <strong
-            style={{
-              display: "block",
-              fontSize: "1rem",
-              lineHeight: 1.25,
-            }}
-          >
-            {title}
-          </strong>
-          {subtitle ? (
-            <span
-              style={{
-                display: "block",
-                marginTop: "0.25rem",
-                color: "rgba(226, 232, 240, 0.7)",
-                fontSize: "0.84rem",
-                lineHeight: 1.4,
-              }}
-            >
-              {subtitle}
-            </span>
-          ) : null}
+      <summary className="clima-accordion-summary">
+        <span className="clima-accordion-heading">
+          <span className="clima-accordion-icon" aria-hidden="true">
+            {icon}
+          </span>
+
+          <span className="clima-accordion-copy">
+            <strong>{title}</strong>
+            {subtitle ? <span>{subtitle}</span> : null}
+          </span>
         </span>
 
-        <span
-          aria-hidden="true"
-          style={{
-            flex: "0 0 auto",
-            width: "2rem",
-            height: "2rem",
-            borderRadius: "999px",
-            display: "grid",
-            placeItems: "center",
-            border: "1px solid rgba(148, 163, 184, 0.28)",
-            background: "rgba(30, 41, 59, 0.72)",
-            fontSize: "1.15rem",
-            fontWeight: 800,
-          }}
-        >
-          +
+        <span className="clima-accordion-toggle" aria-hidden="true">
+          <span>⌄</span>
         </span>
       </summary>
 
-      <div
-        style={{
-          padding: "0 1.15rem 1.15rem",
-          borderTop: "1px solid rgba(148, 163, 184, 0.16)",
-        }}
-      >
-        {children}
-      </div>
+      <div className="clima-accordion-content">{children}</div>
     </details>
   );
 }
@@ -536,16 +482,225 @@ export default function ClimaPage() {
 
   return (
     <div className="clima-page">
+      <style>{`
+        .clima-page {
+          --clima-green: #16a34a;
+          --clima-green-dark: #166534;
+          --clima-ink: #0f172a;
+          --clima-muted: #64748b;
+          --clima-line: rgba(15, 23, 42, 0.1);
+        }
+
+        .clima-page .clima-active-farm-card,
+        .clima-page .clima-location-summary,
+        .clima-page .clima-current-card,
+        .clima-page .clima-accordion {
+          color: var(--clima-ink);
+        }
+
+        .clima-page .clima-accordion-stack {
+          width: 100%;
+        }
+
+        .clima-page .clima-accordion {
+          overflow: hidden;
+          border: 1px solid rgba(22, 163, 74, 0.15);
+          border-radius: 22px;
+          background: #ffffff;
+          box-shadow: 0 12px 32px rgba(15, 23, 42, 0.08);
+          transition: border-color 180ms ease, box-shadow 180ms ease,
+            transform 180ms ease;
+        }
+
+        .clima-page .clima-accordion:hover {
+          border-color: rgba(22, 163, 74, 0.28);
+          box-shadow: 0 16px 38px rgba(15, 23, 42, 0.11);
+        }
+
+        .clima-page .clima-accordion[open] {
+          border-color: rgba(22, 163, 74, 0.3);
+          box-shadow: 0 18px 42px rgba(15, 23, 42, 0.12);
+        }
+
+        .clima-page .clima-accordion-summary {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 1rem;
+          min-height: 82px;
+          padding: 1rem 1.15rem;
+          cursor: pointer;
+          list-style: none;
+          user-select: none;
+          -webkit-tap-highlight-color: transparent;
+          background: linear-gradient(135deg, #ffffff 0%, #f7fff9 100%);
+        }
+
+        .clima-page .clima-accordion-summary::-webkit-details-marker {
+          display: none;
+        }
+
+        .clima-page .clima-accordion-heading {
+          display: flex;
+          align-items: center;
+          gap: 0.85rem;
+          min-width: 0;
+        }
+
+        .clima-page .clima-accordion-icon {
+          flex: 0 0 2.65rem;
+          width: 2.65rem;
+          height: 2.65rem;
+          display: grid;
+          place-items: center;
+          border-radius: 15px;
+          background: linear-gradient(135deg, #dcfce7, #bbf7d0);
+          color: var(--clima-green-dark);
+          font-size: 1.25rem;
+          box-shadow: inset 0 0 0 1px rgba(22, 163, 74, 0.12);
+        }
+
+        .clima-page .clima-accordion-copy {
+          min-width: 0;
+        }
+
+        .clima-page .clima-accordion-copy strong {
+          display: block;
+          color: var(--clima-ink);
+          font-size: 1rem;
+          line-height: 1.25;
+        }
+
+        .clima-page .clima-accordion-copy > span {
+          display: block;
+          margin-top: 0.22rem;
+          color: var(--clima-muted);
+          font-size: 0.84rem;
+          line-height: 1.4;
+        }
+
+        .clima-page .clima-accordion-toggle {
+          flex: 0 0 2.35rem;
+          width: 2.35rem;
+          height: 2.35rem;
+          display: grid;
+          place-items: center;
+          border: 1px solid rgba(22, 163, 74, 0.2);
+          border-radius: 999px;
+          background: #f0fdf4;
+          color: var(--clima-green-dark);
+        }
+
+        .clima-page .clima-accordion-toggle span {
+          display: block;
+          font-size: 1.35rem;
+          font-weight: 900;
+          line-height: 1;
+          transform: translateY(-2px);
+          transition: transform 220ms ease;
+        }
+
+        .clima-page .clima-accordion[open] .clima-accordion-toggle span {
+          transform: translateY(2px) rotate(180deg);
+        }
+
+        .clima-page .clima-accordion-content {
+          padding: 0 1.15rem 1.15rem;
+          border-top: 1px solid var(--clima-line);
+          background: #ffffff;
+          animation: climaAccordionReveal 220ms ease;
+        }
+
+        .clima-page .clima-metric-card,
+        .clima-page .clima-hourly-item,
+        .clima-page .clima-alert-item,
+        .clima-page .clima-daily-item,
+        .clima-page .clima-empty-box {
+          border-color: rgba(15, 23, 42, 0.09) !important;
+          background: #ffffff !important;
+          color: var(--clima-ink) !important;
+          box-shadow: 0 8px 22px rgba(15, 23, 42, 0.06);
+        }
+
+        .clima-page .clima-metric-card {
+          position: relative;
+          overflow: hidden;
+        }
+
+        .clima-page .clima-metric-card::before {
+          content: "";
+          position: absolute;
+          inset: 0 auto 0 0;
+          width: 4px;
+          background: linear-gradient(180deg, #22c55e, #16a34a);
+        }
+
+        .clima-page .clima-metric-label,
+        .clima-page .clima-metric-value,
+        .clima-page .clima-metric-note,
+        .clima-page .clima-hour,
+        .clima-page .clima-hour-temp,
+        .clima-page .clima-hour-rain,
+        .clima-page .clima-hour-wind,
+        .clima-page .clima-daily-day,
+        .clima-page .clima-daily-summary,
+        .clima-page .clima-daily-temps,
+        .clima-page .clima-daily-rain {
+          color: inherit;
+        }
+
+        .clima-page .clima-metric-note,
+        .clima-page .clima-hour-rain,
+        .clima-page .clima-hour-wind,
+        .clima-page .clima-daily-summary,
+        .clima-page .clima-daily-temps,
+        .clima-page .clima-daily-rain {
+          color: var(--clima-muted) !important;
+        }
+
+        .clima-page .clima-current-card {
+          border: 1px solid rgba(22, 163, 74, 0.16);
+          background: linear-gradient(135deg, #ffffff 0%, #f0fdf4 100%);
+          box-shadow: 0 16px 38px rgba(15, 23, 42, 0.09);
+        }
+
+        @keyframes climaAccordionReveal {
+          from { opacity: 0; transform: translateY(-5px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+
+        @media (max-width: 640px) {
+          .clima-page .clima-accordion-summary {
+            min-height: 76px;
+            padding: 0.9rem;
+          }
+
+          .clima-page .clima-accordion-content {
+            padding: 0 0.9rem 0.9rem;
+          }
+
+          .clima-page .clima-accordion-icon {
+            flex-basis: 2.4rem;
+            width: 2.4rem;
+            height: 2.4rem;
+            border-radius: 13px;
+          }
+
+          .clima-page .clima-accordion-copy > span {
+            font-size: 0.78rem;
+          }
+        }
+      `}</style>
       <section
         className="clima-active-farm-card"
         style={{
           marginBottom: "1rem",
           padding: "1rem 1.15rem",
           borderRadius: "18px",
-          border: "1px solid rgba(34,197,94,0.18)",
+          border: "1px solid rgba(22, 163, 74, 0.18)",
           background:
-            "linear-gradient(135deg, rgba(20,83,45,0.28), rgba(15,23,42,0.88))",
-          boxShadow: "0 16px 38px rgba(0,0,0,0.18)",
+            "linear-gradient(135deg, #ffffff 0%, #f0fdf4 100%)",
+          boxShadow: "0 14px 34px rgba(15, 23, 42, 0.08)",
         }}
       >
         <div
@@ -560,7 +715,7 @@ export default function ClimaPage() {
           <div>
             <div
               style={{
-                color: "rgba(187,247,208,0.92)",
+                color: "#15803d",
                 fontSize: "0.78rem",
                 fontWeight: 800,
                 letterSpacing: "0.08em",
@@ -573,7 +728,7 @@ export default function ClimaPage() {
             <strong
               style={{
                 display: "block",
-                color: "#f8fafc",
+                color: "#0f172a",
                 fontSize: "1.15rem",
                 lineHeight: 1.2,
               }}
@@ -585,7 +740,7 @@ export default function ClimaPage() {
           <p
             style={{
               margin: 0,
-              color: "rgba(226,232,240,0.76)",
+              color: "#64748b",
               fontSize: "0.9rem",
               maxWidth: "680px",
             }}
@@ -603,9 +758,10 @@ export default function ClimaPage() {
           marginBottom: "1rem",
           padding: "1rem 1.15rem",
           borderRadius: "18px",
-          border: "1px solid rgba(148, 163, 184, 0.22)",
-          background: "rgba(15, 23, 42, 0.82)",
-          boxShadow: "0 16px 38px rgba(0, 0, 0, 0.18)",
+          border: "1px solid rgba(22, 163, 74, 0.14)",
+          background: "#ffffff",
+          color: "#0f172a",
+          boxShadow: "0 12px 30px rgba(15, 23, 42, 0.07)",
         }}
       >
         <span className="clima-badge">
@@ -713,6 +869,7 @@ export default function ClimaPage() {
         <AccordionSection
           title="Resumen climático"
           subtitle="Temperatura, lluvia, humedad, viento, nubosidad e índice UV."
+          icon="☀️"
           defaultOpen
         >
           <section
@@ -797,6 +954,7 @@ export default function ClimaPage() {
         <AccordionSection
           title="Pronóstico por horas"
           subtitle="Próximas 12 horas para organizar la jornada."
+          icon="🕐"
         >
           <div className="clima-hourly-list" style={{ marginTop: "1rem" }}>
             {hourlyForecast.length ? (
@@ -825,6 +983,7 @@ export default function ClimaPage() {
         <AccordionSection
           title="Alertas útiles"
           subtitle="Lectura operativa basada en el clima recibido."
+          icon="⚠️"
         >
           <div className="clima-alerts-list" style={{ marginTop: "1rem" }}>
             {alerts.length ? (
@@ -846,6 +1005,7 @@ export default function ClimaPage() {
         <AccordionSection
           title="Pronóstico de 7 días"
           subtitle="Panorama semanal para procesos, tareas y ventanas operativas."
+          icon="📅"
         >
           <div className="clima-daily-list" style={{ marginTop: "1rem" }}>
             {dailyForecast.length ? (
