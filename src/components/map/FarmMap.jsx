@@ -2540,6 +2540,26 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
     setDeleteConfirm(null);
   };
 
+  useEffect(() => {
+    if (!deleteConfirm || typeof document === "undefined") return undefined;
+
+    const body = document.body;
+    const html = document.documentElement;
+    const previousBodyOverflow = body.style.overflow;
+    const previousBodyOverscroll = body.style.overscrollBehavior;
+    const previousHtmlOverflow = html.style.overflow;
+
+    body.style.overflow = "hidden";
+    body.style.overscrollBehavior = "none";
+    html.style.overflow = "hidden";
+
+    return () => {
+      body.style.overflow = previousBodyOverflow;
+      body.style.overscrollBehavior = previousBodyOverscroll;
+      html.style.overflow = previousHtmlOverflow;
+    };
+  }, [deleteConfirm]);
+
   const confirmDeleteFeature = () => {
     const id = deleteConfirm?.id;
     if (!id) return;
@@ -3748,7 +3768,9 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
           document.body
         )}
 
-      {deleteConfirm ? (
+      {deleteConfirm &&
+        typeof document !== "undefined" &&
+        createPortal(
         <div
           role="dialog"
           aria-modal="true"
@@ -3756,11 +3778,21 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
           style={{
             position: "fixed",
             inset: 0,
-            zIndex: 10030,
+            zIndex: 2147483647,
+            width: "100vw",
+            minHeight: "100vh",
+            height: "100dvh",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            padding: "18px",
+            padding:
+              "max(12px, env(safe-area-inset-top, 0px)) max(12px, env(safe-area-inset-right, 0px)) max(12px, env(safe-area-inset-bottom, 0px)) max(12px, env(safe-area-inset-left, 0px))",
+            boxSizing: "border-box",
+            overflowY: "auto",
+            overflowX: "hidden",
+            overscrollBehavior: "contain",
+            WebkitOverflowScrolling: "touch",
+            touchAction: "manipulation",
             background:
               "radial-gradient(circle at top, rgba(248,113,113,0.10), transparent 34%), rgba(0,0,0,0.68)",
             backdropFilter: "blur(6px)",
@@ -3770,13 +3802,21 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
             onClick={(e) => e.stopPropagation()}
             style={{
               width: "min(460px, 100%)",
+              maxWidth: "100%",
+              maxHeight:
+                "calc(100dvh - max(24px, env(safe-area-inset-top, 0px)) - max(24px, env(safe-area-inset-bottom, 0px)))",
               borderRadius: "24px",
               border: "1px solid rgba(248,113,113,0.26)",
               background:
                 "linear-gradient(145deg, rgba(2,6,23,0.98), rgba(31,41,55,0.96) 56%, rgba(127,29,29,0.22))",
               boxShadow:
                 "0 28px 90px rgba(0,0,0,0.64), 0 0 0 1px rgba(248,113,113,0.06), inset 0 1px 0 rgba(255,255,255,0.05)",
-              overflow: "hidden",
+              overflowY: "auto",
+              overflowX: "hidden",
+              overscrollBehavior: "contain",
+              WebkitOverflowScrolling: "touch",
+              boxSizing: "border-box",
+              flex: "0 1 auto",
             }}
           >
             <div
@@ -3874,7 +3914,11 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
                   type="button"
                   className="secondary-btn"
                   onClick={cancelDeleteFeature}
-                  style={{ justifyContent: "center" }}
+                  style={{
+                    justifyContent: "center",
+                    minHeight: "44px",
+                    flex: "1 1 130px",
+                  }}
                 >
                   Cancelar
                 </button>
@@ -3882,8 +3926,9 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
                   type="button"
                   onClick={confirmDeleteFeature}
                   style={{
-                    minHeight: "40px",
+                    minHeight: "44px",
                     padding: "0.55rem 0.86rem",
+                    flex: "1 1 170px",
                     borderRadius: "999px",
                     border: "1px solid rgba(248,113,113,0.42)",
                     background:
@@ -3900,8 +3945,9 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
               </div>
             </div>
           </div>
-        </div>
-      ) : null}
+        </div>,
+        document.body
+      )}
 
     </div>
   );
