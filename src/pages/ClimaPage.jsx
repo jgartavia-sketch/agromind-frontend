@@ -269,8 +269,97 @@ function getCoordsFromFarmContext(activeFarm) {
   };
 }
 
+
+function AccordionSection({
+  title,
+  subtitle,
+  children,
+  defaultOpen = false,
+  className = "",
+}) {
+  return (
+    <details
+      className={`clima-accordion ${className}`.trim()}
+      open={defaultOpen}
+      style={{
+        borderRadius: "20px",
+        border: "1px solid rgba(148, 163, 184, 0.22)",
+        background: "rgba(15, 23, 42, 0.82)",
+        boxShadow: "0 16px 38px rgba(0, 0, 0, 0.18)",
+        overflow: "hidden",
+      }}
+    >
+      <summary
+        style={{
+          cursor: "pointer",
+          listStyle: "none",
+          padding: "1rem 1.15rem",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: "1rem",
+          color: "#f8fafc",
+          WebkitTapHighlightColor: "transparent",
+          userSelect: "none",
+        }}
+      >
+        <span style={{ minWidth: 0 }}>
+          <strong
+            style={{
+              display: "block",
+              fontSize: "1rem",
+              lineHeight: 1.25,
+            }}
+          >
+            {title}
+          </strong>
+          {subtitle ? (
+            <span
+              style={{
+                display: "block",
+                marginTop: "0.25rem",
+                color: "rgba(226, 232, 240, 0.7)",
+                fontSize: "0.84rem",
+                lineHeight: 1.4,
+              }}
+            >
+              {subtitle}
+            </span>
+          ) : null}
+        </span>
+
+        <span
+          aria-hidden="true"
+          style={{
+            flex: "0 0 auto",
+            width: "2rem",
+            height: "2rem",
+            borderRadius: "999px",
+            display: "grid",
+            placeItems: "center",
+            border: "1px solid rgba(148, 163, 184, 0.28)",
+            background: "rgba(30, 41, 59, 0.72)",
+            fontSize: "1.15rem",
+            fontWeight: 800,
+          }}
+        >
+          +
+        </span>
+      </summary>
+
+      <div
+        style={{
+          padding: "0 1.15rem 1.15rem",
+          borderTop: "1px solid rgba(148, 163, 184, 0.16)",
+        }}
+      >
+        {children}
+      </div>
+    </details>
+  );
+}
+
 export default function ClimaPage() {
-  const [query, setQuery] = useState("");
   const [locationName, setLocationName] = useState("Ubicación de la finca no definida");
   const [coords, setCoords] = useState(null);
   const [weather, setWeather] = useState(null);
@@ -283,47 +372,6 @@ export default function ClimaPage() {
   const timezone = weather?.timezone || "America/Costa_Rica";
   const activeFarmLabel =
     farmName || activeFarm?.name || (farmId ? "Finca activa" : "Sin finca activa");
-
-  const resolveLocationByName = useCallback(async (searchText) => {
-    const clean = String(searchText || "").trim();
-    if (!clean) return;
-
-    setLoadingLocation(true);
-    setError("");
-
-    try {
-      const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(
-        clean
-      )}&count=1&language=es&format=json`;
-
-      const geoResp = await fetch(geoUrl);
-      if (!geoResp.ok) {
-        throw new Error("No se pudo consultar la ubicación.");
-      }
-
-      const geoData = await geoResp.json();
-      const first = geoData?.results?.[0];
-
-      if (!first) {
-        throw new Error("No encontré esa ubicación.");
-      }
-
-      const prettyName = [first.name, first.admin1, first.country]
-        .filter(Boolean)
-        .join(", ");
-
-      setLocationName(prettyName);
-      setCoords({
-        latitude: first.latitude,
-        longitude: first.longitude,
-      });
-    } catch (err) {
-      setError(err.message || "No se pudo resolver la ubicación.");
-      setWeather(null);
-    } finally {
-      setLoadingLocation(false);
-    }
-  }, []);
 
   const resolveLocationNameByCoords = useCallback(async (latitude, longitude) => {
     try {
@@ -350,42 +398,6 @@ export default function ClimaPage() {
       // no-op
     }
   }, []);
-
-  const resolveLocationByBrowser = useCallback(() => {
-    if (!navigator.geolocation) {
-      setError("Tu navegador no soporta geolocalización.");
-      return;
-    }
-
-    setLoadingLocation(true);
-    setError("");
-
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const latitude = position.coords.latitude;
-        const longitude = position.coords.longitude;
-
-        setCoords({
-          latitude,
-          longitude,
-        });
-        setHasFarmLocation(false);
-        setLocationName("Mi ubicación actual");
-        setLoadingLocation(false);
-
-        resolveLocationNameByCoords(latitude, longitude);
-      },
-      () => {
-        setError("No pude acceder a tu ubicación. Puedes buscarla manualmente.");
-        setLoadingLocation(false);
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 300000,
-      }
-    );
-  }, [resolveLocationNameByCoords]);
 
   const fetchWeather = useCallback(async (latitude, longitude) => {
     if (
@@ -520,11 +532,6 @@ export default function ClimaPage() {
 
   const alerts = useMemo(() => buildAlerts(weather), [weather]);
 
-  const handleSearchSubmit = async (e) => {
-    e.preventDefault();
-    await resolveLocationByName(query);
-  };
-
   const showEmptyState = !coords && !loadingLocation && !loadingWeather;
 
   return (
@@ -590,217 +597,236 @@ export default function ClimaPage() {
         </div>
       </section>
 
-      <section className="clima-hero">
-        <div className="clima-hero-copy">
-          <span className="clima-badge">
-            {hasFarmLocation ? `Clima real · ${activeFarmLabel}` : "Clima listo para conectarse a la finca"}
+      <section
+        className="clima-location-summary"
+        style={{
+          marginBottom: "1rem",
+          padding: "1rem 1.15rem",
+          borderRadius: "18px",
+          border: "1px solid rgba(148, 163, 184, 0.22)",
+          background: "rgba(15, 23, 42, 0.82)",
+          boxShadow: "0 16px 38px rgba(0, 0, 0, 0.18)",
+        }}
+      >
+        <span className="clima-badge">
+          {hasFarmLocation
+            ? `Clima real · ${activeFarmLabel}`
+            : "Clima pendiente de ubicación"}
+        </span>
+
+        <div
+          className="clima-location-meta"
+          style={{
+            marginTop: "0.8rem",
+            display: "grid",
+            gap: "0.45rem",
+          }}
+        >
+          <span>
+            <strong>Fuente:</strong>{" "}
+            {hasFarmLocation
+              ? `Coordenadas guardadas de ${activeFarmLabel}`
+              : "Sin coordenadas de finca"}
           </span>
 
-          <h1 className="clima-title">El tiempo también manda en la finca.</h1>
+          <span>
+            <strong>Ubicación:</strong> {locationName}
+          </span>
 
-          {!hasFarmLocation && (
-            <p className="clima-subtitle">
-              Cuando la finca tenga coordenadas guardadas, AgroMind traerá el clima
-              real automáticamente. Mientras tanto, puedes buscar una ubicación o usar
-              tu posición actual.
+          {coords && (
+            <span>
+              <strong>Coordenadas:</strong> {coords.latitude.toFixed(4)},{" "}
+              {coords.longitude.toFixed(4)}
+            </span>
+          )}
+        </div>
+
+        {error ? <div className="clima-error-box">{error}</div> : null}
+      </section>
+
+      <section className="clima-current-card" style={{ marginBottom: "1rem" }}>
+        {showEmptyState ? (
+          <div className="clima-empty-box">
+            <p style={{ marginBottom: 8, fontWeight: 700 }}>
+              Aún no hay ubicación definida para esta finca.
             </p>
-          )}
+            <p style={{ margin: 0 }}>
+              Guardá la ubicación desde el mapa para cargar el clima real.
+            </p>
+          </div>
+        ) : (
+          <>
+            <div className="clima-current-top">
+              <div>
+                <p className="clima-current-label">
+                  {hasFarmLocation
+                    ? `Condición actual · ${activeFarmLabel}`
+                    : "Condición actual"}
+                </p>
+                <h2 className="clima-current-location">{locationName}</h2>
+              </div>
 
-          <form className="clima-search-bar" onSubmit={handleSearchSubmit}>
-            <input
-              type="text"
-              className="clima-search-input"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Busca una ubicación, por ejemplo: Ciudad Quesada"
-            />
-            <button
-              type="submit"
-              className="clima-search-btn"
-              disabled={loadingLocation || loadingWeather}
-            >
-              {loadingLocation ? "Buscando..." : "Buscar"}
-            </button>
-            <button
-              type="button"
-              className="clima-location-btn"
-              onClick={resolveLocationByBrowser}
-              disabled={loadingLocation || loadingWeather}
-            >
-              Usar mi ubicación
-            </button>
-          </form>
-
-          <div className="clima-location-meta">
-            <span>
-              <strong>Fuente:</strong>{" "}
-              {hasFarmLocation ? `Coordenadas guardadas de ${activeFarmLabel}` : "Sin coordenadas de finca"}
-            </span>
-
-            <span>
-              <strong>Ubicación:</strong> {locationName}
-            </span>
-
-            {coords && (
-              <span>
-                <strong>Coordenadas:</strong> {coords.latitude.toFixed(4)},{" "}
-                {coords.longitude.toFixed(4)}
+              <span className="clima-current-status">
+                {current
+                  ? weatherLabel(current.weather_code)
+                  : "Cargando clima..."}
               </span>
-            )}
-          </div>
-
-          {error ? <div className="clima-error-box">{error}</div> : null}
-        </div>
-
-        <div className="clima-current-card">
-          {showEmptyState ? (
-            <div className="clima-empty-box">
-              <p style={{ marginBottom: 8, fontWeight: 700 }}>
-                Aún no hay ubicación definida para esta finca.
-              </p>
-              <p style={{ margin: 0 }}>
-                Cuando el mapa guarde <strong>farmLocation.lat</strong> y{" "}
-                <strong>farmLocation.lon</strong>, esta tarjeta se llenará sola con clima real.
-              </p>
             </div>
-          ) : (
-            <>
-              <div className="clima-current-top">
+
+            <div className="clima-current-main">
+              <div className="clima-current-temp">
+                {loadingWeather ? "..." : formatTemp(current?.temperature_2m)}
+              </div>
+
+              <div className="clima-current-details">
                 <div>
-                  <p className="clima-current-label">
-                    {hasFarmLocation ? `Condición actual · ${activeFarmLabel}` : "Condición actual"}
-                  </p>
-                  <h2 className="clima-current-location">{locationName}</h2>
+                  Sensación térmica:{" "}
+                  {loadingWeather
+                    ? "..."
+                    : formatTemp(current?.apparent_temperature)}
                 </div>
-                <span className="clima-current-status">
-                  {current ? weatherLabel(current.weather_code) : "Cargando clima..."}
-                </span>
-              </div>
-
-              <div className="clima-current-main">
-                <div className="clima-current-temp">
-                  {loadingWeather ? "..." : formatTemp(current?.temperature_2m)}
+                <div>
+                  Humedad:{" "}
+                  {loadingWeather
+                    ? "..."
+                    : formatPercent(current?.relative_humidity_2m)}
                 </div>
-
-                <div className="clima-current-details">
-                  <div>
-                    Sensación térmica:{" "}
-                    {loadingWeather ? "..." : formatTemp(current?.apparent_temperature)}
-                  </div>
-                  <div>
-                    Humedad:{" "}
-                    {loadingWeather ? "..." : formatPercent(current?.relative_humidity_2m)}
-                  </div>
-                  <div>
-                    Viento: {loadingWeather ? "..." : formatWind(current?.wind_speed_10m)}
-                  </div>
+                <div>
+                  Viento:{" "}
+                  {loadingWeather
+                    ? "..."
+                    : formatWind(current?.wind_speed_10m)}
                 </div>
               </div>
-            </>
-          )}
-        </div>
+            </div>
+          </>
+        )}
       </section>
 
-      <section className="clima-metrics-grid">
-        <article className="clima-metric-card">
-          <span className="clima-metric-label">Temperatura</span>
-          <strong className="clima-metric-value">
-            {loadingWeather ? "..." : formatTemp(current?.temperature_2m)}
-          </strong>
-          <p className="clima-metric-note">
-            Lectura actual del ambiente en la ubicación activa.
-          </p>
-        </article>
+      <div
+        className="clima-accordion-stack"
+        style={{
+          display: "grid",
+          gap: "0.85rem",
+        }}
+      >
+        <AccordionSection
+          title="Resumen climático"
+          subtitle="Temperatura, lluvia, humedad, viento, nubosidad e índice UV."
+          defaultOpen
+        >
+          <section
+            className="clima-metrics-grid"
+            style={{ marginTop: "1rem", marginBottom: 0 }}
+          >
+            <article className="clima-metric-card">
+              <span className="clima-metric-label">Temperatura</span>
+              <strong className="clima-metric-value">
+                {loadingWeather ? "..." : formatTemp(current?.temperature_2m)}
+              </strong>
+              <p className="clima-metric-note">
+                Lectura actual del ambiente en la ubicación activa.
+              </p>
+            </article>
 
-        <article className="clima-metric-card">
-          <span className="clima-metric-label">Precipitación actual</span>
-          <strong className="clima-metric-value">
-            {loadingWeather ? "..." : formatRain(current?.precipitation)}
-          </strong>
-          <p className="clima-metric-note">
-            Agua cayendo en este momento, útil para decisiones inmediatas.
-          </p>
-        </article>
+            <article className="clima-metric-card">
+              <span className="clima-metric-label">
+                Precipitación actual
+              </span>
+              <strong className="clima-metric-value">
+                {loadingWeather ? "..." : formatRain(current?.precipitation)}
+              </strong>
+              <p className="clima-metric-note">
+                Agua cayendo en este momento para decisiones inmediatas.
+              </p>
+            </article>
 
-        <article className="clima-metric-card">
-          <span className="clima-metric-label">Humedad</span>
-          <strong className="clima-metric-value">
-            {loadingWeather ? "..." : formatPercent(current?.relative_humidity_2m)}
-          </strong>
-          <p className="clima-metric-note">
-            Clave para secado, confort y presión de enfermedades.
-          </p>
-        </article>
+            <article className="clima-metric-card">
+              <span className="clima-metric-label">Humedad</span>
+              <strong className="clima-metric-value">
+                {loadingWeather
+                  ? "..."
+                  : formatPercent(current?.relative_humidity_2m)}
+              </strong>
+              <p className="clima-metric-note">
+                Clave para secado, confort y presión de enfermedades.
+              </p>
+            </article>
 
-        <article className="clima-metric-card">
-          <span className="clima-metric-label">Viento</span>
-          <strong className="clima-metric-value">
-            {loadingWeather ? "..." : formatWind(current?.wind_speed_10m)}
-          </strong>
-          <p className="clima-metric-note">
-            Variable crítica para aspersiones, estructuras y operación en campo.
-          </p>
-        </article>
+            <article className="clima-metric-card">
+              <span className="clima-metric-label">Viento</span>
+              <strong className="clima-metric-value">
+                {loadingWeather
+                  ? "..."
+                  : formatWind(current?.wind_speed_10m)}
+              </strong>
+              <p className="clima-metric-note">
+                Variable crítica para aspersiones y operación en campo.
+              </p>
+            </article>
 
-        <article className="clima-metric-card">
-          <span className="clima-metric-label">Nubosidad</span>
-          <strong className="clima-metric-value">
-            {loadingWeather ? "..." : formatPercent(current?.cloud_cover)}
-          </strong>
-          <p className="clima-metric-note">
-            Ayuda a leer radiación, insolación y estabilidad del día.
-          </p>
-        </article>
+            <article className="clima-metric-card">
+              <span className="clima-metric-label">Nubosidad</span>
+              <strong className="clima-metric-value">
+                {loadingWeather
+                  ? "..."
+                  : formatPercent(current?.cloud_cover)}
+              </strong>
+              <p className="clima-metric-note">
+                Ayuda a leer radiación, insolación y estabilidad del día.
+              </p>
+            </article>
 
-        <article className="clima-metric-card">
-          <span className="clima-metric-label">Índice UV</span>
-          <strong className="clima-metric-value">
-            {loadingWeather
-              ? "..."
-              : current?.uv_index !== undefined && current?.uv_index !== null
-              ? Math.round(Number(current.uv_index))
-              : "--"}
-          </strong>
-          <p className="clima-metric-note">
-            Sirve para proteger jornadas largas y planear labores pesadas.
-          </p>
-        </article>
-      </section>
+            <article className="clima-metric-card">
+              <span className="clima-metric-label">Índice UV</span>
+              <strong className="clima-metric-value">
+                {loadingWeather
+                  ? "..."
+                  : current?.uv_index !== undefined &&
+                    current?.uv_index !== null
+                  ? Math.round(Number(current.uv_index))
+                  : "--"}
+              </strong>
+              <p className="clima-metric-note">
+                Sirve para proteger jornadas largas y planear labores pesadas.
+              </p>
+            </article>
+          </section>
+        </AccordionSection>
 
-      <section className="clima-sections-grid">
-        <article className="clima-panel">
-          <div className="clima-panel-head">
-            <h3>Pronóstico por horas</h3>
-            <p>Próximas 12 horas para planear la jornada con más cabeza y menos fe.</p>
-          </div>
-
-          <div className="clima-hourly-list">
+        <AccordionSection
+          title="Pronóstico por horas"
+          subtitle="Próximas 12 horas para organizar la jornada."
+        >
+          <div className="clima-hourly-list" style={{ marginTop: "1rem" }}>
             {hourlyForecast.length ? (
               hourlyForecast.map((item) => (
                 <div key={item.time} className="clima-hourly-item">
                   <span className="clima-hour">{item.hour}</span>
                   <span className="clima-hour-temp">{item.temp}</span>
-                  <span className="clima-hour-rain">Lluvia: {item.rain}</span>
-                  <span className="clima-hour-wind">Viento: {item.wind}</span>
+                  <span className="clima-hour-rain">
+                    Lluvia: {item.rain}
+                  </span>
+                  <span className="clima-hour-wind">
+                    Viento: {item.wind}
+                  </span>
                 </div>
               ))
             ) : (
-              <div className="clima-empty-box">
+              <div className="clima-empty-box" style={{ marginTop: "1rem" }}>
                 {showEmptyState
                   ? "No hay pronóstico porque la finca todavía no tiene coordenadas."
                   : "Cargando pronóstico horario..."}
               </div>
             )}
           </div>
-        </article>
+        </AccordionSection>
 
-        <article className="clima-panel">
-          <div className="clima-panel-head">
-            <h3>Alertas útiles</h3>
-            <p>Lectura operativa generada por AgroMind con base en el clima recibido.</p>
-          </div>
-
-          <div className="clima-alerts-list">
+        <AccordionSection
+          title="Alertas útiles"
+          subtitle="Lectura operativa basada en el clima recibido."
+        >
+          <div className="clima-alerts-list" style={{ marginTop: "1rem" }}>
             {alerts.length ? (
               alerts.map((alert, index) => (
                 <div key={`${alert}-${index}`} className="clima-alert-item">
@@ -808,44 +834,44 @@ export default function ClimaPage() {
                 </div>
               ))
             ) : (
-              <div className="clima-empty-box">
+              <div className="clima-empty-box" style={{ marginTop: "1rem" }}>
                 {showEmptyState
                   ? "Aquí aparecerán alertas cuando la finca tenga clima activo."
                   : "Cargando alertas..."}
               </div>
             )}
           </div>
-        </article>
-      </section>
+        </AccordionSection>
 
-      <section className="clima-panel clima-daily-panel">
-        <div className="clima-panel-head">
-          <h3>Pronóstico de 7 días</h3>
-          <p>Panorama general para organizar procesos, tareas y ventanas operativas.</p>
-        </div>
-
-        <div className="clima-daily-list">
-          {dailyForecast.length ? (
-            dailyForecast.map((item) => (
-              <div key={item.date} className="clima-daily-item">
-                <div className="clima-daily-day">{item.day}</div>
-                <div className="clima-daily-summary">{item.summary}</div>
-                <div className="clima-daily-temps">
-                  <span>Máx: {item.max}</span>
-                  <span>Mín: {item.min}</span>
+        <AccordionSection
+          title="Pronóstico de 7 días"
+          subtitle="Panorama semanal para procesos, tareas y ventanas operativas."
+        >
+          <div className="clima-daily-list" style={{ marginTop: "1rem" }}>
+            {dailyForecast.length ? (
+              dailyForecast.map((item) => (
+                <div key={item.date} className="clima-daily-item">
+                  <div className="clima-daily-day">{item.day}</div>
+                  <div className="clima-daily-summary">{item.summary}</div>
+                  <div className="clima-daily-temps">
+                    <span>Máx: {item.max}</span>
+                    <span>Mín: {item.min}</span>
+                  </div>
+                  <div className="clima-daily-rain">
+                    Lluvia: {item.rain}
+                  </div>
                 </div>
-                <div className="clima-daily-rain">Lluvia: {item.rain}</div>
+              ))
+            ) : (
+              <div className="clima-empty-box" style={{ marginTop: "1rem" }}>
+                {showEmptyState
+                  ? "Cuando la finca tenga ubicación, aquí verás el panorama semanal."
+                  : "Cargando pronóstico diario..."}
               </div>
-            ))
-          ) : (
-            <div className="clima-empty-box">
-              {showEmptyState
-                ? "Cuando la finca tenga ubicación, aquí verás el panorama semanal."
-                : "Cargando pronóstico diario..."}
-            </div>
-          )}
-        </div>
-      </section>
+            )}
+          </div>
+        </AccordionSection>
+      </div>
     </div>
   );
 }
