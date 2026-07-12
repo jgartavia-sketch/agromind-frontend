@@ -258,12 +258,79 @@ export default function TeamAccessPage({ token, farmId }) {
               <p className="team-access-kicker">Nueva colaboración</p>
               <h2 id="team-access-modal-title">Invitar consultor</h2>
               <p>
-                Escribe el correo de la persona que deseas agregar a esta
-                finca.
+                Confirma el alcance del acceso antes de enviar la invitación.
               </p>
             </div>
 
             <form onSubmit={handleInvite} className="team-access-form">
+              <div className="team-access-invite-role-card">
+                <div className="team-access-invite-role-header">
+                  <div>
+                    <span className="team-access-invite-role-label">
+                      Rol asignado
+                    </span>
+                    <h3>Consultor</h3>
+                  </div>
+
+                  <span className="team-access-invite-role-badge">
+                    Solo lectura
+                  </span>
+                </div>
+
+                <p className="team-access-invite-role-description">
+                  Tendrá acceso operativo de consulta, sin permisos para
+                  modificar la finca ni visualizar información sensible.
+                </p>
+              </div>
+
+              <div className="team-access-invite-permissions">
+                <div className="team-access-invite-permission-group">
+                  <p className="team-access-invite-permission-title">
+                    Puede acceder
+                  </p>
+
+                  <div className="team-access-invite-permission-items">
+                    <div>
+                      <span className="team-access-permission-check">✓</span>
+                      <p>Mapa, zonas, puntos y líneas.</p>
+                    </div>
+
+                    <div>
+                      <span className="team-access-permission-check">✓</span>
+                      <p>Tareas, procesos y clima.</p>
+                    </div>
+
+                    <div>
+                      <span className="team-access-permission-check">✓</span>
+                      <p>Información asignada a su trabajo.</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="team-access-invite-permission-group">
+                  <p className="team-access-invite-permission-title">
+                    Acceso restringido
+                  </p>
+
+                  <div className="team-access-invite-permission-items">
+                    <div>
+                      <span className="team-access-permission-block">×</span>
+                      <p>Edición o eliminación del mapa.</p>
+                    </div>
+
+                    <div>
+                      <span className="team-access-permission-block">×</span>
+                      <p>Finanzas, reportes y dashboard.</p>
+                    </div>
+
+                    <div>
+                      <span className="team-access-permission-block">×</span>
+                      <p>Configuración y administración de accesos.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <label htmlFor="consultant-email">
                 Correo electrónico
               </label>
@@ -283,8 +350,8 @@ export default function TeamAccessPage({ token, farmId }) {
               />
 
               <p className="team-access-form-helper">
-                Si ya tiene una cuenta, el acceso se activa inmediatamente.
-                Si todavía no existe, quedará una invitación pendiente.
+                La persona recibirá una invitación para aceptar el acceso como
+                consultor de esta finca.
               </p>
 
               {feedback && (

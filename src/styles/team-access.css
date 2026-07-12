@@ -281,7 +281,7 @@
 
 .team-access-modal {
   position: relative;
-  width: min(100%, 560px);
+  width: min(100%, 640px);
   max-height: calc(100dvh - 2rem);
   overflow-y: auto;
   padding: clamp(1.25rem, 4vw, 2rem);
@@ -291,6 +291,22 @@
     radial-gradient(circle at top right, rgba(20, 184, 166, 0.13), transparent 34%),
     linear-gradient(180deg, rgba(15, 23, 42, 0.98), rgba(2, 6, 23, 0.98));
   box-shadow: 0 34px 90px rgba(0, 0, 0, 0.56);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(45, 212, 191, 0.55) rgba(15, 23, 42, 0.45);
+}
+
+.team-access-modal::-webkit-scrollbar {
+  width: 8px;
+}
+
+.team-access-modal::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.45);
+  border-radius: 999px;
+}
+
+.team-access-modal::-webkit-scrollbar-thumb {
+  background: rgba(45, 212, 191, 0.55);
+  border-radius: 999px;
 }
 
 .team-access-modal-close {
@@ -307,10 +323,15 @@
   color: #cbd5e1;
   font-size: 1.25rem;
   cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    color 0.15s ease,
+    background 0.15s ease;
 }
 
 .team-access-modal-close:hover:not(:disabled) {
   border-color: #64748b;
+  background: rgba(30, 41, 59, 0.95);
   color: #ffffff;
 }
 
@@ -332,6 +353,110 @@
   display: grid;
   gap: 0.9rem;
   margin-top: 1.3rem;
+}
+
+.team-access-invite-role-card {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem;
+  border: 1px solid rgba(45, 212, 191, 0.22);
+  border-radius: 1rem;
+  background:
+    linear-gradient(135deg, rgba(20, 184, 166, 0.11), rgba(15, 23, 42, 0.68));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.025);
+}
+
+.team-access-invite-role-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.team-access-invite-role-label {
+  display: block;
+  margin-bottom: 0.3rem;
+  color: #5eead4;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.team-access-invite-role-header h3 {
+  margin: 0;
+  color: #f8fafc;
+  font-size: 1.15rem;
+}
+
+.team-access-invite-role-badge {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.8rem;
+  padding: 0.32rem 0.7rem;
+  border: 1px solid rgba(45, 212, 191, 0.25);
+  border-radius: 999px;
+  background: rgba(13, 148, 136, 0.14);
+  color: #99f6e4;
+  font-size: 0.72rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.team-access-invite-role-description {
+  margin: 0;
+  color: #cbd5e1;
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
+
+.team-access-invite-permissions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.team-access-invite-permission-group {
+  min-width: 0;
+  padding: 0.95rem;
+  border: 1px solid rgba(51, 65, 85, 0.78);
+  border-radius: 0.95rem;
+  background: rgba(15, 23, 42, 0.5);
+}
+
+.team-access-invite-permission-title {
+  margin: 0 0 0.75rem;
+  color: #e2e8f0;
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.team-access-invite-permission-items {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.team-access-invite-permission-items > div {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+}
+
+.team-access-invite-permission-items p {
+  margin: 0;
+  color: #cbd5e1;
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+.team-access-invite-permission-items .team-access-permission-check,
+.team-access-invite-permission-items .team-access-permission-block {
+  width: 21px;
+  height: 21px;
+  font-size: 0.72rem;
 }
 
 .team-access-form label {
@@ -364,6 +489,11 @@
   border-color: #2dd4bf;
   background: rgba(15, 23, 42, 0.92);
   box-shadow: 0 0 0 3px rgba(45, 212, 191, 0.12);
+}
+
+.team-access-form input:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
 }
 
 .team-access-form-helper {
@@ -435,14 +565,34 @@
 
   .team-access-modal-backdrop {
     place-items: end center;
-    padding: 0.5rem;
+    padding:
+      calc(0.5rem + env(safe-area-inset-top, 0px))
+      calc(0.5rem + env(safe-area-inset-right, 0px))
+      calc(0.5rem + env(safe-area-inset-bottom, 0px))
+      calc(0.5rem + env(safe-area-inset-left, 0px));
   }
 
   .team-access-modal {
     width: 100%;
-    max-height: calc(100dvh - 1rem);
+    max-height: calc(
+      100dvh - 1rem - env(safe-area-inset-top, 0px) -
+        env(safe-area-inset-bottom, 0px)
+    );
     border-radius: 1.15rem;
     padding: 1.15rem;
+  }
+
+  .team-access-invite-role-header {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .team-access-invite-role-badge {
+    align-self: flex-start;
+  }
+
+  .team-access-invite-permissions {
+    grid-template-columns: 1fr;
   }
 
   .team-access-modal-actions {
@@ -451,5 +601,20 @@
 
   .team-access-modal-actions button {
     width: 100%;
+  }
+}
+
+@media (max-width: 380px) {
+  .team-access-modal {
+    padding: 1rem;
+  }
+
+  .team-access-modal-heading {
+    padding-right: 2.25rem;
+  }
+
+  .team-access-invite-role-card,
+  .team-access-invite-permission-group {
+    padding: 0.85rem;
   }
 }
