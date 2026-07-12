@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import FarmShell from "./components/FarmShell";
 import LoginScreen from "./components/LoginScreen";
 import ResetPasswordScreen from "./components/ResetPasswordScreen";
+import InvitationAcceptPage from "./pages/InvitationAcceptPage";
 
 const RAW_API_BASE =
   import.meta.env.VITE_API_URL || "https://agromind-backend-slem.onrender.com";
@@ -60,9 +61,14 @@ async function fetchWithTimeout(url, options = {}, timeoutMs = 8000) {
 }
 
 export default function AgroMindApp() {
+  const currentPath = window.location.pathname;
+  const currentParams = new URLSearchParams(window.location.search);
+
   const isResetPasswordRoute =
-    window.location.pathname === "/reset-password" &&
-    new URLSearchParams(window.location.search).has("token");
+    currentPath === "/reset-password" && currentParams.has("token");
+
+  const isInvitationAcceptRoute =
+    currentPath === "/invitations/accept" && currentParams.has("token");
 
   const initialSession = useMemo(() => {
     const token = getStoredToken();
@@ -76,11 +82,14 @@ export default function AgroMindApp() {
 
   const [user, setUser] = useState(initialSession.user);
   const [booting, setBooting] = useState(
-    !isResetPasswordRoute && !initialSession.user && !!initialSession.token
+    !isResetPasswordRoute &&
+      !isInvitationAcceptRoute &&
+      !initialSession.user &&
+      !!initialSession.token
   );
 
   useEffect(() => {
-    if (isResetPasswordRoute) {
+    if (isResetPasswordRoute || isInvitationAcceptRoute) {
       setBooting(false);
       return;
     }
@@ -137,7 +146,12 @@ export default function AgroMindApp() {
     return () => {
       alive = false;
     };
-  }, [initialSession.token, initialSession.user, isResetPasswordRoute]);
+  }, [
+    initialSession.token,
+    initialSession.user,
+    isResetPasswordRoute,
+    isInvitationAcceptRoute,
+  ]);
 
   const handleLogin = (payload) => {
     const token = payload?.token || null;
@@ -162,6 +176,10 @@ export default function AgroMindApp() {
 
   if (isResetPasswordRoute) {
     return <ResetPasswordScreen apiBase={API_BASE} />;
+  }
+
+  if (isInvitationAcceptRoute) {
+    return <InvitationAcceptPage />;
   }
 
   if (booting) {

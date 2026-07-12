@@ -2,20 +2,61 @@
 import { useMemo, useState } from "react";
 import "../styles/farm-auth.css";
 
+const INVITATION_TOKEN_KEY = "agromind_invitation_token";
+const INVITATION_MODE_KEY = "agromind_invitation_mode";
+
+function getStoredInvitationToken() {
+  try {
+    return String(sessionStorage.getItem(INVITATION_TOKEN_KEY) || "").trim();
+  } catch {
+    return "";
+  }
+}
+
+function getInitialMode() {
+  try {
+    const invitationToken = getStoredInvitationToken();
+    const invitationMode = sessionStorage.getItem(INVITATION_MODE_KEY);
+
+    if (invitationToken && invitationMode === "signup") {
+      return "signup";
+    }
+  } catch {
+    // Si sessionStorage no está disponible, iniciamos con login normal.
+  }
+
+  return "login";
+}
+
+function clearInvitationSession() {
+  try {
+    sessionStorage.removeItem(INVITATION_TOKEN_KEY);
+    sessionStorage.removeItem(INVITATION_MODE_KEY);
+  } catch {
+    // El flujo puede continuar aunque el navegador bloquee sessionStorage.
+  }
+}
+
 export default function LoginScreen({ onLogin }) {
-  const [mode, setMode] = useState("login");
+  const [mode, setMode] = useState(getInitialMode);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [pass, setPass] = useState("");
   const [pass2, setPass2] = useState("");
 
+  const [invitationToken] = useState(getStoredInvitationToken);
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
+  const isInvitationFlow = Boolean(invitationToken);
+
   const API_BASE = useMemo(() => {
     const raw =
-      import.meta.env.VITE_API_URL || "https://agromind-backend-slem.onrender.com";
+      import.meta.env.VITE_API_URL ||
+      "https://agromind-backend-slem.onrender.com";
+
     return raw.replace(/\/+$/, "");
   }, []);
 
@@ -26,7 +67,7 @@ export default function LoginScreen({ onLogin }) {
     if (loading) return false;
 
     if (mode === "forgot") {
-      return !!e;
+      return Boolean(e);
     }
 
     if (!e || !p) return false;
@@ -86,11 +127,14 @@ export default function LoginScreen({ onLogin }) {
     setLoading(true);
 
     try {
-      const response = await fetchWithTimeout(`${API_BASE}/auth/forgot-password`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: cleanEmail }),
-      });
+      const response = await fetchWithTimeout(
+        `${API_BASE}/auth/forgot-password`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: cleanEmail }),
+        }
+      );
 
       const data = await response.json().catch(() => ({}));
 
@@ -152,18 +196,24 @@ export default function LoginScreen({ onLogin }) {
     setLoading(true);
 
     try {
-      if (mode === "signup") {
-        const registerResponse = await fetchWithTimeout(`${API_BASE}/auth/register`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name: name.trim() || "Productor",
-            email: cleanEmail,
-            password,
-          }),
-        });
+      let registerData = null;
 
-        const registerData = await registerResponse.json().catch(() => ({}));
+      if (mode === "signup") {
+        const registerResponse = await fetchWithTimeout(
+          `${API_BASE}/auth/register`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              name: name.trim() || "Productor",
+              email: cleanEmail,
+              password,
+              ...(invitationToken ? { invitationToken } : {}),
+            }),
+          }
+        );
+
+        registerData = await registerResponse.json().catch(() => ({}));
 
         if (!registerResponse.ok) {
           setError(friendlyError(registerData?.error));
@@ -200,10 +250,23 @@ export default function LoginScreen({ onLogin }) {
 
       persistAuth(token, user);
 
+      if (
+        mode === "signup" &&
+        registerData?.registrationMode === "invitation"
+      ) {
+        clearInvitationSession();
+      }
+
       setPass("");
       setPass2("");
 
-      onLogin?.({ token, user });
+      onLogin?.({
+        token,
+        user,
+        farm: registerData?.farm || null,
+        membership: registerData?.membership || null,
+        registrationMode: registerData?.registrationMode || null,
+      });
     } catch (err) {
       if (err?.name === "AbortError") {
         setError("El servidor tardó demasiado en responder. Intenta de nuevo.");
@@ -221,6 +284,14 @@ export default function LoginScreen({ onLogin }) {
     setPass("");
     setPass2("");
     setMode(nextMode);
+
+    try {
+      if (invitationToken) {
+        sessionStorage.setItem(INVITATION_MODE_KEY, nextMode);
+      }
+    } catch {
+      // El cambio de vista puede continuar sin sessionStorage.
+    }
   };
 
   return (
@@ -240,17 +311,39 @@ export default function LoginScreen({ onLogin }) {
             {mode === "login"
               ? "Iniciar sesión"
               : mode === "signup"
-              ? "Crear cuenta"
-              : "Recuperar contraseña"}
+                ? isInvitationFlow
+                  ? "Crear cuenta de consultor"
+                  : "Crear cuenta"
+                : "Recuperar contraseña"}
           </h1>
+
           <p>
             {loading
-              ? "Conectando con tu finca..."
+              ? isInvitationFlow
+                ? "Preparando tu acceso como consultor..."
+                : "Conectando con tu finca..."
               : mode === "forgot"
-              ? "Ingresa tu correo y te enviaremos las instrucciones."
-              : "Accede a tu panel de finca inteligente."}
+                ? "Ingresa tu correo y te enviaremos las instrucciones."
+                : isInvitationFlow
+                  ? "Regístrate con el mismo correo que recibió la invitación."
+                  : "Accede a tu panel de finca inteligente."}
           </p>
         </div>
+
+        {isInvitationFlow && mode !== "forgot" && (
+          <div
+            className="auth-error"
+            style={{
+              marginBottom: "1rem",
+              borderColor: "rgba(45, 212, 191, 0.32)",
+              background: "rgba(20, 184, 166, 0.1)",
+              color: "#99f6e4",
+            }}
+          >
+            Invitación activa: ingresarás como Consultor con acceso de solo
+            lectura a la finca que te invitó.
+          </div>
+        )}
 
         <form className="agromind-auth-form" onSubmit={handleSubmit}>
           {mode === "signup" && (
@@ -290,7 +383,9 @@ export default function LoginScreen({ onLogin }) {
                 }
                 value={pass}
                 onChange={(e) => setPass(e.target.value)}
-                autoComplete={mode === "signup" ? "new-password" : "current-password"}
+                autoComplete={
+                  mode === "signup" ? "new-password" : "current-password"
+                }
                 disabled={loading}
               />
             </div>
@@ -357,18 +452,26 @@ export default function LoginScreen({ onLogin }) {
             </div>
           )}
 
-          <button type="submit" className="auth-primary-btn" disabled={!canSubmit}>
+          <button
+            type="submit"
+            className="auth-primary-btn"
+            disabled={!canSubmit}
+          >
             {loading
               ? mode === "login"
                 ? "Entrando..."
                 : mode === "signup"
-                ? "Creando cuenta..."
-                : "Enviando..."
+                  ? isInvitationFlow
+                    ? "Activando acceso..."
+                    : "Creando cuenta..."
+                  : "Enviando..."
               : mode === "login"
-              ? "Entrar"
-              : mode === "signup"
-              ? "Crear cuenta y entrar"
-              : "Enviar instrucciones"}
+                ? "Entrar"
+                : mode === "signup"
+                  ? isInvitationFlow
+                    ? "Crear cuenta y aceptar invitación"
+                    : "Crear cuenta y entrar"
+                  : "Enviar instrucciones"}
           </button>
         </form>
 
