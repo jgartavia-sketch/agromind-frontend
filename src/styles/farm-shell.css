@@ -140,9 +140,32 @@ body {
 .farm-shell-nav {
   display: flex;
   justify-content: center;
+  align-items: center;
   gap: 0.5rem;
   flex-wrap: wrap;
   min-width: 0;
+}
+
+.farm-shell-nav-main {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.farm-shell-nav-divider {
+  width: 1px;
+  height: 1.7rem;
+  flex: 0 0 auto;
+  margin: 0 0.15rem;
+  background: linear-gradient(
+    180deg,
+    transparent,
+    rgba(100, 116, 139, 0.78),
+    transparent
+  );
 }
 
 .nav-tab {
@@ -154,7 +177,12 @@ body {
   color: #e5e7eb;
   cursor: pointer;
   white-space: nowrap;
-  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    color 0.15s ease,
+    transform 0.15s ease;
   will-change: background, border-color, box-shadow;
 }
 
@@ -163,12 +191,92 @@ body {
   box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.08);
 }
 
+.nav-tab-team {
+  position: relative;
+  padding-left: 2rem;
+  border-color: rgba(20, 184, 166, 0.28);
+  background: rgba(8, 47, 73, 0.38);
+  color: #ccfbf1;
+}
+
+.nav-tab-team::before {
+  content: "👥";
+  position: absolute;
+  left: 0.72rem;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.82rem;
+  line-height: 1;
+}
+
+.nav-tab-team:hover {
+  border-color: rgba(45, 212, 191, 0.58);
+  background: rgba(15, 118, 110, 0.24);
+  box-shadow: 0 0 16px rgba(20, 184, 166, 0.14);
+}
+
 .nav-tab-active {
   border-color: #22c55e;
   background: radial-gradient(circle at top, #22c55e, #16a34a);
   color: #020617;
   font-weight: 700;
   box-shadow: 0 0 12px rgba(34, 197, 94, 0.5);
+}
+
+.nav-tab-team.nav-tab-active {
+  border-color: #2dd4bf;
+  background: linear-gradient(135deg, #2dd4bf, #14b8a6);
+  color: #042f2e;
+  box-shadow: 0 0 16px rgba(45, 212, 191, 0.34);
+}
+
+/* =========================
+   Placeholder Equipo y acceso
+   ========================= */
+.team-access-placeholder {
+  min-height: 680px;
+  display: grid;
+  place-items: center;
+  padding: clamp(1.5rem, 5vw, 4rem);
+  border-radius: 1.15rem;
+  border: 1px solid rgba(45, 212, 191, 0.16);
+  background:
+    radial-gradient(circle at top right, rgba(20, 184, 166, 0.12), transparent 34%),
+    linear-gradient(180deg, rgba(15, 23, 42, 0.72), rgba(2, 6, 23, 0.82));
+}
+
+.team-access-placeholder > div {
+  width: min(100%, 650px);
+  padding: clamp(1.5rem, 4vw, 2.75rem);
+  border-radius: 1.25rem;
+  border: 1px solid rgba(51, 65, 85, 0.82);
+  background: rgba(2, 6, 23, 0.64);
+  box-shadow: 0 24px 60px rgba(2, 6, 23, 0.46);
+  text-align: left;
+}
+
+.team-access-eyebrow {
+  margin: 0 0 0.65rem;
+  color: #5eead4;
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.team-access-placeholder h1 {
+  margin: 0;
+  color: #f8fafc;
+  font-size: clamp(1.65rem, 4vw, 2.4rem);
+  line-height: 1.08;
+}
+
+.team-access-placeholder h1 + p {
+  margin: 1rem 0 0;
+  max-width: 54ch;
+  color: #94a3b8;
+  font-size: 0.98rem;
+  line-height: 1.7;
 }
 
 /* =========================
@@ -319,6 +427,17 @@ body {
     overscroll-behavior-x: contain;
   }
 
+  .farm-shell-nav-main {
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+  }
+
+  .farm-shell-nav-divider {
+    height: 1.45rem;
+    margin-left: 0.25rem;
+    margin-right: 0.25rem;
+  }
+
   .farm-shell-nav::-webkit-scrollbar {
     display: none;
   }
@@ -329,6 +448,10 @@ body {
 
   .farm-shell-map-card {
     min-height: 720px;
+  }
+
+  .team-access-placeholder {
+    min-height: 620px;
   }
 
   .farm-shell-map-card .fc {
@@ -373,6 +496,15 @@ body {
     padding: 0.38rem 0.78rem;
   }
 
+  .nav-tab-team {
+    padding-left: 1.85rem;
+  }
+
+  .nav-tab-team::before {
+    left: 0.64rem;
+    font-size: 0.75rem;
+  }
+
   .farm-logout-btn {
     padding: 0.36rem 0.72rem;
     font-size: 0.72rem;
@@ -381,6 +513,17 @@ body {
   .farm-shell-map-card {
     border-radius: 1rem;
     min-height: 690px;
+  }
+
+  .team-access-placeholder {
+    min-height: 590px;
+    padding: 0.7rem;
+    border-radius: 0.85rem;
+  }
+
+  .team-access-placeholder > div {
+    padding: 1.3rem;
+    border-radius: 1rem;
   }
 
   .farm-shell-map-card .fc {

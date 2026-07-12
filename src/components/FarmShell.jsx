@@ -8,6 +8,7 @@ const FinanzasPage = lazy(() => import("../pages/FinanzasPage"));
 const ClimaPage = lazy(() => import("../pages/ClimaPage"));
 const BitacoraPage = lazy(() => import("../pages/BitacoraPage"));
 const DashboardPage = lazy(() => import("../pages/DashboardPage"));
+const TeamAccessPage = lazy(() => import("../pages/TeamAccessPage"));
 const Footer = lazy(() => import("./Footer"));
 
 const RAW_API_BASE =
@@ -263,7 +264,7 @@ export default function FarmShell({ user, onLogout }) {
     updatedAt: null,
   });
 
-  const visibleTabs = [
+  const mainTabs = [
     ["dashboard", "Dashboard"],
     ["mapa", "Mapa de la finca"],
     ["tareas", "Tareas"],
@@ -464,17 +465,37 @@ export default function FarmShell({ user, onLogout }) {
           </div>
         </div>
 
-        <nav className="farm-shell-nav">
-          {visibleTabs.map(([key, label]) => (
-            <button
-              key={key}
-              type="button"
-              className={activeTab === key ? "nav-tab nav-tab-active" : "nav-tab"}
-              onClick={() => handleTabChange(key)}
-            >
-              {label}
-            </button>
-          ))}
+        <nav className="farm-shell-nav" aria-label="Navegación principal">
+          <div className="farm-shell-nav-main">
+            {mainTabs.map(([key, label]) => (
+              <button
+                key={key}
+                type="button"
+                className={
+                  activeTab === key
+                    ? "nav-tab nav-tab-active"
+                    : "nav-tab"
+                }
+                onClick={() => handleTabChange(key)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          <div className="farm-shell-nav-divider" aria-hidden="true" />
+
+          <button
+            type="button"
+            className={
+              activeTab === "team"
+                ? "nav-tab nav-tab-team nav-tab-active"
+                : "nav-tab nav-tab-team"
+            }
+            onClick={() => handleTabChange("team")}
+          >
+            Equipo y acceso
+          </button>
         </nav>
 
         <div className="farm-shell-right">
@@ -532,6 +553,10 @@ export default function FarmShell({ user, onLogout }) {
                 onOpenTasks={() => handleTabChange("tareas")}
                 onOpenFinance={() => handleTabChange("finanzas")}
               />
+            )}
+
+            {activeTab === "team" && (
+              <TeamAccessPage token={token} farmId={farmId} />
             )}
           </Suspense>
         </section>
