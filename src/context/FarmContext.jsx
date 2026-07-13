@@ -130,6 +130,8 @@ async function fetchFarms() {
 export function FarmProvider({ children }) {
   const initialStoredFarm = getStoredFarm();
   const activeFarmIdRef = useRef(initialStoredFarm?.id || null);
+  const authTokenRef = useRef(getAuthToken());
+  const authRefreshInProgressRef = useRef(false);
 
   const [farms, setFarmsState] = useState([]);
   const [activeFarm, setActiveFarmState] = useState(initialStoredFarm);
@@ -260,8 +262,45 @@ export function FarmProvider({ children }) {
     [applyActiveFarm]
   );
 
+  const syncAuthState = useCallback(async () => {
+    const currentToken = getAuthToken();
+    const previousToken = authTokenRef.current;
+
+    if (currentToken === previousToken) {
+      return;
+    }
+
+    authTokenRef.current = currentToken;
+
+    if (!currentToken) {
+      setFarmsState([]);
+      setFarmsError("");
+      setFarmsLoaded(true);
+      applyActiveFarm(null);
+      return;
+    }
+
+    if (authRefreshInProgressRef.current) {
+      return;
+    }
+
+    authRefreshInProgressRef.current = true;
+
+    try {
+      await refreshFarms({
+        preserveActiveFarm: true,
+        selectFirstIfMissing: true,
+      });
+    } catch {
+      // El error queda disponible mediante farmsError.
+    } finally {
+      authRefreshInProgressRef.current = false;
+    }
+  }, [applyActiveFarm, refreshFarms]);
+
   useEffect(() => {
     const token = getAuthToken();
+    authTokenRef.current = token;
 
     if (!token) {
       setFarmsState([]);
@@ -321,30 +360,32 @@ export function FarmProvider({ children }) {
     };
 
     const onAuthChange = () => {
-      const token = getAuthToken();
+      syncAuthState();
+    };
 
-      if (!token) {
-        setFarmsState([]);
-        setFarmsLoaded(true);
-        applyActiveFarm(null);
-        return;
-      }
-
-      refreshFarms().catch(() => {
-        // El error queda disponible mediante farmsError.
-      });
+    const onWindowFocus = () => {
+      syncAuthState();
     };
 
     window.addEventListener("storage", onStorage);
     window.addEventListener("agromind:farm:change", onFarmChange);
     window.addEventListener("agromind:auth:change", onAuthChange);
+    window.addEventListener("focus", onWindowFocus);
+    window.addEventListener("pageshow", onWindowFocus);
+
+    const authWatcher = window.setInterval(() => {
+      syncAuthState();
+    }, 500);
 
     return () => {
       window.removeEventListener("storage", onStorage);
       window.removeEventListener("agromind:farm:change", onFarmChange);
       window.removeEventListener("agromind:auth:change", onAuthChange);
+      window.removeEventListener("focus", onWindowFocus);
+      window.removeEventListener("pageshow", onWindowFocus);
+      window.clearInterval(authWatcher);
     };
-  }, [applyActiveFarm, farms, refreshFarms]);
+  }, [farms, syncAuthState]);
 
   const value = useMemo(
     () => ({
