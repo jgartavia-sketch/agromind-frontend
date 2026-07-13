@@ -34,7 +34,7 @@ export default function BitacoraPage({
   onOpenTasks,
   onOpenFinance,
 }) {
-  const { activeFarm, farmId, farmName } = useFarm();
+  const { activeFarm, farmId, farmName, isConsultant } = useFarm();
 
   const [entry, setEntry] = useState("");
   const [entries, setEntries] = useState([]);
@@ -385,21 +385,25 @@ export default function BitacoraPage({
                 {isSaving ? "Guardando..." : "Guardar nota"}
               </button>
 
-              <button
-                type="button"
-                className="bitacora-btn bitacora-btn-secondary"
-                onClick={onOpenTasks}
-              >
-                + Crear tarea
-              </button>
+              {!isConsultant && (
+                <>
+                  <button
+                    type="button"
+                    className="bitacora-btn bitacora-btn-secondary"
+                    onClick={onOpenTasks}
+                  >
+                    + Crear tarea
+                  </button>
 
-              <button
-                type="button"
-                className="bitacora-btn bitacora-btn-secondary"
-                onClick={onOpenFinance}
-              >
-                Agregar movimiento
-              </button>
+                  <button
+                    type="button"
+                    className="bitacora-btn bitacora-btn-secondary"
+                    onClick={onOpenFinance}
+                  >
+                    Agregar movimiento
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>

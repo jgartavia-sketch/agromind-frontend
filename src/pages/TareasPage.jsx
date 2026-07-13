@@ -912,6 +912,7 @@ export default function TareasPage({
     activeFarm: contextActiveFarm,
     farmId: contextFarmId,
     farmName: contextFarmName,
+    isConsultant,
     setActiveFarm,
   } = useFarm();
 
@@ -1749,6 +1750,7 @@ export default function TareasPage({
     }
 
     if (item.itemType === "task") {
+      if (isConsultant) return;
       handleEditClick(item);
     }
   };
@@ -3215,7 +3217,9 @@ export default function TareasPage({
             <h2 className="control-center-title">Centro de Control</h2>
 
             <div className="control-center-actions">
-              <span className="readonly-chip">Procesos: solo vista</span>
+              <span className="readonly-chip">
+                {isConsultant ? "Consultor · modo consulta" : "Procesos: solo vista"}
+              </span>
               <button
                 type="button"
                 className="master-ghost-btn"
@@ -3228,17 +3232,19 @@ export default function TareasPage({
               >
                 Actualizar
               </button>
-              <button
-                type="button"
-                className="master-btn"
-                onClick={() => {
-                  handleResetForm();
-                  scrollToEditor();
-                }}
-                disabled={saving}
-              >
-                + Nueva tarea
-              </button>
+              {!isConsultant && (
+                <button
+                  type="button"
+                  className="master-btn"
+                  onClick={() => {
+                    handleResetForm();
+                    scrollToEditor();
+                  }}
+                  disabled={saving}
+                >
+                  + Nueva tarea
+                </button>
+              )}
             </div>
           </div>
 
@@ -3459,8 +3465,9 @@ export default function TareasPage({
         </div>
       </section>
 
-      <div className="master-lower-grid">
-        <section className="task-editor task-editor-pro card">
+      {!isConsultant && (
+        <div className="master-lower-grid">
+          <section className="task-editor task-editor-pro card">
           <h3 className="compact-section-title">
             {editingId ? "Editar tarea" : "Nueva tarea"}
           </h3>
@@ -3602,8 +3609,9 @@ export default function TareasPage({
               )}
             </div>
           </form>
-        </section>
-      </div>
+          </section>
+        </div>
+      )}
 
       <section className="table-pro card">
         <table className="data-table">
@@ -3617,7 +3625,7 @@ export default function TareasPage({
               <th>Vence</th>
               <th>Estado</th>
               <th>Responsable</th>
-              <th>Acciones</th>
+              {!isConsultant && <th>Acciones</th>}
             </tr>
           </thead>
           <tbody>
@@ -3655,33 +3663,42 @@ export default function TareasPage({
                   </span>
                 </td>
                 <td>{task.owner}</td>
-                <td>
-                  <div className="task-actions">
-                    <button
-                      type="button"
-                      className="small-btn"
-                      onClick={() => handleEditClick(task)}
-                      disabled={saving}
-                    >
-                      Editar
-                    </button>
-                    <button
-                      type="button"
-                      className="small-btn small-btn-danger"
-                      onClick={() => handleDeleteClick(task.id)}
-                      disabled={saving}
-                    >
-                      Borrar
-                    </button>
-                  </div>
-                </td>
+                {!isConsultant && (
+                  <td>
+                    <div className="task-actions">
+                      <button
+                        type="button"
+                        className="small-btn"
+                        onClick={() => handleEditClick(task)}
+                        disabled={saving}
+                      >
+                        Editar
+                      </button>
+                      <button
+                        type="button"
+                        className="small-btn small-btn-danger"
+                        onClick={() => handleDeleteClick(task.id)}
+                        disabled={saving}
+                      >
+                        Borrar
+                      </button>
+                    </div>
+                  </td>
+                )}
               </tr>
             ))}
 
             {filteredTasks.length === 0 && (
               <tr>
-                <td colSpan={9} style={{ textAlign: "center", opacity: 0.7 }}>
-                  {loading ? "Cargando…" : "No hay tareas todavía. Creá la primera."}
+                <td
+                  colSpan={isConsultant ? 8 : 9}
+                  style={{ textAlign: "center", opacity: 0.7 }}
+                >
+                  {loading
+                    ? "Cargando…"
+                    : isConsultant
+                    ? "No hay tareas disponibles para consultar."
+                    : "No hay tareas todavía. Creá la primera."}
                 </td>
               </tr>
             )}
@@ -3776,7 +3793,7 @@ export default function TareasPage({
         </div>
       )}
 
-      {pendingDeleteTaskId && (
+      {!isConsultant && pendingDeleteTaskId && (
         <div className="agro-modal-backdrop" role="dialog" aria-modal="true">
           <div className="agro-modal-card">
             <div className="agro-modal-head">

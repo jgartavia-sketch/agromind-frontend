@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useFarm } from "../context/FarmContext";
 
 
 const MAX_COMPONENT_PHOTOS = 5;
@@ -178,6 +179,8 @@ export default function ComponentModal({
   getComponentIcon,
   getComponentDisplayName,
 }) {
+  const { isConsultant } = useFarm();
+  const canEdit = !isConsultant;
   const safeComponents = Array.isArray(componentsDraft) ? componentsDraft : [];
   const totalComponents = safeComponents.length;
 
@@ -387,6 +390,8 @@ export default function ComponentModal({
   };
 
   const handleAddComponent = () => {
+    if (!canEdit) return;
+
     const beforeIds = new Set(safeComponents.map((component) => component?.id));
     draftAddComponent();
 
@@ -409,7 +414,7 @@ export default function ComponentModal({
   };
 
   const openSaveBeforePhotoPrompt = (component) => {
-    if (!component?.id) return;
+    if (!canEdit || !component?.id) return;
 
     const componentIndex = safeComponents.findIndex(
       (item) => item?.id === component.id
@@ -426,6 +431,8 @@ export default function ComponentModal({
   };
 
   const handleSaveWithoutClosing = async () => {
+    if (!canEdit) return;
+
     try {
       const result = saveComponentsModal?.({
         keepOpen: true,
@@ -526,6 +533,8 @@ export default function ComponentModal({
   }, [modalZone?.id, componentIdsSignature]);
 
   const handlePhotoInputChange = async (componentId, event) => {
+    if (!canEdit) return;
+
     const file = event.target.files?.[0] || null;
     event.target.value = "";
 
@@ -577,7 +586,7 @@ export default function ComponentModal({
   };
 
   const handleDeletePhoto = async (componentId, photo) => {
-    if (!componentId || !photo?.id) return;
+    if (!canEdit || !componentId || !photo?.id) return;
 
     const ok = window.confirm("¿Eliminar esta fotografía del componente?");
     if (!ok) return;
@@ -1011,9 +1020,38 @@ export default function ComponentModal({
                 )}
               </div>
 
-              <button type="button" className="primary-btn" onClick={handleAddComponent} style={{ width: isMobileLayout ? "100%" : "auto", justifyContent: "center" }}>
-                + Nuevo componente
-              </button>
+              {canEdit ? (
+                <button
+                  type="button"
+                  className="primary-btn"
+                  onClick={handleAddComponent}
+                  style={{
+                    width: isMobileLayout ? "100%" : "auto",
+                    justifyContent: "center",
+                  }}
+                >
+                  + Nuevo componente
+                </button>
+              ) : (
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    minHeight: "40px",
+                    padding: "0.48rem 0.78rem",
+                    borderRadius: "999px",
+                    border: "1px solid rgba(56,189,248,0.24)",
+                    background: "rgba(14,116,144,0.12)",
+                    color: "#bae6fd",
+                    fontSize: "0.8rem",
+                    fontWeight: 900,
+                    width: isMobileLayout ? "100%" : "auto",
+                  }}
+                >
+                  Modo consulta
+                </span>
+              )}
             </div>
           </section>
 
@@ -1073,7 +1111,9 @@ export default function ComponentModal({
             >
               <strong style={{ color: "#e5e7eb" }}>Aún no hay componentes.</strong>
               <div style={{ marginTop: "0.35rem" }}>
-                Agregá árboles, animales, camas, tanques, bodegas, pasillos o cualquier elemento que exista en la zona.
+                {canEdit
+                  ? "Agregá árboles, animales, camas, tanques, bodegas, pasillos o cualquier elemento que exista en la zona."
+                  : "No hay componentes registrados en esta zona."}
               </div>
             </div>
           ) : filteredComponents.length === 0 ? (
@@ -1304,36 +1344,116 @@ export default function ComponentModal({
                           animation: "componentLabFadeIn 160ms ease",
                         }}
                       >
-                        <div
-                          className="component-lab-edit-grid"
-                          style={{
-                            display: "grid",
-                            gridTemplateColumns: isTabletLayout
-                              ? "1fr"
-                              : "minmax(180px, 1fr) minmax(160px, 0.58fr)",
-                            gap: "10px",
-                            paddingTop: "14px",
-                          }}
-                        >
-                          <input
-                            className="farm-feature-input"
-                            value={comp.name}
-                            onChange={(e) => draftUpdate(comp.id, { name: e.target.value })}
-                            placeholder="Nombre del componente (ej: Aguacate #4, Tanque principal)"
-                          />
-
-                          <select
-                            className="component-type-select"
-                            value={comp.type || "Otro"}
-                            onChange={(e) => draftUpdate(comp.id, { type: e.target.value })}
+                        {canEdit ? (
+                          <div
+                            className="component-lab-edit-grid"
+                            style={{
+                              display: "grid",
+                              gridTemplateColumns: isTabletLayout
+                                ? "1fr"
+                                : "minmax(180px, 1fr) minmax(160px, 0.58fr)",
+                              gap: "10px",
+                              paddingTop: "14px",
+                            }}
                           >
-                            {componentTypeOptions.map((type) => (
-                              <option key={type} value={type}>
-                                {type}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
+                            <input
+                              className="farm-feature-input"
+                              value={comp.name}
+                              onChange={(e) =>
+                                draftUpdate(comp.id, { name: e.target.value })
+                              }
+                              placeholder="Nombre del componente (ej: Aguacate #4, Tanque principal)"
+                            />
+
+                            <select
+                              className="component-type-select"
+                              value={comp.type || "Otro"}
+                              onChange={(e) =>
+                                draftUpdate(comp.id, { type: e.target.value })
+                              }
+                            >
+                              {componentTypeOptions.map((type) => (
+                                <option key={type} value={type}>
+                                  {type}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        ) : (
+                          <div
+                            style={{
+                              display: "grid",
+                              gridTemplateColumns: isTabletLayout
+                                ? "1fr"
+                                : "minmax(180px, 1fr) minmax(160px, 0.58fr)",
+                              gap: "10px",
+                              paddingTop: "14px",
+                            }}
+                          >
+                            <div
+                              style={{
+                                padding: "0.78rem 0.9rem",
+                                borderRadius: "14px",
+                                border: "1px solid rgba(148,163,184,0.16)",
+                                background: "rgba(2,6,23,0.36)",
+                              }}
+                            >
+                              <span
+                                style={{
+                                  display: "block",
+                                  color: "rgba(226,232,240,0.54)",
+                                  fontSize: "0.72rem",
+                                  fontWeight: 850,
+                                  textTransform: "uppercase",
+                                  letterSpacing: "0.06em",
+                                }}
+                              >
+                                Componente
+                              </span>
+                              <strong
+                                style={{
+                                  display: "block",
+                                  marginTop: "0.3rem",
+                                  color: "#f8fafc",
+                                  overflowWrap: "anywhere",
+                                }}
+                              >
+                                {displayName}
+                              </strong>
+                            </div>
+
+                            <div
+                              style={{
+                                padding: "0.78rem 0.9rem",
+                                borderRadius: "14px",
+                                border: "1px solid rgba(148,163,184,0.16)",
+                                background: "rgba(2,6,23,0.36)",
+                              }}
+                            >
+                              <span
+                                style={{
+                                  display: "block",
+                                  color: "rgba(226,232,240,0.54)",
+                                  fontSize: "0.72rem",
+                                  fontWeight: 850,
+                                  textTransform: "uppercase",
+                                  letterSpacing: "0.06em",
+                                }}
+                              >
+                                Tipo
+                              </span>
+                              <strong
+                                style={{
+                                  display: "block",
+                                  marginTop: "0.3rem",
+                                  color: "#bbf7d0",
+                                }}
+                              >
+                                {comp.type || "Otro"}
+                              </strong>
+                            </div>
+                          </div>
+                        )}
 
                         <section
                           style={{
@@ -1377,7 +1497,7 @@ export default function ComponentModal({
                               </div>
                             </div>
 
-                            {isSavedForPhotos ? (
+                            {canEdit && isSavedForPhotos ? (
                               <label
                                 style={{
                                   display: "inline-flex",
@@ -1419,7 +1539,7 @@ export default function ComponentModal({
                                   style={{ display: "none" }}
                                 />
                               </label>
-                            ) : (
+                            ) : canEdit ? (
                               <button
                                 type="button"
                                 onClick={() => openSaveBeforePhotoPrompt(comp)}
@@ -1442,7 +1562,7 @@ export default function ComponentModal({
                               >
                                 + Agregar fotografía
                               </button>
-                            )}
+                            ) : null}
                           </div>
 
                           {photoError ? (
@@ -1512,7 +1632,8 @@ export default function ComponentModal({
                                       />
                                     </button>
 
-                                    <button
+                                    {canEdit ? (
+                                      <button
                                       type="button"
                                       onClick={() => handleDeletePhoto(comp.id, photo)}
                                       style={{
@@ -1534,7 +1655,8 @@ export default function ComponentModal({
                                       title="Eliminar fotografía"
                                     >
                                       🗑
-                                    </button>
+                                      </button>
+                                    ) : null}
                                   </div>
                                 );
                               })}
@@ -1551,7 +1673,9 @@ export default function ComponentModal({
                                 fontSize: "0.8rem",
                               }}
                             >
-                              Sin fotos todavía. Desde celular podés tomar una foto directa.
+                              {canEdit
+                                ? "Sin fotos todavía. Desde celular podés tomar una foto directa."
+                                : "Este componente todavía no tiene fotografías."}
                             </div>
                           ) : null}
                         </section>
@@ -1575,18 +1699,20 @@ export default function ComponentModal({
                               Nota simple
                             </span>
 
-                            <button
-                              type="button"
-                              className="secondary-btn"
-                              onClick={() => toggleEditNote(comp.id)}
-                              style={{ padding: "0.25rem 0.55rem" }}
-                              title={isEditingNote ? "Cerrar edición" : "Editar nota"}
-                            >
-                              ✏️ {isEditingNote ? "Listo" : "Editar"}
-                            </button>
+                            {canEdit ? (
+                              <button
+                                type="button"
+                                className="secondary-btn"
+                                onClick={() => toggleEditNote(comp.id)}
+                                style={{ padding: "0.25rem 0.55rem" }}
+                                title={isEditingNote ? "Cerrar edición" : "Editar nota"}
+                              >
+                                ✏️ {isEditingNote ? "Listo" : "Editar"}
+                              </button>
+                            ) : null}
                           </div>
 
-                          {isEditingNote ? (
+                          {canEdit && isEditingNote ? (
                             <textarea
                               className="farm-feature-textarea"
                               value={comp.note}
@@ -1606,26 +1732,31 @@ export default function ComponentModal({
                                 whiteSpace: "pre-wrap",
                               }}
                             >
-                              {noteText || "Sin nota. Podés dejarlo así o agregar una observación rápida."}
+                              {noteText ||
+                                (canEdit
+                                  ? "Sin nota. Podés dejarlo así o agregar una observación rápida."
+                                  : "Sin nota registrada.")}
                             </div>
                           )}
                         </div>
 
-                        <div
-                          style={{
-                            marginTop: "12px",
-                            display: "flex",
-                            justifyContent: "flex-end",
-                          }}
-                        >
-                          <button
-                            type="button"
-                            className="danger-link"
-                            onClick={() => draftDeleteComponent(comp.id)}
+                        {canEdit ? (
+                          <div
+                            style={{
+                              marginTop: "12px",
+                              display: "flex",
+                              justifyContent: "flex-end",
+                            }}
                           >
-                            Borrar componente
-                          </button>
-                        </div>
+                            <button
+                              type="button"
+                              className="danger-link"
+                              onClick={() => draftDeleteComponent(comp.id)}
+                            >
+                              Borrar componente
+                            </button>
+                          </div>
+                        ) : null}
                       </div>
                     ) : null}
                   </article>
@@ -1635,7 +1766,7 @@ export default function ComponentModal({
           )}
         </div>
 
-        {saveNotice ? (
+        {canEdit && saveNotice ? (
           <div
             style={{
               margin: isMobileLayout ? "10px 12px 0" : "10px 16px 0",
@@ -1672,23 +1803,45 @@ export default function ComponentModal({
             {filteredComponents.length} visible{filteredComponents.length === 1 ? "" : "s"} · {totalComponents} total
           </div>
 
-          <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap", width: isMobileLayout ? "100%" : "auto" }}>
-            <button type="button" className="secondary-btn" onClick={closeComponentsModal} style={{ flex: isMobileLayout ? "1 1 100%" : "0 0 auto", justifyContent: "center" }}>
-              Cancelar
-            </button>
+          <div
+            style={{
+              display: "flex",
+              gap: "10px",
+              alignItems: "center",
+              flexWrap: "wrap",
+              width: isMobileLayout ? "100%" : "auto",
+            }}
+          >
             <button
               type="button"
-              className="primary-btn"
-              onClick={handleSaveWithoutClosing}
-              style={{ flex: isMobileLayout ? "1 1 100%" : "0 0 auto", justifyContent: "center" }}
+              className="secondary-btn"
+              onClick={closeComponentsModal}
+              style={{
+                flex: isMobileLayout ? "1 1 100%" : "0 0 auto",
+                justifyContent: "center",
+              }}
             >
-              Guardar cambios
+              {canEdit ? "Cancelar" : "Cerrar"}
             </button>
+
+            {canEdit ? (
+              <button
+                type="button"
+                className="primary-btn"
+                onClick={handleSaveWithoutClosing}
+                style={{
+                  flex: isMobileLayout ? "1 1 100%" : "0 0 auto",
+                  justifyContent: "center",
+                }}
+              >
+                Guardar cambios
+              </button>
+            ) : null}
           </div>
         </div>
       </div>
 
-      {saveBeforePhotoPrompt ? (
+      {canEdit && saveBeforePhotoPrompt ? (
         <div
           role="dialog"
           aria-modal="true"

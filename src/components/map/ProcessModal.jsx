@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useFarm } from "../context/FarmContext";
 
 function nowIso() {
   return new Date().toISOString();
@@ -239,11 +240,15 @@ export default function ProcessModal({
   updateProcessStatus,
   deleteProcess,
 }) {
+  const { isConsultant } = useFarm();
+  const canEdit = !isConsultant;
+
   const [draftSteps, setDraftSteps] = useState([getEmptyStepDraft(1)]);
   const [searchText, setSearchText] = useState("");
   const [expandedProcessById, setExpandedProcessById] = useState({});
 
-  const shouldShowBuilder = showCreateProcessForm || modalZoneProcesses.length === 0;
+  const shouldShowBuilder =
+    canEdit && (showCreateProcessForm || modalZoneProcesses.length === 0);
 
   useEffect(() => {
     if (!modalZone?.id) return;
@@ -353,6 +358,8 @@ export default function ProcessModal({
   };
 
   const saveProcessLab = async () => {
+    if (!canEdit) return;
+
     const cleanSteps = draftSteps
       .map((step, index) => {
         const safeName = step.name?.trim() || `Etapa ${index + 1}`;
@@ -974,7 +981,7 @@ export default function ProcessModal({
           </div>
         </div>
 
-        {modalZoneProcesses.length > 0 && (
+        {canEdit && modalZoneProcesses.length > 0 ? (
           <button
             type="button"
             className="primary-btn"
@@ -987,7 +994,27 @@ export default function ProcessModal({
           >
             {showCreateProcessForm ? "Cerrar laboratorio" : "Nuevo proceso"}
           </button>
-        )}
+        ) : isConsultant ? (
+          <span
+            style={{
+              marginLeft: "auto",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              minHeight: "38px",
+              padding: "0.48rem 0.78rem",
+              borderRadius: "999px",
+              border: "1px solid rgba(56,189,248,0.28)",
+              background: "rgba(56,189,248,0.10)",
+              color: "#bae6fd",
+              fontSize: "0.78rem",
+              fontWeight: 850,
+              whiteSpace: "nowrap",
+            }}
+          >
+            Modo consulta
+          </span>
+        ) : null}
       </div>
 
       <div
@@ -1471,42 +1498,44 @@ export default function ProcessModal({
                         </p>
                       )}
 
-                      <div
-                        style={{
-                          display: "flex",
-                          gap: "8px",
-                          flexWrap: "wrap",
-                          alignItems: "center",
-                          marginBottom: "14px",
-                          padding: "10px",
-                          borderRadius: "16px",
-                          background: "rgba(2,6,23,0.30)",
-                          border: "1px solid rgba(148,163,184,0.10)",
-                        }}
-                      >
-                        <button
-                          type="button"
-                          className="secondary-btn"
-                          disabled={processActionLoading}
-                          onClick={() => updateProcessStatus(process, nextProcessStatus)}
-                          title={isProcessCompleted ? "Quitar completado y volver a activo" : "Marcar proceso como completado"}
-                          style={
-                            isProcessCompleted
-                              ? {
-                                  borderColor: "rgba(56,189,248,0.35)",
-                                  background: "rgba(56,189,248,0.10)",
-                                  color: "#bae6fd",
-                                }
-                              : undefined
-                          }
+                      {canEdit ? (
+                        <div
+                          style={{
+                            display: "flex",
+                            gap: "8px",
+                            flexWrap: "wrap",
+                            alignItems: "center",
+                            marginBottom: "14px",
+                            padding: "10px",
+                            borderRadius: "16px",
+                            background: "rgba(2,6,23,0.30)",
+                            border: "1px solid rgba(148,163,184,0.10)",
+                          }}
                         >
-                          {processActionLoading ? "Actualizando..." : processActionLabel}
-                        </button>
+                          <button
+                            type="button"
+                            className="secondary-btn"
+                            disabled={processActionLoading}
+                            onClick={() => updateProcessStatus(process, nextProcessStatus)}
+                            title={isProcessCompleted ? "Quitar completado y volver a activo" : "Marcar proceso como completado"}
+                            style={
+                              isProcessCompleted
+                                ? {
+                                    borderColor: "rgba(56,189,248,0.35)",
+                                    background: "rgba(56,189,248,0.10)",
+                                    color: "#bae6fd",
+                                  }
+                                : undefined
+                            }
+                          >
+                            {processActionLoading ? "Actualizando..." : processActionLabel}
+                          </button>
 
-                        <button type="button" className="danger-link" onClick={() => deleteProcess(process)} disabled={processActionLoading}>
-                          Borrar proceso
-                        </button>
-                      </div>
+                          <button type="button" className="danger-link" onClick={() => deleteProcess(process)} disabled={processActionLoading}>
+                            Borrar proceso
+                          </button>
+                        </div>
+                      ) : null}
 
                       <div
                         style={{
@@ -1524,27 +1553,29 @@ export default function ProcessModal({
                             Secuencia operativa del proceso
                           </div>
                         </div>
-                        <button
-                          type="button"
-                          className="secondary-btn"
-                          onClick={() => {
-                            const willOpen = !openStepFormByProcess[process.id];
-                            setOpenStepFormByProcess((prev) => ({ ...prev, [process.id]: willOpen }));
+                        {canEdit ? (
+                          <button
+                            type="button"
+                            className="secondary-btn"
+                            onClick={() => {
+                              const willOpen = !openStepFormByProcess[process.id];
+                              setOpenStepFormByProcess((prev) => ({ ...prev, [process.id]: willOpen }));
 
-                            if (willOpen) {
-                              const nextDraft = getStepDraftForProcess(process);
-                              updateStepDraftField(process.id, "name", nextDraft.name);
-                              updateStepDraftField(process.id, "startDate", nextDraft.startDate);
-                              updateStepDraftField(process.id, "durationDays", nextDraft.durationDays);
-                              updateStepDraftField(process.id, "notes", nextDraft.notes);
-                            }
+                              if (willOpen) {
+                                const nextDraft = getStepDraftForProcess(process);
+                                updateStepDraftField(process.id, "name", nextDraft.name);
+                                updateStepDraftField(process.id, "startDate", nextDraft.startDate);
+                                updateStepDraftField(process.id, "durationDays", nextDraft.durationDays);
+                                updateStepDraftField(process.id, "notes", nextDraft.notes);
+                              }
 
-                            setProcessesError("");
-                          }}
-                          disabled={processActionLoading}
-                        >
-                          {isStepFormOpen ? "Cerrar etapa" : "+ Nueva etapa"}
-                        </button>
+                              setProcessesError("");
+                            }}
+                            disabled={processActionLoading}
+                          >
+                            {isStepFormOpen ? "Cerrar etapa" : "+ Nueva etapa"}
+                          </button>
+                        ) : null}
                       </div>
 
                       {sortedSteps.length > 0 ? (
@@ -1573,31 +1604,55 @@ export default function ProcessModal({
                               >
                                 <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "10px", flexWrap: "wrap" }}>
                                   <div style={{ display: "flex", gap: "12px", alignItems: "flex-start", minWidth: 0, flex: 1 }}>
-                                    <button
-                                      type="button"
-                                      onClick={() => toggleStepCompletion(step)}
-                                      disabled={processActionLoading}
-                                      title={isCompleted ? "Reabrir etapa" : "Marcar como completada"}
-                                      style={{
-                                        width: "28px",
-                                        height: "28px",
-                                        minWidth: "28px",
-                                        borderRadius: "999px",
-                                        border: isCompleted ? "1px solid rgba(34,197,94,0.38)" : "1px solid rgba(148,163,184,0.28)",
-                                        background: isCompleted ? "rgba(34,197,94,0.16)" : "rgba(15,23,42,0.9)",
-                                        color: isCompleted ? "#bbf7d0" : "#94a3b8",
-                                        display: "inline-flex",
-                                        alignItems: "center",
-                                        justifyContent: "center",
-                                        cursor: processActionLoading ? "not-allowed" : "pointer",
-                                        fontSize: "0.95rem",
-                                        fontWeight: 700,
-                                        lineHeight: 1,
-                                        marginTop: "2px",
-                                      }}
-                                    >
-                                      {isCompleted ? "✓" : ""}
-                                    </button>
+                                    {canEdit ? (
+                                      <button
+                                        type="button"
+                                        onClick={() => toggleStepCompletion(step)}
+                                        disabled={processActionLoading}
+                                        title={isCompleted ? "Reabrir etapa" : "Marcar como completada"}
+                                        style={{
+                                          width: "28px",
+                                          height: "28px",
+                                          minWidth: "28px",
+                                          borderRadius: "999px",
+                                          border: isCompleted ? "1px solid rgba(34,197,94,0.38)" : "1px solid rgba(148,163,184,0.28)",
+                                          background: isCompleted ? "rgba(34,197,94,0.16)" : "rgba(15,23,42,0.9)",
+                                          color: isCompleted ? "#bbf7d0" : "#94a3b8",
+                                          display: "inline-flex",
+                                          alignItems: "center",
+                                          justifyContent: "center",
+                                          cursor: processActionLoading ? "not-allowed" : "pointer",
+                                          fontSize: "0.95rem",
+                                          fontWeight: 700,
+                                          lineHeight: 1,
+                                          marginTop: "2px",
+                                        }}
+                                      >
+                                        {isCompleted ? "✓" : ""}
+                                      </button>
+                                    ) : (
+                                      <span
+                                        aria-hidden="true"
+                                        style={{
+                                          width: "28px",
+                                          height: "28px",
+                                          minWidth: "28px",
+                                          borderRadius: "999px",
+                                          border: isCompleted ? "1px solid rgba(34,197,94,0.38)" : "1px solid rgba(148,163,184,0.28)",
+                                          background: isCompleted ? "rgba(34,197,94,0.16)" : "rgba(15,23,42,0.9)",
+                                          color: isCompleted ? "#bbf7d0" : "#94a3b8",
+                                          display: "inline-flex",
+                                          alignItems: "center",
+                                          justifyContent: "center",
+                                          fontSize: "0.95rem",
+                                          fontWeight: 700,
+                                          lineHeight: 1,
+                                          marginTop: "2px",
+                                        }}
+                                      >
+                                        {isCompleted ? "✓" : ""}
+                                      </span>
+                                    )}
 
                                     <div style={{ minWidth: 0, flex: 1 }}>
                                       <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", marginBottom: "4px" }}>
@@ -1632,9 +1687,11 @@ export default function ProcessModal({
                                     </div>
                                   </div>
 
-                                  <button type="button" className="secondary-btn" onClick={() => toggleStepCompletion(step)} disabled={processActionLoading}>
-                                    {isCompleted ? "Reabrir" : "Completar"}
-                                  </button>
+                                  {canEdit ? (
+                                    <button type="button" className="secondary-btn" onClick={() => toggleStepCompletion(step)} disabled={processActionLoading}>
+                                      {isCompleted ? "Reabrir" : "Completar"}
+                                    </button>
+                                  ) : null}
                                 </div>
                               </div>
                             );
@@ -1655,7 +1712,7 @@ export default function ProcessModal({
                         </div>
                       )}
 
-                      {isStepFormOpen && (
+                      {canEdit && isStepFormOpen && (
                         <div
                           style={{
                             padding: "12px",
