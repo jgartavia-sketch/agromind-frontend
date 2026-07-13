@@ -369,6 +369,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
     activeFarm: globalActiveFarm,
     farmId: contextFarmId,
     farmName: contextFarmName,
+    isConsultant,
     setActiveFarm,
   } = useFarm();
   const mapRef = useRef(null);
@@ -414,6 +415,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
   const dirtyRef = useRef(false);
 
   const markDirty = () => {
+    if (isConsultant) return;
     dirtyRef.current = true;
   };
 
@@ -628,6 +630,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
   };
 
   const createProcessForZone = async (processOverride = null, initialSteps = []) => {
+    if (isConsultant) return null;
     if (!componentsModalZoneId || !modalZone) return null;
 
     const source = processOverride || {};
@@ -727,6 +730,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
   };
 
   const createStepForProcess = async (process) => {
+    if (isConsultant) return;
     if (!process?.id || !componentsModalZoneId) return;
 
     const existingSteps = Array.isArray(process.steps) ? process.steps : [];
@@ -796,6 +800,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
   };
 
   const toggleStepCompletion = async (step) => {
+    if (isConsultant) return;
     if (!step?.id || !componentsModalZoneId) return;
 
     const isCompleted = step.status === "Completada";
@@ -833,6 +838,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
   };
 
   const updateProcessStatus = async (process, status) => {
+    if (isConsultant) return;
     if (!process?.id || !componentsModalZoneId) return;
 
     const currentStatus = process.status === "Completado" ? "Completado" : "Activo";
@@ -893,6 +899,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
   };
 
   const deleteProcess = async (process) => {
+    if (isConsultant) return;
     if (!process?.id || !componentsModalZoneId) return;
 
     const ok = window.confirm(
@@ -1019,6 +1026,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
   };
 
   const saveComponentsModal = () => {
+    if (isConsultant) return;
     if (!componentsModalZoneId) return;
 
     markDirty();
@@ -1071,6 +1079,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
   };
 
   const draftAddComponent = () => {
+    if (isConsultant) return;
     const t = nowIso();
     const newComp = {
       id: `comp-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
@@ -1085,6 +1094,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
   };
 
   const draftDeleteComponent = (compId) => {
+    if (isConsultant) return;
     setComponentsDraft((prev) => (prev || []).filter((c) => c.id !== compId));
     setEditingNotesMap((prev) => {
       const next = { ...(prev || {}) };
@@ -1094,6 +1104,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
   };
 
   const draftUpdate = (compId, patch) => {
+    if (isConsultant) return;
     const t = nowIso();
     setComponentsDraft((prev) =>
       (prev || []).map((c) =>
@@ -1103,6 +1114,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
   };
 
   const toggleEditNote = (compId) => {
+    if (isConsultant) return;
     setEditingNotesMap((prev) => ({ ...(prev || {}), [compId]: !prev?.[compId] }));
   };
 
@@ -1368,6 +1380,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
   };
 
   const scheduleAutosave = (list, options = {}) => {
+    if (isConsultant) return;
     const force = options?.force === true;
 
     try {
@@ -1463,6 +1476,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
   };
 
   const saveMapNow = async (list = latestFeaturesListRef.current || [], options = {}) => {
+    if (isConsultant) return false;
     if (!contextFarmId) return false;
 
     const token = getAuthToken();
@@ -1664,7 +1678,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
   };
 
   const handleCreateFarmFromCurrentView = async () => {
-    if (farmActionLoading) return;
+    if (isConsultant || farmActionLoading) return;
 
     try {
       setFarmActionLoading(true);
@@ -1724,7 +1738,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
 
   const startRenameFarm = (event, farm) => {
     event.stopPropagation();
-    if (!farm?.id || farmActionLoading) return;
+    if (isConsultant || !farm?.id || farmActionLoading) return;
     setFarmError("");
     setFarmSavedNotice("");
     setEditingFarmId(farm.id);
@@ -1739,7 +1753,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
 
   const saveFarmName = async (event, farm) => {
     event.stopPropagation();
-    if (!farm?.id || farmActionLoading) return;
+    if (isConsultant || !farm?.id || farmActionLoading) return;
 
     const nextName = editingFarmName.trim();
     if (!nextName) {
@@ -2285,6 +2299,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
   }, [selectedId, filteredList]);
 
   const handleDrawEnd = (feature, mode) => {
+    if (isConsultant) return;
     markDirty();
 
     const kind = mode === "point" ? "point" : mode === "line" ? "line" : "polygon";
@@ -2346,6 +2361,11 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
     const vectorSource = vectorSourceRef.current;
     if (!map || !vectorSource) return;
 
+    if (isConsultant && drawMode !== "move") {
+      setDrawMode("move");
+      return;
+    }
+
     if (drawInteractionRef.current) {
       map.removeInteraction(drawInteractionRef.current);
       drawInteractionRef.current = null;
@@ -2371,7 +2391,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
     drawInteractionRef.current = draw;
 
     forceMapResize();
-  }, [drawMode]);
+  }, [drawMode, isConsultant]);
 
   const handleSelectFeature = (id) => {
     const map = mapInstanceRef.current;
@@ -2399,6 +2419,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
   };
 
   const handleNameChange = (id, value) => {
+    if (isConsultant) return;
     markDirty();
 
     const feature = featuresMapRef.current[id];
@@ -2418,6 +2439,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
   };
 
   const handleZoneTypeChange = (id, value) => {
+    if (isConsultant) return;
     markDirty();
 
     const feature = featuresMapRef.current[id];
@@ -2437,6 +2459,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
   };
 
   const handleZoneStatusChange = (id, value) => {
+    if (isConsultant) return;
     markDirty();
 
     const feature = featuresMapRef.current[id];
@@ -2512,6 +2535,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
   };
 
   const handleDeleteFeature = (id) => {
+    if (isConsultant) return;
     const target =
       (latestFeaturesListRef.current || []).find((item) => item.id === id) ||
       featuresList.find((item) => item.id === id) ||
@@ -2547,6 +2571,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
   }, [deleteConfirm]);
 
   const confirmDeleteFeature = () => {
+    if (isConsultant) return;
     const id = deleteConfirm?.id;
     if (!id) return;
 
@@ -2575,6 +2600,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
   };
 
   const handleSaveViewClick = async () => {
+    if (isConsultant) return;
     const currentView = getCurrentMapView();
     if (!currentView || !contextFarmId || farmActionLoading) return;
 
@@ -2922,27 +2948,32 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
           >
             Mover
           </button>
-          <button
-            type="button"
-            className={drawMode === "point" ? "tool-btn active" : "tool-btn"}
-            onClick={() => setDrawMode("point")}
-          >
-            Punto
-          </button>
-          <button
-            type="button"
-            className={drawMode === "line" ? "tool-btn active" : "tool-btn"}
-            onClick={() => setDrawMode("line")}
-          >
-            Línea
-          </button>
-          <button
-            type="button"
-            className={drawMode === "polygon" ? "tool-btn active" : "tool-btn"}
-            onClick={() => setDrawMode("polygon")}
-          >
-            Zona
-          </button>
+
+          {!isConsultant && (
+            <>
+              <button
+                type="button"
+                className={drawMode === "point" ? "tool-btn active" : "tool-btn"}
+                onClick={() => setDrawMode("point")}
+              >
+                Punto
+              </button>
+              <button
+                type="button"
+                className={drawMode === "line" ? "tool-btn active" : "tool-btn"}
+                onClick={() => setDrawMode("line")}
+              >
+                Línea
+              </button>
+              <button
+                type="button"
+                className={drawMode === "polygon" ? "tool-btn active" : "tool-btn"}
+                onClick={() => setDrawMode("polygon")}
+              >
+                Zona
+              </button>
+            </>
+          )}
         </div>
 
         <div
@@ -3196,16 +3227,18 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
                             {isActiveFarm && farmViewPinned ? (
                               <span title="Vista establecida">✅</span>
                             ) : null}
-                            <button
-                              type="button"
-                              className="secondary-btn"
-                              onClick={(e) => startRenameFarm(e, farm)}
-                              disabled={farmActionLoading}
-                              style={{ padding: "0.28rem 0.45rem" }}
-                              title="Renombrar finca"
-                            >
-                              ✏️
-                            </button>
+                            {!isConsultant && (
+                              <button
+                                type="button"
+                                className="secondary-btn"
+                                onClick={(e) => startRenameFarm(e, farm)}
+                                disabled={farmActionLoading}
+                                style={{ padding: "0.28rem 0.45rem" }}
+                                title="Renombrar finca"
+                              >
+                                ✏️
+                              </button>
+                            )}
                             <span>{isActiveFarm ? "✓" : "›"}</span>
                           </span>
                         )}
@@ -3228,7 +3261,8 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
                   boxSizing: "border-box",
                 }}
               >
-                <button
+                {!isConsultant && (
+                  <button
                   type="button"
                   className="primary-btn"
                   onClick={handleCreateFarmFromCurrentView}
@@ -3242,9 +3276,11 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
                   title="Crear una finca nueva desde la vista actual del mapa"
                 >
                   {farmActionLoading ? "Procesando..." : "➕ Nueva finca"}
-                </button>
+                  </button>
+                )}
 
-                <button
+                {!isConsultant && (
+                  <button
                   type="button"
                   className="secondary-btn"
                   onClick={handleSaveViewClick}
@@ -3258,7 +3294,26 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
                   title="Actualizar la ubicación base de la finca activa"
                 >
                   {farmViewPinned ? "✅ Vista establecida" : "📌 Establecer vista"}
-                </button>
+                  </button>
+                )}
+
+                {isConsultant && (
+                  <div
+                    style={{
+                      width: "100%",
+                      padding: "0.62rem 0.75rem",
+                      borderRadius: "12px",
+                      border: "1px solid rgba(56,189,248,0.22)",
+                      background: "rgba(14,116,144,0.10)",
+                      color: "#bae6fd",
+                      textAlign: "center",
+                      fontSize: "0.8rem",
+                      fontWeight: 850,
+                    }}
+                  >
+                    Modo consulta · sin permisos para modificar la finca
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -3416,32 +3471,54 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
                     className="feature-color-pill"
                     style={{ backgroundColor: item.color }}
                   />
-                  <input
-                    className="zone-name-input"
-                    value={item.name}
-                    onChange={(e) => handleNameChange(item.id, e.target.value)}
-                    onClick={(e) => e.stopPropagation()}
-                  />
+                  {isConsultant ? (
+                    <span
+                      style={{
+                        display: "block",
+                        minWidth: 0,
+                        color: "#e5e7eb",
+                        fontWeight: 800,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {item.name}
+                    </span>
+                  ) : (
+                    <input
+                      className="zone-name-input"
+                      value={item.name}
+                      onChange={(e) => handleNameChange(item.id, e.target.value)}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  )}
                 </div>
 
 
                 <div className="zone-col zone-status">
                   {isZone ? (
-                    <select
-                      value={item.status || "Disponible"}
-                      onChange={(e) => {
-                        e.stopPropagation();
-                        handleZoneStatusChange(item.id, e.target.value);
-                      }}
-                      onClick={(e) => e.stopPropagation()}
-                      className="status-select"
-                    >
-                      {ZONE_STATUSES.map((s) => (
-                        <option key={s} value={s}>
-                          {s}
-                        </option>
-                      ))}
-                    </select>
+                    isConsultant ? (
+                      <span className="status-label">
+                        {item.status || "Disponible"}
+                      </span>
+                    ) : (
+                      <select
+                        value={item.status || "Disponible"}
+                        onChange={(e) => {
+                          e.stopPropagation();
+                          handleZoneStatusChange(item.id, e.target.value);
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                        className="status-select"
+                      >
+                        {ZONE_STATUSES.map((s) => (
+                          <option key={s} value={s}>
+                            {s}
+                          </option>
+                        ))}
+                      </select>
+                    )
                   ) : (
                     <span className="status-label">—</span>
                   )}
@@ -3593,31 +3670,33 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
                     </>
                   ) : null}
 
-                  <button
-                    type="button"
-                    className="danger-link"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDeleteFeature(item.id);
-                    }}
-                    onMouseMove={handleDeleteLauncherMouseMove}
-                    onMouseEnter={handleDeleteLauncherEnter}
-                    onMouseLeave={handleDeleteLauncherLeave}
-                    title={isZone ? "Eliminar zona" : "Borrar elemento"}
-                    style={getDeleteLauncherStyle()}
-                  >
-                    <span
-                      data-delete-icon
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        transition: "transform 160ms ease",
+                  {!isConsultant && (
+                    <button
+                      type="button"
+                      className="danger-link"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteFeature(item.id);
                       }}
+                      onMouseMove={handleDeleteLauncherMouseMove}
+                      onMouseEnter={handleDeleteLauncherEnter}
+                      onMouseLeave={handleDeleteLauncherLeave}
+                      title={isZone ? "Eliminar zona" : "Borrar elemento"}
+                      style={getDeleteLauncherStyle()}
                     >
-                      🗑
-                    </span>
-                  </button>
+                      <span
+                        data-delete-icon
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          transition: "transform 160ms ease",
+                        }}
+                      >
+                        🗑
+                      </span>
+                    </button>
+                  )}
                 </div>
               </div>
             );
@@ -3818,7 +3897,8 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
           document.body
         )}
 
-      {deleteConfirm &&
+      {!isConsultant &&
+        deleteConfirm &&
         typeof document !== "undefined" &&
         createPortal(
         <div
