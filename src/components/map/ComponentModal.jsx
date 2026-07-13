@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useFarm } from "../context/FarmContext";
+import { useFarm } from "../../context/FarmContext";
 
 
 const MAX_COMPONENT_PHOTOS = 5;
