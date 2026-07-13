@@ -1,6 +1,6 @@
 // src/pages/TeamAccessPage.jsx
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import "../styles/team-access.css";
 
 const RAW_API_BASE =
@@ -23,11 +23,131 @@ export default function TeamAccessPage({ token, farmId }) {
   const [email, setEmail] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [feedback, setFeedback] = useState(null);
+  const [teamLoading, setTeamLoading] = useState(false);
+  const [teamError, setTeamError] = useState("");
+  const [members, setMembers] = useState([]);
+  const [pendingInvitations, setPendingInvitations] = useState([]);
+  const [acceptedInvitations, setAcceptedInvitations] = useState([]);
+  const [actionId, setActionId] = useState("");
 
   const canInvite = useMemo(() => {
     const cleanEmail = normalizeEmail(email);
     return Boolean(token && farmId && isValidEmail(cleanEmail) && !submitting);
   }, [email, farmId, submitting, token]);
+
+  const loadTeam = useCallback(async () => {
+    if (!token || !farmId) {
+      setMembers([]);
+      setPendingInvitations([]);
+      setAcceptedInvitations([]);
+      setTeamError("");
+      return;
+    }
+
+    setTeamLoading(true);
+    setTeamError("");
+
+    try {
+      const response = await fetch(`${API_BASE}/api/farms/${farmId}/team`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(data?.error || "No se pudo cargar el equipo.");
+      }
+
+      setMembers(Array.isArray(data?.members) ? data.members : []);
+      setPendingInvitations(
+        Array.isArray(data?.pendingInvitations)
+          ? data.pendingInvitations
+          : []
+      );
+      setAcceptedInvitations(
+        Array.isArray(data?.acceptedInvitations)
+          ? data.acceptedInvitations
+          : []
+      );
+    } catch (error) {
+      setTeamError(error?.message || "No se pudo cargar el equipo.");
+    } finally {
+      setTeamLoading(false);
+    }
+  }, [farmId, token]);
+
+  useEffect(() => {
+    loadTeam();
+  }, [loadTeam]);
+
+  const handleCancelInvitation = async (invitationId) => {
+    if (!invitationId || actionId) return;
+
+    setActionId(invitationId);
+    setTeamError("");
+
+    try {
+      const response = await fetch(
+        `${API_BASE}/api/farms/${farmId}/invitations/${invitationId}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(
+          data?.error || "No se pudo cancelar la invitación."
+        );
+      }
+
+      await loadTeam();
+    } catch (error) {
+      setTeamError(
+        error?.message || "No se pudo cancelar la invitación."
+      );
+    } finally {
+      setActionId("");
+    }
+  };
+
+  const handleRemoveMember = async (memberId) => {
+    if (!memberId || actionId) return;
+
+    setActionId(memberId);
+    setTeamError("");
+
+    try {
+      const response = await fetch(
+        `${API_BASE}/api/farms/${farmId}/members/${memberId}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(data?.error || "No se pudo eliminar el acceso.");
+      }
+
+      await loadTeam();
+    } catch (error) {
+      setTeamError(error?.message || "No se pudo eliminar el acceso.");
+    } finally {
+      setActionId("");
+    }
+  };
 
   const resetInviteForm = () => {
     setEmail("");
@@ -108,6 +228,7 @@ export default function TeamAccessPage({ token, farmId }) {
       });
 
       setEmail("");
+      await loadTeam();
     } catch (error) {
       setFeedback({
         type: "error",
@@ -147,6 +268,12 @@ export default function TeamAccessPage({ token, farmId }) {
         </div>
       )}
 
+      {teamError && (
+        <div className="team-access-alert team-access-alert-error">
+          {teamError}
+        </div>
+      )}
+
       <section className="team-access-grid">
         <article className="team-access-card">
           <div className="team-access-card-header">
@@ -155,21 +282,53 @@ export default function TeamAccessPage({ token, farmId }) {
               <h2>Personas con acceso</h2>
             </div>
 
-            <span className="team-access-status-pill">Próximo paso</span>
+            <span className="team-access-status-pill">
+              {members.length}
+            </span>
           </div>
 
-          <div className="team-access-empty-state">
-            <div className="team-access-empty-icon" aria-hidden="true">
-              👥
+          {teamLoading ? (
+            <div className="team-access-empty-state">
+              <h3>Cargando equipo...</h3>
             </div>
+          ) : members.length === 0 ? (
+            <div className="team-access-empty-state">
+              <div className="team-access-empty-icon" aria-hidden="true">
+                👥
+              </div>
+              <h3>No hay miembros activos</h3>
+            </div>
+          ) : (
+            <div className="team-access-member-list">
+              {members.map((member) => (
+                <div key={member.id} className="team-access-member-row">
+                  <div>
+                    <strong>{member.name || member.email}</strong>
+                    <p>{member.email}</p>
+                  </div>
 
-            <h3>La finca está lista para colaborar</h3>
+                  <div className="team-access-member-actions">
+                    <span className="team-access-status-pill">
+                      {member.role === "ADMIN" ? "Administrador" : "Consultor"}
+                    </span>
 
-            <p>
-              Aquí aparecerán los administradores y consultores cuando
-              conectemos el listado de miembros del backend.
-            </p>
-          </div>
+                    {member.role !== "ADMIN" && (
+                      <button
+                        type="button"
+                        className="team-access-secondary-btn"
+                        onClick={() => handleRemoveMember(member.id)}
+                        disabled={actionId === member.id}
+                      >
+                        {actionId === member.id
+                          ? "Eliminando..."
+                          : "Eliminar acceso"}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </article>
 
         <article className="team-access-card">
@@ -179,23 +338,85 @@ export default function TeamAccessPage({ token, farmId }) {
               <h2>Solicitudes pendientes</h2>
             </div>
 
-            <span className="team-access-status-pill">Próximo paso</span>
+            <span className="team-access-status-pill">
+              {pendingInvitations.length}
+            </span>
           </div>
 
-          <div className="team-access-empty-state">
-            <div className="team-access-empty-icon" aria-hidden="true">
-              ✉️
+          {teamLoading ? (
+            <div className="team-access-empty-state">
+              <h3>Cargando invitaciones...</h3>
             </div>
+          ) : pendingInvitations.length === 0 ? (
+            <div className="team-access-empty-state">
+              <div className="team-access-empty-icon" aria-hidden="true">
+                ✉️
+              </div>
+              <h3>No hay invitaciones pendientes</h3>
+            </div>
+          ) : (
+            <div className="team-access-member-list">
+              {pendingInvitations.map((invitation) => (
+                <div
+                  key={invitation.id}
+                  className="team-access-member-row"
+                >
+                  <div>
+                    <strong>{invitation.email}</strong>
+                    <p>Consultor · Pendiente</p>
+                  </div>
 
-            <h3>Control de invitaciones</h3>
-
-            <p>
-              En esta sección podrás revisar y cancelar invitaciones
-              pendientes cuando habilitemos sus endpoints de consulta.
-            </p>
-          </div>
+                  <button
+                    type="button"
+                    className="team-access-secondary-btn"
+                    onClick={() =>
+                      handleCancelInvitation(invitation.id)
+                    }
+                    disabled={actionId === invitation.id}
+                  >
+                    {actionId === invitation.id
+                      ? "Cancelando..."
+                      : "Cancelar invitación"}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </article>
       </section>
+
+      {acceptedInvitations.length > 0 && (
+        <section className="team-access-card">
+          <div className="team-access-card-header">
+            <div>
+              <p className="team-access-card-label">Actividad</p>
+              <h2>Invitaciones aceptadas</h2>
+            </div>
+
+            <span className="team-access-status-pill">
+              {acceptedInvitations.length}
+            </span>
+          </div>
+
+          <div className="team-access-member-list">
+            {acceptedInvitations.map((invitation) => (
+              <div
+                key={invitation.id}
+                className="team-access-member-row"
+              >
+                <div>
+                  <strong>{invitation.email}</strong>
+                  <p>La invitación fue aceptada.</p>
+                </div>
+
+                <span className="team-access-status-pill">
+                  Aceptada
+                </span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section className="team-access-permissions">
         <div>

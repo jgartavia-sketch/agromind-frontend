@@ -618,3 +618,60 @@
     padding: 0.85rem;
   }
 }
+
+
+/* =========================
+   Team lists
+   ========================= */
+
+.team-access-member-list{
+  display:grid;
+  gap:.75rem;
+}
+
+.team-access-member-row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:1rem;
+  padding:1rem;
+  border:1px solid rgba(51,65,85,.75);
+  border-radius:.95rem;
+  background:rgba(15,23,42,.45);
+}
+
+.team-access-member-row strong{
+  display:block;
+  color:#f8fafc;
+  margin-bottom:.2rem;
+}
+
+.team-access-member-row p{
+  margin:0;
+  color:#94a3b8;
+  font-size:.85rem;
+}
+
+.team-access-member-actions{
+  display:flex;
+  align-items:center;
+  gap:.75rem;
+  flex-wrap:wrap;
+  justify-content:flex-end;
+}
+
+@media (max-width:700px){
+  .team-access-member-row{
+    flex-direction:column;
+    align-items:flex-start;
+  }
+
+  .team-access-member-actions{
+    width:100%;
+    justify-content:flex-start;
+  }
+
+  .team-access-member-actions .team-access-secondary-btn{
+    width:100%;
+  }
+}

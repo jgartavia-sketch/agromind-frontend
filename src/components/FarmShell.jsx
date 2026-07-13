@@ -1,5 +1,6 @@
 // src/components/FarmShell.jsx
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useFarm } from "../context/FarmContext";
 import "../styles/farm-shell.css";
 
 const FarmMap = lazy(() => import("./map/FarmMap"));
@@ -246,6 +247,7 @@ function ModuleLoader({ text = "Cargando módulo..." }) {
 }
 
 export default function FarmShell({ user, onLogout }) {
+  const { isAdmin, isConsultant } = useFarm();
   const [activeTab, setActiveTab] = useState("dashboard");
   const [focusZoneRequest, setFocusZoneRequest] = useState(null);
 
@@ -264,14 +266,19 @@ export default function FarmShell({ user, onLogout }) {
     updatedAt: null,
   });
 
-  const mainTabs = [
-    ["dashboard", "Dashboard"],
-    ["mapa", "Mapa de la finca"],
-    ["tareas", "Tareas"],
-    ["finanzas", "Finanzas"],
-    ["clima", "Clima"],
-    ["bitacora", "Bitácora"],
-  ];
+  const mainTabs = isAdmin ? [
+    ["dashboard","Dashboard"],
+    ["mapa","Mapa de la finca"],
+    ["tareas","Tareas"],
+    ["finanzas","Finanzas"],
+    ["clima","Clima"],
+    ["bitacora","Bitácora"],
+] : [
+    ["mapa","Mapa de la finca"],
+    ["tareas","Mis tareas"],
+    ["clima","Clima"],
+    ["bitacora","Mi bitácora"],
+];
 
   const cleanZoneList = useCallback((items) => {
     const seen = new Set();
@@ -483,8 +490,8 @@ export default function FarmShell({ user, onLogout }) {
             ))}
           </div>
 
+          {isAdmin && <>
           <div className="farm-shell-nav-divider" aria-hidden="true" />
-
           <button
             type="button"
             className={
@@ -496,6 +503,7 @@ export default function FarmShell({ user, onLogout }) {
           >
             Equipo y acceso
           </button>
+          </>}
         </nav>
 
         <div className="farm-shell-right">
@@ -514,7 +522,7 @@ export default function FarmShell({ user, onLogout }) {
       <main className="farm-shell-main">
         <section className="farm-shell-map-card">
           <Suspense fallback={<ModuleLoader text="Cargando tu finca..." />}>
-            {activeTab === "dashboard" && (
+            {isAdmin && activeTab === "dashboard" && (
               <DashboardPage user={user} token={token} farmId={farmId} />
             )}
 
@@ -534,7 +542,7 @@ export default function FarmShell({ user, onLogout }) {
               />
             )}
 
-            {activeTab === "finanzas" && (
+            {isAdmin && activeTab === "finanzas" && (
               <FinanzasPage token={token} farmId={farmId} />
             )}
 
@@ -555,7 +563,7 @@ export default function FarmShell({ user, onLogout }) {
               />
             )}
 
-            {activeTab === "team" && (
+            {isAdmin && activeTab === "team" && (
               <TeamAccessPage token={token} farmId={farmId} />
             )}
           </Suspense>

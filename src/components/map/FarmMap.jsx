@@ -361,6 +361,11 @@ function getStatusPillStyle(status) {
 
 export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
   const {
+    farms,
+    setFarms,
+    refreshFarms,
+    farmsLoading,
+    farmsError,
     activeFarm: globalActiveFarm,
     farmId: contextFarmId,
     farmName: contextFarmName,
@@ -395,8 +400,6 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
   const [mapReady, setMapReady] = useState(false);
   const [backendOnline, setBackendOnline] = useState(true);
 
-  const [farms, setFarms] = useState([]);
-  const [farmsLoading, setFarmsLoading] = useState(false);
   const [farmActionLoading, setFarmActionLoading] = useState(false);
   const [farmMenuOpen, setFarmMenuOpen] = useState(false);
   const [farmError, setFarmError] = useState("");
@@ -1525,13 +1528,6 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
     return candidate;
   };
 
-  const loadFarmsList = async () => {
-    const farmsRes = await apiFetch("/api/farms", { method: "GET" });
-    const nextFarms = Array.isArray(farmsRes?.farms) ? farmsRes.farms : [];
-    setFarms(nextFarms);
-    return nextFarms;
-  };
-
   const loadFarmMap = async (farmId, options = {}) => {
     if (!farmId) return;
 
@@ -1585,45 +1581,30 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
         return;
       }
 
-      setFarmsLoading(true);
       setFarmError("");
 
-      const farmsTimer = debugTimeStart("ensureFarmAndLoad GET /api/farms");
-      let nextFarms = await loadFarmsList();
+      const farmsTimer = debugTimeStart("ensureFarmAndLoad refreshFarms");
+      const nextFarms = await refreshFarms({
+        preserveActiveFarm: true,
+        selectFirstIfMissing: true,
+      });
       debugTimeEnd(farmsTimer);
 
       const savedActive = contextFarmId;
       const picked =
-        (savedActive && nextFarms.find((f) => f.id === savedActive)) || nextFarms[0];
+        (savedActive && nextFarms.find((farm) => farm.id === savedActive)) ||
+        nextFarms[0] ||
+        null;
 
-      let farmId = picked?.id || null;
-
-      if (!farmId) {
-        const createFarmTimer = debugTimeStart("ensureFarmAndLoad POST /api/farms");
-        const created = await apiFetch("/api/farms", {
-          method: "POST",
-          body: JSON.stringify({ name: "Finca #1", view: getCurrentMapView() }),
-        });
-        debugTimeEnd(createFarmTimer);
-        farmId = created?.farm?.id || null;
-        nextFarms = created?.farm ? [created.farm] : [];
-        setFarms(nextFarms);
-      }
-
-      if (!farmId) {
-        setBackendOnline(false);
-        setFarmError("No se pudo preparar la finca activa.");
+      if (!picked?.id) {
+        loadedFarmIdRef.current = null;
+        setBackendOnline(true);
         return;
       }
 
-      const farmForContext =
-        nextFarms.find((farm) => farm.id === farmId) ||
-        picked ||
-        (nextFarms.length > 0 ? nextFarms[0] : null);
+      setActiveFarm(picked);
 
-      setActiveFarm(farmForContext || { id: farmId, name: "Finca activa" });
-
-      await loadFarmMap(farmId, {
+      await loadFarmMap(picked.id, {
         allowLocalFallback: true,
         farmsCount: nextFarms.length,
       });
@@ -1632,7 +1613,6 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
       setBackendOnline(false);
       setFarmError(err?.message || "No se pudieron cargar las fincas.");
     } finally {
-      setFarmsLoading(false);
       debugTimeEnd(totalTimer);
     }
   };
@@ -1704,7 +1684,13 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
         body: JSON.stringify({ name, view: currentView }),
       });
 
-      const newFarm = created?.farm;
+      const newFarm = created?.farm
+        ? {
+            ...created.farm,
+            role: created.farm.role || "ADMIN",
+          }
+        : null;
+
       if (!newFarm?.id) {
         throw new Error("El servidor no devolvió la finca creada.");
       }
@@ -3296,7 +3282,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
         </div>
       ) : null}
 
-      {farmError ? (
+      {farmError || farmsError ? (
         <div
           style={{
             margin: "0.75rem 0",
