@@ -29,10 +29,41 @@ function getAuthToken() {
 }
 
 function normalizeRole(role) {
-  const normalizedRole = String(role || "").trim().toUpperCase();
+  const rawRole =
+    role && typeof role === "object"
+      ? role.name ||
+        role.role ||
+        role.code ||
+        role.slug ||
+        role.value ||
+        role.type ||
+        ""
+      : role;
 
-  if (normalizedRole === "ADMIN" || normalizedRole === "CONSULTANT") {
-    return normalizedRole;
+  const normalizedRole = String(rawRole || "")
+    .trim()
+    .toUpperCase()
+    .replace(/^ROLE_/, "");
+
+  if (
+    normalizedRole === "ADMIN" ||
+    normalizedRole === "ADMINISTRATOR" ||
+    normalizedRole === "ADMINISTRADOR" ||
+    normalizedRole === "OWNER" ||
+    normalizedRole === "PROPIETARIO"
+  ) {
+    return "ADMIN";
+  }
+
+  if (
+    normalizedRole === "CONSULTANT" ||
+    normalizedRole === "CONSULTOR" ||
+    normalizedRole === "CONSULTORA" ||
+    normalizedRole === "ADVISOR" ||
+    normalizedRole === "ASESOR" ||
+    normalizedRole === "ASESORA"
+  ) {
+    return "CONSULTANT";
   }
 
   return null;
@@ -45,7 +76,12 @@ function normalizeFarm(farm) {
     farm.role ||
       farm.activeRole ||
       farm.membershipRole ||
-      farm.userRole
+      farm.userRole ||
+      farm.memberRole ||
+      farm.accessRole ||
+      farm.membership?.role ||
+      farm.member?.role ||
+      farm.farmMember?.role
   );
 
   return {
