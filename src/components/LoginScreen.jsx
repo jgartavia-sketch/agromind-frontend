@@ -222,12 +222,20 @@ export default function LoginScreen({ onLogin }) {
         }
       }
 
-      const loginResponse = await fetchWithTimeout(`${API_BASE}/auth/login`, {
+      const loginEndpoint =
+        mode === "login" && invitationToken
+          ? `${API_BASE}/auth/login-with-invitation`
+          : `${API_BASE}/auth/login`;
+
+      const loginResponse = await fetchWithTimeout(loginEndpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email: cleanEmail,
           password,
+          ...(mode === "login" && invitationToken
+            ? { invitationToken }
+            : {}),
         }),
       });
 
@@ -250,10 +258,11 @@ export default function LoginScreen({ onLogin }) {
 
       persistAuth(token, user);
 
-      if (
-        mode === "signup" &&
-        registerData?.registrationMode === "invitation"
-      ) {
+      const invitationWasAccepted =
+        registerData?.registrationMode === "invitation" ||
+        loginData?.registrationMode === "invitation_existing_user";
+
+      if (invitationWasAccepted) {
         clearInvitationSession();
       }
 
@@ -263,9 +272,13 @@ export default function LoginScreen({ onLogin }) {
       onLogin?.({
         token,
         user,
-        farm: registerData?.farm || null,
-        membership: registerData?.membership || null,
-        registrationMode: registerData?.registrationMode || null,
+        farm: loginData?.farm || registerData?.farm || null,
+        membership:
+          loginData?.membership || registerData?.membership || null,
+        registrationMode:
+          loginData?.registrationMode ||
+          registerData?.registrationMode ||
+          null,
       });
     } catch (err) {
       if (err?.name === "AbortError") {
@@ -325,7 +338,9 @@ export default function LoginScreen({ onLogin }) {
               : mode === "forgot"
                 ? "Ingresa tu correo y te enviaremos las instrucciones."
                 : isInvitationFlow
-                  ? "Regístrate con el mismo correo que recibió la invitación."
+                  ? mode === "login"
+                    ? "Inicia sesión con el mismo correo que recibió la invitación."
+                    : "Regístrate con el mismo correo que recibió la invitación."
                   : "Accede a tu panel de finca inteligente."}
           </p>
         </div>
@@ -466,7 +481,9 @@ export default function LoginScreen({ onLogin }) {
                     : "Creando cuenta..."
                   : "Enviando..."
               : mode === "login"
-                ? "Entrar"
+                ? isInvitationFlow
+                  ? "Iniciar sesión y aceptar invitación"
+                  : "Entrar"
                 : mode === "signup"
                   ? isInvitationFlow
                     ? "Crear cuenta y aceptar invitación"
