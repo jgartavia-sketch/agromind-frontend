@@ -18,6 +18,30 @@ function isValidEmail(value) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
+function formatDate(value) {
+  if (!value) return "Fecha no disponible";
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "Fecha no disponible";
+  }
+
+  return new Intl.DateTimeFormat("es-CR", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(date);
+}
+
+function getInvitedByName(invitation) {
+  return (
+    invitation?.invitedBy?.name ||
+    invitation?.invitedBy?.email ||
+    "Usuario AgroMind"
+  );
+}
+
 export default function TeamAccessPage({ token, farmId }) {
   const [isInviteOpen, setIsInviteOpen] = useState(false);
   const [email, setEmail] = useState("");
@@ -305,6 +329,7 @@ export default function TeamAccessPage({ token, farmId }) {
                   <div>
                     <strong>{member.name || member.email}</strong>
                     <p>{member.email}</p>
+                    <p>Acceso desde {formatDate(member.joinedAt)}</p>
                   </div>
 
                   <div className="team-access-member-actions">
@@ -364,6 +389,8 @@ export default function TeamAccessPage({ token, farmId }) {
                   <div>
                     <strong>{invitation.email}</strong>
                     <p>Consultor · Pendiente</p>
+                    <p>Invitado por {getInvitedByName(invitation)}</p>
+                    <p>Enviada el {formatDate(invitation.createdAt)}</p>
                   </div>
 
                   <button
@@ -406,7 +433,9 @@ export default function TeamAccessPage({ token, farmId }) {
               >
                 <div>
                   <strong>{invitation.email}</strong>
-                  <p>La invitación fue aceptada.</p>
+                  <p>Consultor</p>
+                  <p>Invitado por {getInvitedByName(invitation)}</p>
+                  <p>Aceptada el {formatDate(invitation.acceptedAt)}</p>
                 </div>
 
                 <span className="team-access-status-pill">
