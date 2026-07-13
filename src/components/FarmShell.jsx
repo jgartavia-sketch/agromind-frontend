@@ -248,7 +248,7 @@ function ModuleLoader({ text = "Cargando módulo..." }) {
 
 export default function FarmShell({ user, onLogout }) {
   const { isAdmin, isConsultant } = useFarm();
-  const [activeTab, setActiveTab] = useState("dashboard");
+  const [activeTab, setActiveTab] = useState(() => (isConsultant ? "mapa" : "dashboard"));
   const [focusZoneRequest, setFocusZoneRequest] = useState(null);
 
   const [token, setToken] = useState(() => getAuthToken());
@@ -390,6 +390,15 @@ export default function FarmShell({ user, onLogout }) {
     };
   }, [farmId, fetchZonesFromMap]);
 
+
+  useEffect(() => {
+    const defaultTab = isConsultant ? "mapa" : "dashboard";
+    const allowed = new Set(mainTabs.map(([k]) => k).concat(isAdmin ? ["team"] : []));
+    if (!allowed.has(activeTab)) {
+      setActiveTab(defaultTab);
+    }
+  }, [isAdmin, isConsultant, mainTabs, activeTab]);
+
   const handleTabChange = (tab) => {
     setActiveTab(tab);
     if (tab === "tareas") fetchZonesFromMap({ force: true });
@@ -455,7 +464,7 @@ export default function FarmShell({ user, onLogout }) {
       updatedAt: Date.now(),
     });
 
-    setActiveTab("dashboard");
+    setActiveTab(isConsultant ? "mapa" : "dashboard");
     setFocusZoneRequest(null);
 
     if (onLogout) onLogout();
