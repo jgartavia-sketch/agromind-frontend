@@ -4,6 +4,7 @@ import FarmShell from "./components/FarmShell";
 import LoginScreen from "./components/LoginScreen";
 import ResetPasswordScreen from "./components/ResetPasswordScreen";
 import InvitationAcceptPage from "./pages/InvitationAcceptPage";
+import FarmWorkspacePage from "./pages/FarmWorkspacePage";
 
 const RAW_API_BASE =
   import.meta.env.VITE_API_URL || "https://agromind-backend-slem.onrender.com";
@@ -81,6 +82,8 @@ export default function AgroMindApp() {
   }, []);
 
   const [user, setUser] = useState(initialSession.user);
+  const [workspaceView, setWorkspaceView] = useState("workspace");
+
   const [booting, setBooting] = useState(
     !isResetPasswordRoute &&
       !isInvitationAcceptRoute &&
@@ -117,6 +120,7 @@ export default function AgroMindApp() {
         if (!resp.ok) {
           clearStoredSession();
           setUser(null);
+          setWorkspaceView("workspace");
           return;
         }
 
@@ -125,9 +129,11 @@ export default function AgroMindApp() {
         if (data?.user) {
           setStoredSession({ token, user: data.user });
           setUser(data.user);
+          setWorkspaceView("workspace");
         } else {
           clearStoredSession();
           setUser(null);
+          setWorkspaceView("workspace");
         }
       } catch {
         if (!alive) return;
@@ -135,6 +141,7 @@ export default function AgroMindApp() {
         if (!initialSession.user) {
           clearStoredSession();
           setUser(null);
+          setWorkspaceView("workspace");
         }
       } finally {
         if (alive) setBooting(false);
@@ -167,11 +174,21 @@ export default function AgroMindApp() {
     }
 
     setUser(u);
+    setWorkspaceView("workspace");
   };
 
   const handleLogout = () => {
     clearStoredSession();
     setUser(null);
+    setWorkspaceView("workspace");
+  };
+
+  const handleOpenFarm = () => {
+    setWorkspaceView("farm");
+  };
+
+  const handleBackToWorkspace = () => {
+    setWorkspaceView("workspace");
   };
 
   if (isResetPasswordRoute) {
@@ -196,7 +213,7 @@ export default function AgroMindApp() {
       >
         <div style={{ textAlign: "center" }}>
           <h2 style={{ marginBottom: "0.5rem" }}>AgroMind CR</h2>
-          <p style={{ margin: 0 }}>Preparando tu finca...</p>
+          <p style={{ margin: 0 }}>Preparando tu espacio...</p>
         </div>
       </div>
     );
@@ -206,5 +223,21 @@ export default function AgroMindApp() {
     return <LoginScreen onLogin={handleLogin} />;
   }
 
-  return <FarmShell user={user} onLogout={handleLogout} />;
+  if (workspaceView === "farm") {
+    return (
+      <FarmShell
+        user={user}
+        onLogout={handleLogout}
+        onBackToWorkspace={handleBackToWorkspace}
+      />
+    );
+  }
+
+  return (
+    <FarmWorkspacePage
+      user={user}
+      onOpenFarm={handleOpenFarm}
+      onLogout={handleLogout}
+    />
+  );
 }
