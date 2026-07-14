@@ -46,6 +46,8 @@ export default function FarmWorkspacePage({ user, onOpenFarm, onLogout }) {
   const [feedback, setFeedback] = useState("");
   const [pendingFarmAction, setPendingFarmAction] = useState(null);
   const [deleteFarmTarget, setDeleteFarmTarget] = useState(null);
+  const [leaveFarmTarget, setLeaveFarmTarget] = useState(null);
+  const [leavingFarm, setLeavingFarm] = useState(false);
 
   const adminFarms = useMemo(
     () => farms.filter((farm) => farm.role === "ADMIN"),
@@ -106,6 +108,70 @@ export default function FarmWorkspacePage({ user, onOpenFarm, onLogout }) {
 
     setDeleteFarmTarget(null);
     setPendingFarmAction(null);
+  };
+
+  const handlePrepareLeaveFarm = (farm) => {
+    if (!farm?.id || farm.role !== "CONSULTANT") return;
+    setFeedback("");
+    setLeaveFarmTarget(farm);
+  };
+
+  const handleCloseLeaveFarmModal = () => {
+    if (leavingFarm) return;
+    setLeaveFarmTarget(null);
+  };
+
+  const handleConfirmLeaveFarm = async () => {
+    if (!leaveFarmTarget?.id || leaveFarmTarget.role !== "CONSULTANT") return;
+
+    const token = getAuthToken();
+
+    if (!token) {
+      setFeedback("Tu sesión no está disponible. Inicia sesión nuevamente.");
+      setLeaveFarmTarget(null);
+      return;
+    }
+
+    setLeavingFarm(true);
+    setFeedback("");
+
+    try {
+      const response = await fetch(
+        `${API_BASE}/api/farms/${leaveFarmTarget.id}/leave`,
+        {
+          method: "DELETE",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(data?.error || "No se pudo abandonar la finca.");
+      }
+
+      const departedFarmId = leaveFarmTarget.id;
+
+      setFarms((currentFarms) =>
+        currentFarms.filter((farm) => farm.id !== departedFarmId)
+      );
+
+      setLeaveFarmTarget(null);
+      setFeedback(data?.message || "Has salido de la finca correctamente.");
+
+      await refreshFarms({
+        preserveActiveFarm: false,
+        selectFirstIfMissing: true,
+        silent: true,
+      });
+    } catch (error) {
+      setFeedback(error?.message || "No se pudo abandonar la finca.");
+    } finally {
+      setLeavingFarm(false);
+    }
   };
 
   const handleCreateFarm = async (event) => {
@@ -443,12 +509,140 @@ export default function FarmWorkspacePage({ user, onOpenFarm, onLogout }) {
                   farm={farm}
                   label="Consultor"
                   onOpen={() => handleOpenFarm(farm)}
+                  onLeave={() => handlePrepareLeaveFarm(farm)}
                 />
               ))}
             </div>
           )}
         </section>
       </main>
+
+      {leaveFarmTarget && (
+        <div
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              handleCloseLeaveFarmModal();
+            }
+          }}
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 1150,
+            display: "grid",
+            placeItems: "center",
+            padding:
+              "max(1rem, env(safe-area-inset-top, 0px)) max(1rem, env(safe-area-inset-right, 0px)) max(1rem, env(safe-area-inset-bottom, 0px)) max(1rem, env(safe-area-inset-left, 0px))",
+            background: "rgba(2,6,23,0.82)",
+            backdropFilter: "blur(10px)",
+          }}
+        >
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="leave-farm-title"
+            style={{
+              width: "min(520px, 100%)",
+              padding: "clamp(1.2rem, 4vw, 1.8rem)",
+              borderRadius: "24px",
+              border: "1px solid rgba(56,189,248,0.30)",
+              background:
+                "linear-gradient(155deg, rgba(15,23,42,0.99), rgba(12,74,110,0.28))",
+              boxShadow: "0 34px 100px rgba(0,0,0,0.64)",
+            }}
+          >
+            <div
+              style={{
+                width: "52px",
+                height: "52px",
+                display: "grid",
+                placeItems: "center",
+                borderRadius: "16px",
+                border: "1px solid rgba(56,189,248,0.34)",
+                background: "rgba(14,116,144,0.20)",
+                fontSize: "1.4rem",
+              }}
+            >
+              🚪
+            </div>
+
+            <p
+              style={{
+                margin: "1rem 0 0.4rem",
+                color: "#7dd3fc",
+                fontSize: "0.72rem",
+                fontWeight: 900,
+                letterSpacing: "0.1em",
+                textTransform: "uppercase",
+              }}
+            >
+              Salir de la colaboración
+            </p>
+
+            <h2 id="leave-farm-title" style={{ margin: 0, color: "#f8fafc" }}>
+              Dejar de ser consultor
+            </h2>
+
+            <div
+              style={{
+                marginTop: "1rem",
+                padding: "0.95rem 1rem",
+                borderRadius: "16px",
+                border: "1px solid rgba(148,163,184,0.16)",
+                background: "rgba(15,23,42,0.56)",
+                color: "#cbd5e1",
+                lineHeight: 1.65,
+              }}
+            >
+              ¿Deseas dejar de colaborar en{" "}
+              <strong style={{ color: "#f8fafc" }}>
+                {leaveFarmTarget.name || "esta finca"}
+              </strong>
+              ?
+            </div>
+
+            <p
+              style={{
+                margin: "1rem 0 0",
+                color: "#94a3b8",
+                lineHeight: 1.65,
+                fontSize: "0.9rem",
+              }}
+            >
+              Perderás el acceso inmediatamente. La finca y toda su información
+              permanecerán intactas para su administrador.
+            </p>
+
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "flex-end",
+                gap: "0.7rem",
+                flexWrap: "wrap",
+                marginTop: "1.35rem",
+              }}
+            >
+              <button
+                type="button"
+                onClick={handleCloseLeaveFarmModal}
+                disabled={leavingFarm}
+                style={secondaryButtonStyle}
+              >
+                Cancelar
+              </button>
+
+              <button
+                type="button"
+                onClick={handleConfirmLeaveFarm}
+                disabled={leavingFarm}
+                style={leaveButtonStyle}
+              >
+                {leavingFarm ? "Saliendo..." : "Dejar la finca"}
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
 
       {deleteFarmTarget && (
         <div
@@ -728,6 +922,7 @@ function FarmCard({
   onOpen,
   onRename,
   onDelete,
+  onLeave,
   pendingAction,
 }) {
   const isAdminFarm = farm.role === "ADMIN";
@@ -897,6 +1092,27 @@ function FarmCard({
           </button>
         </div>
       )}
+
+      {!isAdminFarm && onLeave && (
+        <button
+          type="button"
+          onClick={onLeave}
+          style={{
+            width: "100%",
+            minHeight: "40px",
+            marginTop: "0.75rem",
+            padding: "0.58rem 0.7rem",
+            borderRadius: "12px",
+            border: "1px solid rgba(56,189,248,0.28)",
+            background: "rgba(14,116,144,0.12)",
+            color: "#bae6fd",
+            fontWeight: 850,
+            cursor: "pointer",
+          }}
+        >
+          🚪 Dejar de ser consultor
+        </button>
+      )}
     </article>
   );
 }
@@ -947,6 +1163,18 @@ const secondaryButtonStyle = {
   cursor: "pointer",
 };
 
+
+const leaveButtonStyle = {
+  minHeight: "44px",
+  padding: "0.65rem 1rem",
+  borderRadius: "999px",
+  border: "1px solid rgba(56,189,248,0.52)",
+  background: "linear-gradient(135deg, #0284c7, #0e7490)",
+  color: "#e0f2fe",
+  fontWeight: 900,
+  cursor: "pointer",
+  boxShadow: "0 12px 28px rgba(14,116,144,0.24)",
+};
 
 const dangerButtonStyle = {
   minHeight: "44px",
