@@ -1705,7 +1705,7 @@ export default function TareasPage({
         allDay: true,
         editable: !isConsultant,
         startEditable: !isConsultant,
-        durationEditable: false,
+        durationEditable: !isConsultant,
         classNames: [getStrategicEventClass({ ...t, itemType: "task" })],
         extendedProps: {
           ...t,
@@ -1817,6 +1817,85 @@ export default function TareasPage({
       info?.revert?.();
       setErrorMsg(
         error?.message || "No se pudo mover la tarea en el calendario."
+      );
+    } finally {
+      setCalendarSaving(false);
+    }
+  };
+
+  const handleCalendarEventResize = async (info) => {
+    const item = info?.event?.extendedProps || null;
+
+    if (
+      isConsultant ||
+      item?.itemType !== "task" ||
+      item?.editableFromCalendar !== true
+    ) {
+      info?.revert?.();
+      return;
+    }
+
+    const taskId = item?.id;
+    const nextStart = toYYYYMMDD(info?.event?.start);
+    const exclusiveEnd = toYYYYMMDD(info?.event?.end);
+    const nextDue = exclusiveEnd
+      ? addDaysYYYYMMDD(exclusiveEnd, -1)
+      : nextStart;
+
+    if (!taskId || !nextStart || !nextDue) {
+      info?.revert?.();
+      setErrorMsg("No se pudieron calcular las nuevas fechas de la tarea.");
+      return;
+    }
+
+    const previousTask = tasks.find(
+      (task) => String(task.id) === String(taskId)
+    );
+
+    if (!previousTask) {
+      info?.revert?.();
+      setErrorMsg("No se encontró la tarea que intentaste redimensionar.");
+      return;
+    }
+
+    const updatedTask = {
+      ...previousTask,
+      start: nextStart,
+      due: nextDue,
+    };
+
+    setCalendarSaving(true);
+    setErrorMsg("");
+
+    try {
+      const data = await apiFetch(
+        `/api/farms/${farmId}/tasks/${taskId}`,
+        {
+          method: "PUT",
+          body: JSON.stringify(updatedTask),
+        }
+      );
+
+      const savedTask = data?.task
+        ? {
+            ...data.task,
+            start: toYYYYMMDD(data.task.start),
+            due: toYYYYMMDD(data.task.due),
+            status: normalizeTaskStatus(data.task.status),
+          }
+        : updatedTask;
+
+      setTasks((currentTasks) =>
+        currentTasks.map((task) =>
+          String(task.id) === String(taskId) ? savedTask : task
+        )
+      );
+
+      fireTasksRefresh();
+    } catch (error) {
+      info?.revert?.();
+      setErrorMsg(
+        error?.message || "No se pudo cambiar la duración de la tarea."
       );
     } finally {
       setCalendarSaving(false);
@@ -3512,8 +3591,9 @@ export default function TareasPage({
               displayEventTime={false}
               editable={!isConsultant}
               eventStartEditable={!isConsultant}
-              eventDurationEditable={false}
+              eventDurationEditable={!isConsultant}
               eventDrop={handleCalendarEventDrop}
+              eventResize={handleCalendarEventResize}
               events={calendarEvents}
               eventClick={handleCalendarEventClick}
               eventContent={(arg) => {
@@ -3546,7 +3626,7 @@ export default function TareasPage({
                 <div className="calendar-loading-card">
                   <span>
                     {calendarSaving
-                      ? "Guardando nueva fecha..."
+                      ? "Guardando cambios del calendario..."
                       : "Sincronizando calendario..."}
                   </span>
                 </div>
