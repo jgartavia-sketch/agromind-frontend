@@ -224,8 +224,6 @@ function ProcessModalView({
   setNewProcessOwner,
   newProcessPriority = "Media",
   setNewProcessPriority,
-  setNewProcessStartDate,
-  setNewProcessTargetDate,
 
   newStepByProcess = {},
   openStepFormByProcess = {},
@@ -267,8 +265,7 @@ function ProcessModalView({
     const total = modalZoneProcesses.length;
     const active = modalZoneProcesses.filter((p) => p.status === "Activo").length;
     const completed = modalZoneProcesses.filter((p) => p.status === "Completado").length;
-    const pending = modalZoneProcesses.filter((p) => !p.status || p.status === "Pendiente").length;
-    return { total, active, completed, pending };
+    return { total, active, completed };
   }, [modalZoneProcesses]);
 
   const filteredProcesses = useMemo(() => {
@@ -1857,8 +1854,6 @@ export default function ProcessModal({ modalZone, onBeforeCreate }) {
   const [newProcessDescription, setNewProcessDescription] = useState("");
   const [newProcessOwner, setNewProcessOwner] = useState("");
   const [newProcessPriority, setNewProcessPriority] = useState("Media");
-  const [, setNewProcessStartDate] = useState("");
-  const [, setNewProcessTargetDate] = useState("");
 
   const [newStepByProcess, setNewStepByProcess] = useState({});
   const [openStepFormByProcess, setOpenStepFormByProcess] = useState({});
@@ -2100,8 +2095,6 @@ export default function ProcessModal({ modalZone, onBeforeCreate }) {
       setNewProcessOwner={setNewProcessOwner}
       newProcessPriority={newProcessPriority}
       setNewProcessPriority={setNewProcessPriority}
-      setNewProcessStartDate={setNewProcessStartDate}
-      setNewProcessTargetDate={setNewProcessTargetDate}
       newStepByProcess={newStepByProcess}
       openStepFormByProcess={openStepFormByProcess}
       setOpenStepFormByProcess={setOpenStepFormByProcess}
