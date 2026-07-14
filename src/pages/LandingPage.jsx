@@ -47,7 +47,7 @@ const tutorials = [
 export default function LandingPage({ hasSession = false, onOpenAccount }) {
   useEffect(() => {
     const previousTitle = document.title;
-    document.title = "AgroMind CR | La finca que piensa";
+    document.title = "AgroMind CR";
 
     return () => {
       document.title = previousTitle;
@@ -133,19 +133,12 @@ export default function LandingPage({ hasSession = false, onOpenAccount }) {
           box-shadow: 0 0 34px rgba(34,197,94,0.13);
         }
 
-        .landing-brand-copy strong,
-        .landing-brand-copy span {
+        .landing-brand-copy strong {
           display: block;
         }
 
         .landing-brand-copy strong {
           font-size: 0.98rem;
-        }
-
-        .landing-brand-copy span {
-          margin-top: 2px;
-          color: rgba(203,213,225,0.65);
-          font-size: 0.72rem;
         }
 
         .landing-nav-actions {
@@ -577,7 +570,6 @@ export default function LandingPage({ hasSession = false, onOpenAccount }) {
             min-height: 66px;
           }
 
-          .landing-brand-copy span,
           .landing-nav-actions .landing-btn-secondary {
             display: none;
           }
@@ -617,7 +609,6 @@ export default function LandingPage({ hasSession = false, onOpenAccount }) {
             <span className="landing-brand-mark">AG</span>
             <span className="landing-brand-copy">
               <strong>AgroMind CR</strong>
-              <span>La finca que piensa</span>
             </span>
           </button>
 
