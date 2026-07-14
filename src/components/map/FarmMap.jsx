@@ -34,7 +34,6 @@ const POINT_COLORS = ["#f97316", "#22c55e", "#38bdf8", "#eab308", "#ec4899"];
 const LINE_COLORS = ["#22c55e", "#38bdf8", "#f97316", "#a855f7", "#facc15"];
 const POLYGON_COLORS = ["#22c55e88", "#38bdf888", "#f9731688", "#a855f788"];
 
-const ZONE_TYPES = ["Zona de animales", "Pasillo", "Cultivo", "Zona libre"];
 const ZONE_STATUSES = ["Operativa", "Prioridad alta", "Disponible"];
 
 const COMPONENT_TYPES = [
@@ -104,35 +103,6 @@ function persistFarmLocation({ lat, lon, zoom, farmId = null, source = "map" }) 
   }
 }
 
-function toYYYYMMDD(d = new Date()) {
-  const date = d instanceof Date ? d : new Date(d);
-  if (Number.isNaN(date.getTime())) return "";
-  return date.toISOString().slice(0, 10);
-}
-
-function addDaysToYYYYMMDD(startDate, durationDays) {
-  if (!startDate) return "";
-  const days = Number(durationDays);
-  if (!Number.isFinite(days) || days < 0) return "";
-
-  const date = new Date(`${startDate}T00:00:00`);
-  if (Number.isNaN(date.getTime())) return "";
-
-  date.setDate(date.getDate() + days);
-  return toYYYYMMDD(date);
-}
-
-function getDurationDays(startDate, dueDate) {
-  if (!startDate || !dueDate) return "—";
-
-  const start = new Date(`${startDate}T00:00:00`);
-  const end = new Date(`${dueDate}T00:00:00`);
-
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return "—";
-
-  const diff = Math.round((end.getTime() - start.getTime()) / 86400000);
-  return diff >= 0 ? String(diff) : "—";
-}
 
 function pickColor(kind, colorIndexRef) {
   let palette = POINT_COLORS;
@@ -305,7 +275,6 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
   const apiKey = import.meta.env.VITE_MAPTILER_KEY;
 
   const [mapReady, setMapReady] = useState(false);
-  const [backendOnline, setBackendOnline] = useState(true);
 
   const [farmActionLoading, setFarmActionLoading] = useState(false);
   const [farmMenuOpen, setFarmMenuOpen] = useState(false);
@@ -995,13 +964,10 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
           method: "PUT",
           body: JSON.stringify(payload),
         });
-
-        setBackendOnline(true);
         dirtyRef.current = false;
         emitFarmLocationChange("autosave");
       } catch (err) {
         console.warn("Autosave backend falló:", err?.message || err);
-        setBackendOnline(false);
       }
     }, 900);
   };
@@ -1025,8 +991,6 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
       method: "PUT",
       body: JSON.stringify(payload),
     });
-
-    setBackendOnline(true);
     dirtyRef.current = false;
     emitFarmLocationChange("manual-sync");
     return true;
@@ -1092,7 +1056,6 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
     const localHasData = safeReadLocalDrawings().length > 0;
 
     if (!serverHasData && localHasData && allowLocalFallback && farmsCount <= 1) {
-      setBackendOnline(true);
       loadedOnceRef.current = true;
 
       setTimeout(() => {
@@ -1112,7 +1075,6 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
     }
 
     applyBackendMapToUI(mapRes);
-    setBackendOnline(true);
     setTimeout(() => emitFarmLocationChange("farm-load"), 0);
   };
 
@@ -1122,7 +1084,6 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
     try {
       const token = getAuthToken();
       if (!token) {
-        setBackendOnline(false);
         return;
       }
 
@@ -1143,7 +1104,6 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
 
       if (!picked?.id) {
         loadedFarmIdRef.current = null;
-        setBackendOnline(true);
         return;
       }
 
@@ -1155,7 +1115,6 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
       });
     } catch (err) {
       console.warn("Backend load falló:", err?.message || err);
-      setBackendOnline(false);
       setFarmError(err?.message || "No se pudieron cargar las fincas.");
     } finally {
       debugTimeEnd(totalTimer);
@@ -1200,7 +1159,6 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
       await loadFarmMap(farmId, { allowLocalFallback: false, farmsCount: farms.length });
     } catch (err) {
       console.warn("SELECT_FARM_ERROR:", err?.message || err);
-      setBackendOnline(false);
       setFarmError(err?.message || "No se pudo cambiar de finca.");
     } finally {
       setFarmActionLoading(false);
@@ -1257,7 +1215,6 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
       });
     } catch (err) {
       console.warn("CREATE_FARM_ERROR:", err?.message || err);
-      setBackendOnline(false);
       setFarmError(err?.message || "No se pudo crear la nueva finca.");
     } finally {
       setFarmActionLoading(false);
@@ -1322,7 +1279,6 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
       setTimeout(() => setFarmSavedNotice(""), 3500);
     } catch (err) {
       console.warn("RENAME_FARM_ERROR:", err?.message || err);
-      setBackendOnline(false);
       setFarmError(err?.message || "No se pudo renombrar la finca.");
     } finally {
       setFarmActionLoading(false);
@@ -1788,7 +1744,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
       try {
         setFarmError("");
         setListFilter({ kind: "all", status: null });
-          closeComponentsModal();
+        closeComponentsModal();
 
         await loadFarmMap(contextFarmId, {
           allowLocalFallback: false,
@@ -1796,7 +1752,6 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
         });
       } catch (err) {
         console.warn("CONTEXT_FARM_SYNC_ERROR:", err?.message || err);
-        setBackendOnline(false);
         setFarmError(err?.message || "No se pudo sincronizar el mapa con la finca activa.");
       }
     };
@@ -1966,25 +1921,6 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
     });
   };
 
-  const handleZoneTypeChange = (id, value) => {
-    if (isConsultant) return;
-    markDirty();
-
-    const feature = featuresMapRef.current[id];
-    const t = nowIso();
-    if (feature) {
-      feature.set("zoneType", value);
-      feature.set("updatedAt", t);
-    }
-
-    setFeaturesList((prev) => {
-      const updated = prev.map((item) =>
-        item.id === id ? { ...item, zoneType: value, updatedAt: t } : item
-      );
-      scheduleAutosave(updated);
-      return updated;
-    });
-  };
 
   const handleZoneStatusChange = (id, value) => {
     if (isConsultant) return;
@@ -2174,7 +2110,6 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
       emitFarmLocationChange("save-view");
     } catch (err) {
       console.warn("SAVE_FARM_VIEW_ERROR:", err?.message || err);
-      setBackendOnline(false);
       setFarmError(err?.message || "No se pudo actualizar la vista de la finca.");
     } finally {
       setFarmActionLoading(false);
