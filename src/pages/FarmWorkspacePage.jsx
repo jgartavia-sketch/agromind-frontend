@@ -44,6 +44,8 @@ export default function FarmWorkspacePage({ user, onOpenFarm, onLogout }) {
   const [farmName, setFarmName] = useState("");
   const [creating, setCreating] = useState(false);
   const [feedback, setFeedback] = useState("");
+  const [pendingFarmAction, setPendingFarmAction] = useState(null);
+  const [deleteFarmTarget, setDeleteFarmTarget] = useState(null);
 
   const adminFarms = useMemo(
     () => farms.filter((farm) => farm.role === "ADMIN"),
@@ -63,6 +65,47 @@ export default function FarmWorkspacePage({ user, onOpenFarm, onLogout }) {
     if (typeof onOpenFarm === "function") {
       onOpenFarm(farm);
     }
+  };
+
+  const handlePrepareRenameFarm = (farm) => {
+    if (!farm?.id || farm.role !== "ADMIN") return;
+
+    setPendingFarmAction({
+      type: "rename",
+      farm,
+    });
+
+    setFeedback(
+      `La acción para renombrar "${farm.name || "esta finca"}" queda preparada para el siguiente paso.`
+    );
+  };
+
+  const handlePrepareDeleteFarm = (farm) => {
+    if (!farm?.id || farm.role !== "ADMIN") return;
+
+    setPendingFarmAction({
+      type: "delete",
+      farm,
+    });
+
+    setFeedback("");
+    setDeleteFarmTarget(farm);
+  };
+
+  const handleCloseDeleteFarmModal = () => {
+    setDeleteFarmTarget(null);
+    setPendingFarmAction(null);
+  };
+
+  const handleConfirmDeleteFarm = () => {
+    if (!deleteFarmTarget?.id || deleteFarmTarget.role !== "ADMIN") return;
+
+    setFeedback(
+      `La eliminación de "${deleteFarmTarget.name || "esta finca"}" está lista para conectarse al backend en el siguiente paso.`
+    );
+
+    setDeleteFarmTarget(null);
+    setPendingFarmAction(null);
   };
 
   const handleCreateFarm = async (event) => {
@@ -351,6 +394,9 @@ export default function FarmWorkspacePage({ user, onOpenFarm, onLogout }) {
                   farm={farm}
                   label="Administrador"
                   onOpen={() => handleOpenFarm(farm)}
+                  onRename={() => handlePrepareRenameFarm(farm)}
+                  onDelete={() => handlePrepareDeleteFarm(farm)}
+                  pendingAction={pendingFarmAction}
                 />
               ))}
             </div>
@@ -403,6 +449,132 @@ export default function FarmWorkspacePage({ user, onOpenFarm, onLogout }) {
           )}
         </section>
       </main>
+
+      {deleteFarmTarget && (
+        <div
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              handleCloseDeleteFarmModal();
+            }
+          }}
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 1100,
+            display: "grid",
+            placeItems: "center",
+            padding:
+              "max(1rem, env(safe-area-inset-top, 0px)) max(1rem, env(safe-area-inset-right, 0px)) max(1rem, env(safe-area-inset-bottom, 0px)) max(1rem, env(safe-area-inset-left, 0px))",
+            background: "rgba(2,6,23,0.82)",
+            backdropFilter: "blur(10px)",
+          }}
+        >
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-farm-title"
+            style={{
+              width: "min(520px, 100%)",
+              padding: "clamp(1.2rem, 4vw, 1.8rem)",
+              borderRadius: "24px",
+              border: "1px solid rgba(248,113,113,0.30)",
+              background:
+                "linear-gradient(155deg, rgba(15,23,42,0.99), rgba(69,10,10,0.30))",
+              boxShadow: "0 34px 100px rgba(0,0,0,0.64)",
+            }}
+          >
+            <div
+              style={{
+                width: "52px",
+                height: "52px",
+                display: "grid",
+                placeItems: "center",
+                borderRadius: "16px",
+                border: "1px solid rgba(248,113,113,0.34)",
+                background: "rgba(127,29,29,0.24)",
+                fontSize: "1.4rem",
+              }}
+            >
+              🗑
+            </div>
+
+            <p
+              style={{
+                margin: "1rem 0 0.4rem",
+                color: "#fca5a5",
+                fontSize: "0.72rem",
+                fontWeight: 900,
+                letterSpacing: "0.1em",
+                textTransform: "uppercase",
+              }}
+            >
+              Acción destructiva
+            </p>
+
+            <h2 id="delete-farm-title" style={{ margin: 0, color: "#f8fafc" }}>
+              Eliminar finca
+            </h2>
+
+            <div
+              style={{
+                marginTop: "1rem",
+                padding: "0.95rem 1rem",
+                borderRadius: "16px",
+                border: "1px solid rgba(148,163,184,0.16)",
+                background: "rgba(15,23,42,0.56)",
+                color: "#cbd5e1",
+                lineHeight: 1.65,
+              }}
+            >
+              ¿Seguro que deseas eliminar{" "}
+              <strong style={{ color: "#f8fafc" }}>
+                {deleteFarmTarget.name || "esta finca"}
+              </strong>
+              ?
+            </div>
+
+            <p
+              style={{
+                margin: "1rem 0 0",
+                color: "#94a3b8",
+                lineHeight: 1.65,
+                fontSize: "0.9rem",
+              }}
+            >
+              Esta acción eliminará permanentemente la finca y toda la información
+              asociada: mapa, zonas, procesos, tareas, bitácora y finanzas. No podrá
+              recuperarse.
+            </p>
+
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "flex-end",
+                gap: "0.7rem",
+                flexWrap: "wrap",
+                marginTop: "1.35rem",
+              }}
+            >
+              <button
+                type="button"
+                onClick={handleCloseDeleteFarmModal}
+                style={secondaryButtonStyle}
+              >
+                Cancelar
+              </button>
+
+              <button
+                type="button"
+                onClick={handleConfirmDeleteFarm}
+                style={dangerButtonStyle}
+              >
+                Eliminar finca
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
 
       {isCreateOpen && (
         <div
@@ -550,7 +722,20 @@ export default function FarmWorkspacePage({ user, onOpenFarm, onLogout }) {
   );
 }
 
-function FarmCard({ farm, label, onOpen }) {
+function FarmCard({
+  farm,
+  label,
+  onOpen,
+  onRename,
+  onDelete,
+  pendingAction,
+}) {
+  const isAdminFarm = farm.role === "ADMIN";
+  const isPendingRename =
+    pendingAction?.type === "rename" && pendingAction?.farm?.id === farm.id;
+  const isPendingDelete =
+    pendingAction?.type === "delete" && pendingAction?.farm?.id === farm.id;
+
   return (
     <article
       style={{
@@ -657,6 +842,61 @@ function FarmCard({ farm, label, onOpen }) {
       >
         {farm.role === "ADMIN" ? "Abrir finca" : "Abrir en modo consulta"}
       </button>
+
+      {isAdminFarm && (
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+            gap: "0.65rem",
+            marginTop: "0.75rem",
+          }}
+        >
+          <button
+            type="button"
+            onClick={onRename}
+            aria-pressed={isPendingRename}
+            style={{
+              minHeight: "40px",
+              padding: "0.58rem 0.7rem",
+              borderRadius: "12px",
+              border: isPendingRename
+                ? "1px solid rgba(45,212,191,0.58)"
+                : "1px solid rgba(148,163,184,0.22)",
+              background: isPendingRename
+                ? "rgba(20,184,166,0.18)"
+                : "rgba(15,23,42,0.68)",
+              color: isPendingRename ? "#99f6e4" : "#cbd5e1",
+              fontWeight: 850,
+              cursor: "pointer",
+            }}
+          >
+            ✏️ Renombrar
+          </button>
+
+          <button
+            type="button"
+            onClick={onDelete}
+            aria-pressed={isPendingDelete}
+            style={{
+              minHeight: "40px",
+              padding: "0.58rem 0.7rem",
+              borderRadius: "12px",
+              border: isPendingDelete
+                ? "1px solid rgba(248,113,113,0.58)"
+                : "1px solid rgba(248,113,113,0.28)",
+              background: isPendingDelete
+                ? "rgba(127,29,29,0.34)"
+                : "rgba(127,29,29,0.16)",
+              color: "#fecaca",
+              fontWeight: 850,
+              cursor: "pointer",
+            }}
+          >
+            🗑 Eliminar
+          </button>
+        </div>
+      )}
     </article>
   );
 }
@@ -705,4 +945,17 @@ const secondaryButtonStyle = {
   color: "#cbd5e1",
   fontWeight: 800,
   cursor: "pointer",
+};
+
+
+const dangerButtonStyle = {
+  minHeight: "44px",
+  padding: "0.65rem 1rem",
+  borderRadius: "999px",
+  border: "1px solid rgba(248,113,113,0.52)",
+  background: "linear-gradient(135deg, #b91c1c, #7f1d1d)",
+  color: "#fee2e2",
+  fontWeight: 900,
+  cursor: "pointer",
+  boxShadow: "0 12px 28px rgba(127,29,29,0.26)",
 };

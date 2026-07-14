@@ -516,6 +516,16 @@ export default function FarmShell({ user, onLogout }) {
         </nav>
 
         <div className="farm-shell-right">
+          <button
+            type="button"
+            className="nav-tab"
+            onClick={() => {
+              window.location.href = "/select-farm";
+            }}
+          >
+            Cambiar finca
+          </button>
+
           {onLogout && (
             <button
               type="button"
