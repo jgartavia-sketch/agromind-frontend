@@ -335,10 +335,9 @@ export function FarmProvider({ children }) {
   }, [applyActiveFarm, refreshFarms]);
 
   useEffect(() => {
-    const token = getAuthToken();
-    authTokenRef.current = token;
+    authTokenRef.current = getAuthToken();
 
-    if (!token) {
+    if (!authTokenRef.current) {
       setFarmsState([]);
       setFarmsLoaded(true);
       return;
@@ -371,9 +370,9 @@ export function FarmProvider({ children }) {
         farms.find((farm) => farm.id === storedFarm.id) ||
         storedFarm;
 
-      const normalizedFullFarm = normalizeFarm(fullFarm);
-      activeFarmIdRef.current = normalizedFullFarm?.id || null;
-      setActiveFarmState(normalizedFullFarm);
+      const nextFarm = normalizeFarm(fullFarm);
+      activeFarmIdRef.current = nextFarm?.id || null;
+      setActiveFarmState(nextFarm);
     };
 
     const onFarmChange = (event) => {
