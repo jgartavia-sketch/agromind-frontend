@@ -36,15 +36,6 @@ const POLYGON_COLORS = ["#22c55e88", "#38bdf888", "#f9731688", "#a855f788"];
 
 const ZONE_TYPES = ["Zona de animales", "Pasillo", "Cultivo", "Zona libre"];
 const ZONE_STATUSES = ["Operativa", "Prioridad alta", "Disponible"];
-const PROCESS_PRIORITIES = ["Baja", "Media", "Alta"];
-const PROCESS_STATUSES = [
-  "Borrador",
-  "Activo",
-  "Pausado",
-  "Bloqueado",
-  "Completado",
-];
-const STEP_STATUSES = ["Pendiente", "En progreso", "Bloqueada", "Completada"];
 
 const COMPONENT_TYPES = [
   "Bebedero",
@@ -274,91 +265,6 @@ function safeReadLocalDrawings() {
   }
 }
 
-function formatProcessDate(date) {
-  if (!date) return "—";
-  try {
-    return new Date(date).toLocaleDateString("es-CR");
-  } catch {
-    return "—";
-  }
-}
-
-function getEmptyStepDraft() {
-  return {
-    name: "",
-    startDate: "",
-    durationDays: "",
-    notes: "",
-  };
-}
-
-function getProgressFromSteps(steps = []) {
-  const total = Array.isArray(steps) ? steps.length : 0;
-  if (total === 0) return 0;
-  const completed = steps.filter((s) => s?.status === "Completada").length;
-  return Math.round((completed / total) * 100);
-}
-
-function getPriorityPillStyle(priority) {
-  const v = String(priority || "Media").toLowerCase();
-  if (v === "alta") {
-    return {
-      border: "1px solid rgba(248,113,113,0.28)",
-      background: "rgba(248,113,113,0.10)",
-      color: "#fecaca",
-    };
-  }
-  if (v === "baja") {
-    return {
-      border: "1px solid rgba(96,165,250,0.28)",
-      background: "rgba(96,165,250,0.10)",
-      color: "#bfdbfe",
-    };
-  }
-  return {
-    border: "1px solid rgba(250,204,21,0.28)",
-    background: "rgba(250,204,21,0.10)",
-    color: "#fde68a",
-  };
-}
-
-function getStatusPillStyle(status) {
-  const v = String(status || "").toLowerCase();
-  if (v === "completado" || v === "completada") {
-    return {
-      border: "1px solid rgba(34,197,94,0.28)",
-      background: "rgba(34,197,94,0.10)",
-      color: "#bbf7d0",
-    };
-  }
-  if (v === "bloqueado" || v === "bloqueada") {
-    return {
-      border: "1px solid rgba(248,113,113,0.28)",
-      background: "rgba(248,113,113,0.10)",
-      color: "#fecaca",
-    };
-  }
-  if (v === "en progreso" || v === "activo") {
-    return {
-      border: "1px solid rgba(56,189,248,0.28)",
-      background: "rgba(56,189,248,0.10)",
-      color: "#bae6fd",
-    };
-  }
-  if (v === "pausado") {
-    return {
-      border: "1px solid rgba(148,163,184,0.28)",
-      background: "rgba(148,163,184,0.10)",
-      color: "#cbd5e1",
-    };
-  }
-  return {
-    border: "1px solid rgba(250,204,21,0.28)",
-    background: "rgba(250,204,21,0.10)",
-    color: "#fde68a",
-  };
-}
-
 export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
   const {
     farms,
@@ -569,360 +475,6 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
   const [componentsDraft, setComponentsDraft] = useState([]);
   const [editingNotesMap, setEditingNotesMap] = useState({});
 
-  const [zoneProcessesMap, setZoneProcessesMap] = useState({});
-  const [processesLoading, setProcessesLoading] = useState(false);
-  const [processesError, setProcessesError] = useState("");
-  const [processActionLoading, setProcessActionLoading] = useState(false);
-
-  const [showCreateProcessForm, setShowCreateProcessForm] = useState(false);
-  const [newProcessName, setNewProcessName] = useState("");
-  const [newProcessDescription, setNewProcessDescription] = useState("");
-  const [newProcessOwner, setNewProcessOwner] = useState("");
-  const [newProcessPriority, setNewProcessPriority] = useState("Media");
-  const [newProcessStartDate, setNewProcessStartDate] = useState("");
-  const [newProcessTargetDate, setNewProcessTargetDate] = useState("");
-
-  const [newStepByProcess, setNewStepByProcess] = useState({});
-  const [openStepFormByProcess, setOpenStepFormByProcess] = useState({});
-
-  const modalZone =
-    componentsModalZoneId && zonesOnly.find((z) => z.id === componentsModalZoneId);
-
-  const modalZoneProcesses = useMemo(() => {
-    if (!componentsModalZoneId) return [];
-    return zoneProcessesMap[componentsModalZoneId] || [];
-  }, [componentsModalZoneId, zoneProcessesMap]);
-
-  const updateStepDraftField = (processId, field, value) => {
-    setNewStepByProcess((prev) => ({
-      ...prev,
-      [processId]: {
-        ...getEmptyStepDraft(),
-        ...(prev[processId] || {}),
-        [field]: value,
-      },
-    }));
-  };
-
-  const loadZoneProcesses = async (zoneId) => {
-    if (!zoneId) return;
-    try {
-      setProcessesLoading(true);
-      setProcessesError("");
-
-      const data = await apiFetch(`/api/processes/zone/${zoneId}`, {
-        method: "GET",
-      });
-
-      setZoneProcessesMap((prev) => ({
-        ...prev,
-        [zoneId]: Array.isArray(data) ? data : [],
-      }));
-    } catch (err) {
-      setProcessesError(err?.message || "No se pudieron cargar los procesos.");
-      setZoneProcessesMap((prev) => ({
-        ...prev,
-        [zoneId]: [],
-      }));
-    } finally {
-      setProcessesLoading(false);
-    }
-  };
-
-  const createProcessForZone = async (processOverride = null, initialSteps = []) => {
-    if (isConsultant) return null;
-    if (!componentsModalZoneId || !modalZone) return null;
-
-    const source = processOverride || {};
-    const safeName = String(source.name ?? newProcessName).trim();
-    const safeDescription = String(source.description ?? newProcessDescription).trim();
-    const safeOwner = String(source.owner ?? newProcessOwner).trim();
-    const safePriority = source.priority || newProcessPriority || "Media";
-    const safeType = source.type || "General";
-    const safeStatus = source.status || "Borrador";
-
-    if (!safeName) {
-      setProcessesError("Escribe el nombre del proceso.");
-      return null;
-    }
-
-    try {
-      setProcessActionLoading(true);
-      setProcessesError("");
-
-      try {
-        await saveMapNow(latestFeaturesListRef.current || []);
-      } catch (err) {
-        console.warn("No se pudo sincronizar la zona antes de crear el proceso:", err);
-        setProcessesError("No se pudo sincronizar la zona antes de crear el proceso.");
-        setProcessActionLoading(false);
-        return null;
-      }
-
-      const createdProcess = await apiFetch("/api/processes", {
-        method: "POST",
-        body: JSON.stringify({
-          zoneId: componentsModalZoneId,
-          name: safeName,
-          description: safeDescription,
-          owner: safeOwner,
-          priority: safePriority,
-          startDate: null,
-          targetDate: null,
-          type: safeType,
-          status: safeStatus,
-        }),
-      });
-
-      const processId = createdProcess?.id;
-      const stepsToCreate = Array.isArray(initialSteps) ? initialSteps : [];
-
-      if (processId && stepsToCreate.length > 0) {
-        for (const [index, step] of stepsToCreate.entries()) {
-          const stepName = String(step?.name || `Etapa ${index + 1}`).trim();
-          const durationNumber = Number(step?.durationDays);
-          const calculatedDueDate =
-            step?.dueDate || addDaysToYYYYMMDD(step?.startDate, step?.durationDays);
-
-          if (!step?.startDate) {
-            throw new Error(`Selecciona la fecha de inicio de la etapa ${index + 1}.`);
-          }
-
-          if (!Number.isFinite(durationNumber) || durationNumber < 0) {
-            throw new Error(`Escribe una duración válida para la etapa ${index + 1}.`);
-          }
-
-          if (!calculatedDueDate) {
-            throw new Error(`No se pudo calcular la fecha final de la etapa ${index + 1}.`);
-          }
-
-          await apiFetch("/api/processes/step", {
-            method: "POST",
-            body: JSON.stringify({
-              processId,
-              name: stepName,
-              owner: safeOwner,
-              priority: safePriority,
-              startDate: step.startDate || null,
-              dueDate: calculatedDueDate || null,
-              notes: step.notes || "",
-              status: "Pendiente",
-            }),
-          });
-        }
-      }
-
-      setNewProcessName("");
-      setNewProcessDescription("");
-      setNewProcessOwner("");
-      setNewProcessPriority("Media");
-      setNewProcessStartDate("");
-      setNewProcessTargetDate("");
-      setShowCreateProcessForm(false);
-      await loadZoneProcesses(componentsModalZoneId);
-      return createdProcess;
-    } catch (err) {
-      setProcessesError(err?.message || "No se pudo crear el proceso.");
-      return null;
-    } finally {
-      setProcessActionLoading(false);
-    }
-  };
-
-  const createStepForProcess = async (process) => {
-    if (isConsultant) return;
-    if (!process?.id || !componentsModalZoneId) return;
-
-    const existingSteps = Array.isArray(process.steps) ? process.steps : [];
-    const nextStepNumber = existingSteps.length + 1;
-
-    const draft = {
-      ...getEmptyStepDraft(),
-      ...(newStepByProcess[process.id] || {}),
-    };
-
-    const stepName = draft.name.trim() || `Etapa ${nextStepNumber}`;
-    const durationNumber = Number(draft.durationDays);
-    const calculatedDueDate = addDaysToYYYYMMDD(
-      draft.startDate,
-      draft.durationDays
-    );
-
-    if (!draft.startDate) {
-      setProcessesError("Selecciona la fecha de inicio de la etapa.");
-      return;
-    }
-
-    if (!Number.isFinite(durationNumber) || durationNumber < 0) {
-      setProcessesError("Escribe la duración de la etapa en días.");
-      return;
-    }
-
-    if (!calculatedDueDate) {
-      setProcessesError("No se pudo calcular la fecha final de la etapa.");
-      return;
-    }
-
-    try {
-      setProcessActionLoading(true);
-      setProcessesError("");
-
-      await apiFetch("/api/processes/step", {
-        method: "POST",
-        body: JSON.stringify({
-          processId: process.id,
-          name: stepName,
-          owner: process.owner || "",
-          priority: process.priority || "Media",
-          startDate: draft.startDate || null,
-          dueDate: calculatedDueDate || null,
-          notes: draft.notes || "",
-          status: "Pendiente",
-        }),
-      });
-
-      setNewStepByProcess((prev) => ({
-        ...prev,
-        [process.id]: getEmptyStepDraft(),
-      }));
-
-      setOpenStepFormByProcess((prev) => ({
-        ...prev,
-        [process.id]: true,
-      }));
-
-      await loadZoneProcesses(componentsModalZoneId);
-    } catch (err) {
-      setProcessesError(err?.message || "No se pudo crear la etapa.");
-    } finally {
-      setProcessActionLoading(false);
-    }
-  };
-
-  const toggleStepCompletion = async (step) => {
-    if (isConsultant) return;
-    if (!step?.id || !componentsModalZoneId) return;
-
-    const isCompleted = step.status === "Completada";
-
-    try {
-      setProcessActionLoading(true);
-      setProcessesError("");
-
-      await apiFetch(`/api/processes/step/${step.id}`, {
-        method: "PUT",
-        body: JSON.stringify(
-          isCompleted
-            ? {
-                status: "Pendiente",
-                completedAt: null,
-              }
-            : {
-                status: "Completada",
-                completedAt: nowIso(),
-              }
-        ),
-      });
-
-      await loadZoneProcesses(componentsModalZoneId);
-    } catch (err) {
-      setProcessesError(
-        err?.message ||
-          (isCompleted
-            ? "No se pudo reabrir la etapa."
-            : "No se pudo completar la etapa.")
-      );
-    } finally {
-      setProcessActionLoading(false);
-    }
-  };
-
-  const updateProcessStatus = async (process, status) => {
-    if (isConsultant) return;
-    if (!process?.id || !componentsModalZoneId) return;
-
-    const currentStatus = process.status === "Completado" ? "Completado" : "Activo";
-    const nextStatus =
-      status || (currentStatus === "Completado" ? "Activo" : "Completado");
-
-    try {
-      setProcessActionLoading(true);
-      setProcessesError("");
-
-      const payload =
-        nextStatus === "Completado"
-          ? {
-              status: "Completado",
-              completedAt: nowIso(),
-            }
-          : {
-              status: "Activo",
-              completedAt: null,
-            };
-
-      await apiFetch(`/api/processes/${process.id}`, {
-        method: "PUT",
-        body: JSON.stringify(payload),
-      });
-
-      setZoneProcessesMap((prev) => {
-        const currentList = Array.isArray(prev[componentsModalZoneId])
-          ? prev[componentsModalZoneId]
-          : [];
-
-        return {
-          ...prev,
-          [componentsModalZoneId]: currentList.map((item) =>
-            item.id === process.id
-              ? {
-                  ...item,
-                  status: nextStatus,
-                  completedAt:
-                    nextStatus === "Completado" ? payload.completedAt : null,
-                }
-              : item
-          ),
-        };
-      });
-
-      await loadZoneProcesses(componentsModalZoneId);
-    } catch (err) {
-      setProcessesError(
-        err?.message ||
-          (nextStatus === "Completado"
-            ? "No se pudo completar el proceso."
-            : "No se pudo reabrir el proceso.")
-      );
-    } finally {
-      setProcessActionLoading(false);
-    }
-  };
-
-  const deleteProcess = async (process) => {
-    if (isConsultant) return;
-    if (!process?.id || !componentsModalZoneId) return;
-
-    const ok = window.confirm(
-      `¿Borrar el proceso "${process.name}"?\n\nTambién se eliminarán sus etapas.`
-    );
-    if (!ok) return;
-
-    try {
-      setProcessActionLoading(true);
-      setProcessesError("");
-
-      await apiFetch(`/api/processes/${process.id}`, {
-        method: "DELETE",
-      });
-
-      await loadZoneProcesses(componentsModalZoneId);
-    } catch (err) {
-      setProcessesError(err?.message || "No se pudo borrar el proceso.");
-    } finally {
-      setProcessActionLoading(false);
-    }
-  };
-
   const openComponentsModal = async (zoneId, view = "components") => {
     const zone = zonesOnly.find((z) => z.id === zoneId);
     if (!zone) return;
@@ -983,16 +535,6 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
     setComponentsDraft(cloned);
     setEditingNotesMap({});
     setComponentsModalOpen(true);
-    setProcessesError("");
-    setShowCreateProcessForm(false);
-    setNewProcessName("");
-    setNewProcessDescription("");
-    setNewProcessOwner("");
-    setNewProcessPriority("Media");
-    setNewProcessStartDate("");
-    setNewProcessTargetDate("");
-    setNewStepByProcess({});
-    setOpenStepFormByProcess({});
 
     setTimeout(() => forceMapResize(), 0);
 
@@ -1002,22 +544,11 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
       console.warn("No se pudo sincronizar la zona antes de cargar procesos o fotos:", err);
     }
 
-    await loadZoneProcesses(zoneId);
   };
 
   const closeComponentsModal = () => {
     setComponentsModalOpen(false);
-    setProcessesError("");
     setComponentsModalView("components");
-    setShowCreateProcessForm(false);
-    setNewProcessName("");
-    setNewProcessDescription("");
-    setNewProcessOwner("");
-    setNewProcessPriority("Media");
-    setNewProcessStartDate("");
-    setNewProcessTargetDate("");
-    setNewStepByProcess({});
-    setOpenStepFormByProcess({});
     setTimeout(() => {
       setComponentsModalZoneId(null);
       setComponentsDraft([]);
@@ -1664,7 +1195,6 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
       setEditingFarmId(null);
       setEditingFarmName("");
       setListFilter({ kind: "all", status: null });
-      setZoneProcessesMap({});
       closeComponentsModal();
 
       await loadFarmMap(farmId, { allowLocalFallback: false, farmsCount: farms.length });
@@ -1719,7 +1249,6 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
       setEditingFarmId(newFarm.id);
       setEditingFarmName(newFarm.name || name);
       setListFilter({ kind: "all", status: null });
-      setZoneProcessesMap({});
       closeComponentsModal();
 
       await loadFarmMap(newFarm.id, {
@@ -2259,8 +1788,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
       try {
         setFarmError("");
         setListFilter({ kind: "all", status: null });
-        setZoneProcessesMap({});
-        closeComponentsModal();
+          closeComponentsModal();
 
         await loadFarmMap(contextFarmId, {
           allowLocalFallback: false,
@@ -3448,9 +2976,6 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
               (selectedId === item.id ? " selected" : "") +
               (hoveredId === item.id ? " hovered" : "");
 
-            const totalComponents = Array.isArray(item.components)
-              ? item.components.length
-              : 0;
 
             return (
               <div
@@ -3831,44 +3356,10 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
                 }}
               >
                 <ProcessModal
-                  componentsModalView={componentsModalView}
                   modalZone={modalZone}
-                  modalZoneProcesses={modalZoneProcesses}
-                  processesLoading={processesLoading}
-                  processesError={processesError}
-                  processActionLoading={processActionLoading}
-                  showCreateProcessForm={showCreateProcessForm}
-                  setShowCreateProcessForm={setShowCreateProcessForm}
-                  newProcessName={newProcessName}
-                  setNewProcessName={setNewProcessName}
-                  newProcessDescription={newProcessDescription}
-                  setNewProcessDescription={setNewProcessDescription}
-                  newProcessOwner={newProcessOwner}
-                  setNewProcessOwner={setNewProcessOwner}
-                  newProcessPriority={newProcessPriority}
-                  setNewProcessPriority={setNewProcessPriority}
-                  newProcessStartDate={newProcessStartDate}
-                  setNewProcessStartDate={setNewProcessStartDate}
-                  newProcessTargetDate={newProcessTargetDate}
-                  setNewProcessTargetDate={setNewProcessTargetDate}
-                  createProcessForZone={createProcessForZone}
-                  updateProcessStatus={updateProcessStatus}
-                  deleteProcess={deleteProcess}
-                  openStepFormByProcess={openStepFormByProcess}
-                  setOpenStepFormByProcess={setOpenStepFormByProcess}
-                  newStepByProcess={newStepByProcess}
-                  updateStepDraftField={updateStepDraftField}
-                  createStepForProcess={createStepForProcess}
-                  toggleStepCompletion={toggleStepCompletion}
-                  PROCESS_PRIORITIES={PROCESS_PRIORITIES}
-                  getEmptyStepDraft={getEmptyStepDraft}
-                  getProgressFromSteps={getProgressFromSteps}
-                  getPriorityPillStyle={getPriorityPillStyle}
-                  getStatusPillStyle={getStatusPillStyle}
-                  addDaysToYYYYMMDD={addDaysToYYYYMMDD}
-                  formatProcessDate={formatProcessDate}
-                  getDurationDays={getDurationDays}
-                  nowIso={nowIso}
+                  onBeforeCreate={async () =>
+                    saveMapNow(latestFeaturesListRef.current || [])
+                  }
                 />
               </div>
 

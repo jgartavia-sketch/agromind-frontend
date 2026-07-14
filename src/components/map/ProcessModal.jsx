@@ -206,7 +206,7 @@ const tinyPillStyle = {
   fontWeight: 700,
 };
 
-export default function ProcessModal({
+function ProcessModalView({
   modalZone,
   modalZoneProcesses = [],
   processesLoading = false,
@@ -1773,3 +1773,346 @@ export default function ProcessModal({
     </div>
   );
 }
+
+function getAuthToken() {
+  return (
+    localStorage.getItem("agromind_token") ||
+    localStorage.getItem("token") ||
+    localStorage.getItem("agromind_auth_token") ||
+    localStorage.getItem("auth_token") ||
+    localStorage.getItem("jwt") ||
+    ""
+  );
+}
+
+const API_BASE =
+  import.meta.env.VITE_API_URL || "https://agromind-backend-slem.onrender.com";
+
+function looksLikeHtml(text) {
+  return typeof text === "string" && /<(!doctype|html|body|pre)/i.test(text);
+}
+
+function normalizeApiErrorMessage(status, data) {
+  if (typeof data === "string") {
+    if (
+      data.includes("Cannot GET /api/processes") ||
+      data.includes("Cannot POST /api/processes") ||
+      data.includes("Cannot DELETE /api/processes") ||
+      data.includes("Cannot PUT /api/processes")
+    ) {
+      return "El backend desplegado todavía no tiene activas las rutas del gestor de procesos.";
+    }
+
+    if (looksLikeHtml(data)) return `Error ${status || 500} del servidor.`;
+    return data;
+  }
+
+  if (data && typeof data === "object" && data.error) return data.error;
+  return "Error en request.";
+}
+
+async function apiFetch(path, options = {}) {
+  const token = getAuthToken();
+  const headers = {
+    "Content-Type": "application/json",
+    ...(options.headers || {}),
+  };
+
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  const response = await fetch(`${API_BASE}${path}`, {
+    ...options,
+    headers,
+  });
+
+  const text = await response.text();
+  let data = null;
+
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    data = text;
+  }
+
+  if (!response.ok) {
+    const error = new Error(normalizeApiErrorMessage(response.status, data));
+    error.status = response.status;
+    error.payload = data;
+    throw error;
+  }
+
+  return data;
+}
+
+export default function ProcessModal({ modalZone, onBeforeCreate }) {
+  const { isConsultant } = useFarm();
+
+  const [modalZoneProcesses, setModalZoneProcesses] = useState([]);
+  const [processesLoading, setProcessesLoading] = useState(false);
+  const [processesError, setProcessesError] = useState("");
+  const [processActionLoading, setProcessActionLoading] = useState(false);
+
+  const [showCreateProcessForm, setShowCreateProcessForm] = useState(false);
+  const [newProcessName, setNewProcessName] = useState("");
+  const [newProcessDescription, setNewProcessDescription] = useState("");
+  const [newProcessOwner, setNewProcessOwner] = useState("");
+  const [newProcessPriority, setNewProcessPriority] = useState("Media");
+  const [, setNewProcessStartDate] = useState("");
+  const [, setNewProcessTargetDate] = useState("");
+
+  const [newStepByProcess, setNewStepByProcess] = useState({});
+  const [openStepFormByProcess, setOpenStepFormByProcess] = useState({});
+
+  const loadZoneProcesses = async () => {
+    if (!modalZone?.id) return;
+
+    try {
+      setProcessesLoading(true);
+      setProcessesError("");
+
+      const data = await apiFetch(`/api/processes/zone/${modalZone.id}`);
+      setModalZoneProcesses(Array.isArray(data) ? data : []);
+    } catch (error) {
+      setProcessesError(error?.message || "No se pudieron cargar los procesos.");
+      setModalZoneProcesses([]);
+    } finally {
+      setProcessesLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    setShowCreateProcessForm(false);
+    setNewProcessName("");
+    setNewProcessDescription("");
+    setNewProcessOwner("");
+    setNewProcessPriority("Media");
+    setNewStepByProcess({});
+    setOpenStepFormByProcess({});
+    loadZoneProcesses();
+  }, [modalZone?.id]);
+
+  const updateStepDraftField = (processId, field, value) => {
+    setNewStepByProcess((previous) => ({
+      ...previous,
+      [processId]: {
+        ...getEmptyStepDraft(),
+        ...(previous[processId] || {}),
+        [field]: value,
+      },
+    }));
+  };
+
+  const createProcessForZone = async (processOverride = null, initialSteps = []) => {
+    if (isConsultant || !modalZone?.id) return null;
+
+    const source = processOverride || {};
+    const safeName = String(source.name ?? newProcessName).trim();
+    const safeDescription = String(source.description ?? newProcessDescription).trim();
+    const safeOwner = String(source.owner ?? newProcessOwner).trim();
+    const safePriority = source.priority || newProcessPriority || "Media";
+
+    if (!safeName) {
+      setProcessesError("Escribe el nombre del proceso.");
+      return null;
+    }
+
+    try {
+      setProcessActionLoading(true);
+      setProcessesError("");
+
+      if (typeof onBeforeCreate === "function") await onBeforeCreate();
+
+      const createdProcess = await apiFetch("/api/processes", {
+        method: "POST",
+        body: JSON.stringify({
+          zoneId: modalZone.id,
+          name: safeName,
+          description: safeDescription,
+          owner: safeOwner,
+          priority: safePriority,
+          startDate: null,
+          targetDate: null,
+          type: source.type || "General",
+          status: source.status || "Borrador",
+        }),
+      });
+
+      const processId = createdProcess?.id;
+      const steps = Array.isArray(initialSteps) ? initialSteps : [];
+
+      for (const [index, step] of steps.entries()) {
+        const duration = Number(step?.durationDays);
+        const dueDate = step?.dueDate || addDaysToYYYYMMDD(step?.startDate, duration);
+
+        if (!step?.startDate) throw new Error(`Selecciona la fecha de inicio de la etapa ${index + 1}.`);
+        if (!Number.isFinite(duration) || duration < 0) throw new Error(`Escribe una duración válida para la etapa ${index + 1}.`);
+        if (!dueDate) throw new Error(`No se pudo calcular la fecha final de la etapa ${index + 1}.`);
+
+        await apiFetch("/api/processes/step", {
+          method: "POST",
+          body: JSON.stringify({
+            processId,
+            name: String(step?.name || `Etapa ${index + 1}`).trim(),
+            owner: safeOwner,
+            priority: safePriority,
+            startDate: step.startDate,
+            dueDate,
+            notes: step.notes || "",
+            status: "Pendiente",
+          }),
+        });
+      }
+
+      setNewProcessName("");
+      setNewProcessDescription("");
+      setNewProcessOwner("");
+      setNewProcessPriority("Media");
+      setShowCreateProcessForm(false);
+      await loadZoneProcesses();
+      return createdProcess;
+    } catch (error) {
+      setProcessesError(error?.message || "No se pudo crear el proceso.");
+      return null;
+    } finally {
+      setProcessActionLoading(false);
+    }
+  };
+
+  const createStepForProcess = async (process) => {
+    if (isConsultant || !process?.id) return;
+
+    const existingSteps = Array.isArray(process.steps) ? process.steps : [];
+    const draft = {
+      ...getEmptyStepDraft(existingSteps.length + 1),
+      ...(newStepByProcess[process.id] || {}),
+    };
+    const duration = Number(draft.durationDays);
+    const dueDate = addDaysToYYYYMMDD(draft.startDate, draft.durationDays);
+
+    if (!draft.startDate) return setProcessesError("Selecciona la fecha de inicio de la etapa.");
+    if (!Number.isFinite(duration) || duration < 0) return setProcessesError("Escribe la duración de la etapa en días.");
+    if (!dueDate) return setProcessesError("No se pudo calcular la fecha final de la etapa.");
+
+    try {
+      setProcessActionLoading(true);
+      setProcessesError("");
+
+      await apiFetch("/api/processes/step", {
+        method: "POST",
+        body: JSON.stringify({
+          processId: process.id,
+          name: String(draft.name || `Etapa ${existingSteps.length + 1}`).trim(),
+          owner: process.owner || "",
+          priority: process.priority || "Media",
+          startDate: draft.startDate,
+          dueDate,
+          notes: draft.notes || "",
+          status: "Pendiente",
+        }),
+      });
+
+      setNewStepByProcess((previous) => ({
+        ...previous,
+        [process.id]: getEmptyStepDraft(existingSteps.length + 2),
+      }));
+      await loadZoneProcesses();
+    } catch (error) {
+      setProcessesError(error?.message || "No se pudo crear la etapa.");
+    } finally {
+      setProcessActionLoading(false);
+    }
+  };
+
+  const toggleStepCompletion = async (step) => {
+    if (isConsultant || !step?.id) return;
+    const isCompleted = step.status === "Completada";
+
+    try {
+      setProcessActionLoading(true);
+      setProcessesError("");
+      await apiFetch(`/api/processes/step/${step.id}`, {
+        method: "PUT",
+        body: JSON.stringify({
+          status: isCompleted ? "Pendiente" : "Completada",
+          completedAt: isCompleted ? null : nowIso(),
+        }),
+      });
+      await loadZoneProcesses();
+    } catch (error) {
+      setProcessesError(error?.message || "No se pudo actualizar la etapa.");
+    } finally {
+      setProcessActionLoading(false);
+    }
+  };
+
+  const updateProcessStatus = async (process, status) => {
+    if (isConsultant || !process?.id) return;
+    const nextStatus = status || (process.status === "Completado" ? "Activo" : "Completado");
+
+    try {
+      setProcessActionLoading(true);
+      setProcessesError("");
+      await apiFetch(`/api/processes/${process.id}`, {
+        method: "PUT",
+        body: JSON.stringify({
+          status: nextStatus,
+          completedAt: nextStatus === "Completado" ? nowIso() : null,
+        }),
+      });
+      await loadZoneProcesses();
+    } catch (error) {
+      setProcessesError(error?.message || "No se pudo actualizar el proceso.");
+    } finally {
+      setProcessActionLoading(false);
+    }
+  };
+
+  const deleteProcess = async (process) => {
+    if (isConsultant || !process?.id) return;
+    if (!window.confirm(`¿Borrar el proceso "${process.name}"?\n\nTambién se eliminarán sus etapas.`)) return;
+
+    try {
+      setProcessActionLoading(true);
+      setProcessesError("");
+      await apiFetch(`/api/processes/${process.id}`, { method: "DELETE" });
+      await loadZoneProcesses();
+    } catch (error) {
+      setProcessesError(error?.message || "No se pudo borrar el proceso.");
+    } finally {
+      setProcessActionLoading(false);
+    }
+  };
+
+  return (
+    <ProcessModalView
+      modalZone={modalZone}
+      modalZoneProcesses={modalZoneProcesses}
+      processesLoading={processesLoading}
+      processesError={processesError}
+      processActionLoading={processActionLoading}
+      showCreateProcessForm={showCreateProcessForm}
+      setShowCreateProcessForm={setShowCreateProcessForm}
+      newProcessName={newProcessName}
+      setNewProcessName={setNewProcessName}
+      newProcessDescription={newProcessDescription}
+      setNewProcessDescription={setNewProcessDescription}
+      newProcessOwner={newProcessOwner}
+      setNewProcessOwner={setNewProcessOwner}
+      newProcessPriority={newProcessPriority}
+      setNewProcessPriority={setNewProcessPriority}
+      setNewProcessStartDate={setNewProcessStartDate}
+      setNewProcessTargetDate={setNewProcessTargetDate}
+      newStepByProcess={newStepByProcess}
+      openStepFormByProcess={openStepFormByProcess}
+      setOpenStepFormByProcess={setOpenStepFormByProcess}
+      setProcessesError={setProcessesError}
+      updateStepDraftField={updateStepDraftField}
+      createProcessForZone={createProcessForZone}
+      createStepForProcess={createStepForProcess}
+      toggleStepCompletion={toggleStepCompletion}
+      updateProcessStatus={updateProcessStatus}
+      deleteProcess={deleteProcess}
+    />
+  );
+}
+
