@@ -15,6 +15,16 @@ function getStoredInvitationToken() {
 
 function getInitialMode() {
   try {
+    const params = new URLSearchParams(window.location.search);
+
+    if (
+      params.get("mode") === "signup" ||
+      window.location.pathname === "/register" ||
+      window.location.pathname === "/signup"
+    ) {
+      return "signup";
+    }
+
     const invitationToken = getStoredInvitationToken();
     const invitationMode = sessionStorage.getItem(INVITATION_MODE_KEY);
 
