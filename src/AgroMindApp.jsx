@@ -5,6 +5,7 @@ import LoginScreen from "./components/LoginScreen";
 import ResetPasswordScreen from "./components/ResetPasswordScreen";
 import InvitationAcceptPage from "./pages/InvitationAcceptPage";
 import FarmWorkspacePage from "./pages/FarmWorkspacePage";
+import LandingPage from "./pages/LandingPage";
 
 const RAW_API_BASE =
   import.meta.env.VITE_API_URL || "https://agromind-backend-slem.onrender.com";
@@ -13,6 +14,26 @@ const API_BASE = RAW_API_BASE.replace(/\/+$/, "");
 
 const TOKEN_KEYS = ["agromind_token", "token", "auth_token", "jwt"];
 const USER_KEYS = ["agromind_user", "user", "auth_user"];
+
+function getCurrentLocation() {
+  return {
+    pathname: window.location.pathname || "/",
+    search: window.location.search || "",
+  };
+}
+
+function navigateTo(path, options = {}) {
+  const { replace = false } = options;
+
+  if (replace) {
+    window.history.replaceState({}, "", path);
+  } else {
+    window.history.pushState({}, "", path);
+  }
+
+  window.dispatchEvent(new PopStateEvent("popstate"));
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
 
 function getStoredToken() {
   for (const k of TOKEN_KEYS) {
@@ -62,14 +83,37 @@ async function fetchWithTimeout(url, options = {}, timeoutMs = 8000) {
 }
 
 export default function AgroMindApp() {
-  const currentPath = window.location.pathname;
-  const currentParams = new URLSearchParams(window.location.search);
+  const [location, setLocation] = useState(getCurrentLocation);
+
+  useEffect(() => {
+    const handleLocationChange = () => {
+      setLocation(getCurrentLocation());
+    };
+
+    window.addEventListener("popstate", handleLocationChange);
+
+    return () => {
+      window.removeEventListener("popstate", handleLocationChange);
+    };
+  }, []);
+
+  const currentPath = location.pathname;
+  const currentParams = useMemo(
+    () => new URLSearchParams(location.search),
+    [location.search]
+  );
 
   const isResetPasswordRoute =
     currentPath === "/reset-password" && currentParams.has("token");
 
   const isInvitationAcceptRoute =
     currentPath === "/invitations/accept" && currentParams.has("token");
+
+  const isLandingRoute = currentPath === "/";
+  const isAuthRoute =
+    currentPath === "/login" ||
+    currentPath === "/register" ||
+    currentPath === "/signup";
 
   const initialSession = useMemo(() => {
     const token = getStoredToken();
@@ -175,20 +219,34 @@ export default function AgroMindApp() {
 
     setUser(u);
     setWorkspaceView("workspace");
+    navigateTo("/select-farm", { replace: true });
   };
 
   const handleLogout = () => {
     clearStoredSession();
     setUser(null);
     setWorkspaceView("workspace");
+    navigateTo("/", { replace: true });
   };
 
   const handleOpenFarm = () => {
     setWorkspaceView("farm");
+    navigateTo("/app");
   };
 
   const handleBackToWorkspace = () => {
     setWorkspaceView("workspace");
+    navigateTo("/select-farm");
+  };
+
+  const handleOpenAccountFromLanding = () => {
+    if (!user) {
+      navigateTo("/login");
+      return;
+    }
+
+    setWorkspaceView("workspace");
+    navigateTo("/select-farm");
   };
 
   if (isResetPasswordRoute) {
@@ -206,8 +264,8 @@ export default function AgroMindApp() {
           minHeight: "100vh",
           display: "grid",
           placeItems: "center",
-          background: "#f4f8f1",
-          color: "#173b1a",
+          background: "#020617",
+          color: "#e2e8f0",
           fontFamily: "system-ui, sans-serif",
         }}
       >
@@ -219,11 +277,25 @@ export default function AgroMindApp() {
     );
   }
 
+  if (isLandingRoute) {
+    return (
+      <LandingPage
+        hasSession={Boolean(user)}
+        onOpenAccount={handleOpenAccountFromLanding}
+      />
+    );
+  }
+
   if (!user) {
+    if (!isAuthRoute) {
+      navigateTo("/login", { replace: true });
+      return null;
+    }
+
     return <LoginScreen onLogin={handleLogin} />;
   }
 
-  if (workspaceView === "farm") {
+  if (currentPath === "/app" || workspaceView === "farm") {
     return (
       <FarmShell
         user={user}
