@@ -8,39 +8,39 @@ function navigateTo(path) {
 
 const features = [
   {
-    icon: "🗺️",
-    title: "Mapa inteligente",
-    text: "Organiza zonas, puntos, líneas, componentes y evidencias dentro de cada finca.",
+    number: "01",
+    title: "Entiende tu finca de un vistazo",
+    text: "Ubica zonas, cultivos, infraestructura, componentes y evidencias en un mapa construido alrededor de tu realidad.",
   },
   {
-    icon: "📅",
-    title: "Calendario Maestro",
-    text: "Coordina tareas, procesos, responsables y fechas desde una sola vista operativa.",
+    number: "02",
+    title: "Convierte el trabajo en seguimiento",
+    text: "Coordina tareas, procesos, responsables y fechas sin depender de papeles, chats dispersos o de la memoria.",
   },
   {
-    icon: "⚙️",
-    title: "Process Lab",
-    text: "Diseña procesos agrícolas por etapas y visualiza su avance en tiempo real.",
+    number: "03",
+    title: "Ordena cada proceso productivo",
+    text: "Documenta etapas, registra avances y conserva una historia operativa que mejora con cada ciclo.",
   },
   {
-    icon: "📊",
-    title: "Business Intelligence",
-    text: "Convierte la operación diaria en indicadores, reportes y mejores decisiones.",
+    number: "04",
+    title: "Decide con datos reales",
+    text: "Reúne indicadores, finanzas y actividad reciente para tomar decisiones con contexto, no con suposiciones.",
   },
 ];
 
 const tutorials = [
   {
     title: "Primeros pasos en AgroMind",
-    text: "Crea tu finca, define su ubicación y comienza a construir tu espacio de trabajo.",
+    text: "Crea tu primera finca y configura el espacio de trabajo.",
   },
   {
     title: "Mapa y zonas productivas",
-    text: "Aprende a representar la finca y organizar visualmente sus áreas y componentes.",
+    text: "Representa tu finca y organiza sus áreas productivas.",
   },
   {
     title: "Tareas y procesos",
-    text: "Planifica actividades, asigna responsables y controla el avance operativo.",
+    text: "Planifica actividades, responsables y procesos agrícolas.",
   },
 ];
 
@@ -81,15 +81,12 @@ export default function LandingPage({ hasSession = false, onOpenAccount }) {
           min-height: 100vh;
           overflow-x: hidden;
           color: #e2e8f0;
-          background:
-            radial-gradient(circle at 10% 0%, rgba(34,197,94,0.15), transparent 30%),
-            radial-gradient(circle at 90% 12%, rgba(20,184,166,0.12), transparent 26%),
-            linear-gradient(180deg, #020617, #07111f 52%, #020617);
+          background: #07110d;
           font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
         }
 
         .landing-container {
-          width: min(1180px, calc(100% - 32px));
+          width: min(1200px, calc(100% - 40px));
           margin: 0 auto;
         }
 
@@ -98,7 +95,7 @@ export default function LandingPage({ hasSession = false, onOpenAccount }) {
           top: 0;
           z-index: 50;
           border-bottom: 1px solid rgba(148,163,184,0.12);
-          background: rgba(2,6,23,0.78);
+          background: rgba(7,17,13,0.88);
           backdrop-filter: blur(18px);
         }
 
@@ -123,7 +120,7 @@ export default function LandingPage({ hasSession = false, onOpenAccount }) {
           height: 42px;
           display: grid;
           place-items: center;
-          border-radius: 15px;
+          border-radius: 50%;
           border: 1px solid rgba(34,197,94,0.30);
           background: linear-gradient(135deg, rgba(34,197,94,0.24), rgba(20,184,166,0.10));
           color: #bbf7d0;
@@ -168,7 +165,7 @@ export default function LandingPage({ hasSession = false, onOpenAccount }) {
 
         .landing-btn-primary {
           border-color: rgba(34,197,94,0.38);
-          background: linear-gradient(135deg, #16a34a, #0f766e);
+          background: #22a65a;
           color: #f8fafc;
           box-shadow: 0 14px 34px rgba(34,197,94,0.20);
         }
@@ -190,12 +187,17 @@ export default function LandingPage({ hasSession = false, onOpenAccount }) {
 
         .landing-hero {
           position: relative;
-          padding: clamp(72px, 10vw, 128px) 0 74px;
+          padding: clamp(70px, 9vw, 118px) 0 96px;
+          border-bottom: 1px solid rgba(226,232,240,0.08);
+          background:
+            linear-gradient(90deg, rgba(7,17,13,0.98) 0%, rgba(7,17,13,0.87) 50%, rgba(7,17,13,0.40) 100%),
+            radial-gradient(circle at 88% 42%, rgba(68,160,91,0.30), transparent 35%),
+            linear-gradient(145deg, #102b1e, #07110d 62%);
         }
 
         .landing-hero-grid {
           display: grid;
-          grid-template-columns: minmax(0, 1.1fr) minmax(340px, 0.9fr);
+          grid-template-columns: minmax(0, 1.05fr) minmax(360px, 0.95fr);
           gap: clamp(38px, 6vw, 76px);
           align-items: center;
         }
@@ -206,8 +208,9 @@ export default function LandingPage({ hasSession = false, onOpenAccount }) {
           gap: 8px;
           padding: 8px 12px;
           border-radius: 999px;
-          border: 1px solid rgba(34,197,94,0.24);
-          background: rgba(34,197,94,0.08);
+          border: 0;
+          padding-left: 0;
+          background: transparent;
           color: #bbf7d0;
           font-size: 0.76rem;
           font-weight: 900;
@@ -219,14 +222,14 @@ export default function LandingPage({ hasSession = false, onOpenAccount }) {
           margin: 22px 0 0;
           max-width: 760px;
           color: #f8fafc;
-          font-size: clamp(2.8rem, 7vw, 5.8rem);
-          line-height: 0.98;
-          letter-spacing: -0.065em;
+          font-size: clamp(2.8rem, 6vw, 5.25rem);
+          line-height: 1.01;
+          letter-spacing: -0.055em;
         }
 
         .landing-title span {
-          color: #4ade80;
-          text-shadow: 0 0 34px rgba(34,197,94,0.23);
+          color: #78d996;
+          text-shadow: none;
         }
 
         .landing-lead {
@@ -264,12 +267,13 @@ export default function LandingPage({ hasSession = false, onOpenAccount }) {
           position: relative;
           min-height: 470px;
           padding: 18px;
-          border-radius: 32px;
+          border-radius: 18px;
           border: 1px solid rgba(34,197,94,0.20);
           background:
             radial-gradient(circle at 20% 0%, rgba(34,197,94,0.18), transparent 34%),
             linear-gradient(145deg, rgba(15,23,42,0.98), rgba(2,6,23,0.96));
-          box-shadow: 0 36px 100px rgba(0,0,0,0.48), 0 0 60px rgba(34,197,94,0.08);
+          box-shadow: 0 30px 70px rgba(0,0,0,0.38);
+          transform: rotate(1deg);
           overflow: hidden;
         }
 
@@ -375,7 +379,7 @@ export default function LandingPage({ hasSession = false, onOpenAccount }) {
         }
 
         .landing-section {
-          padding: 82px 0;
+          padding: 104px 0;
         }
 
         .landing-section-header {
@@ -386,7 +390,7 @@ export default function LandingPage({ hasSession = false, onOpenAccount }) {
         .landing-section-header h2 {
           margin: 0;
           color: #f8fafc;
-          font-size: clamp(2rem, 4vw, 3.4rem);
+          font-size: clamp(2.1rem, 4vw, 3.8rem);
           letter-spacing: -0.05em;
         }
 
@@ -398,25 +402,25 @@ export default function LandingPage({ hasSession = false, onOpenAccount }) {
 
         .landing-features-grid {
           display: grid;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-          gap: 16px;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 0;
+          border-top: 1px solid rgba(226,232,240,0.14);
         }
 
         .landing-feature-card {
-          min-height: 220px;
-          padding: 24px;
-          border-radius: 26px;
-          border: 1px solid rgba(148,163,184,0.13);
-          background:
-            radial-gradient(circle at 8% 0%, rgba(34,197,94,0.10), transparent 30%),
-            rgba(15,23,42,0.54);
+          min-height: 270px;
+          padding: 30px 26px 20px;
+          border-radius: 0;
+          border: 0;
+          border-right: 1px solid rgba(226,232,240,0.10);
+          background: transparent;
           transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
         }
 
         .landing-feature-card:hover {
-          transform: translateY(-3px);
-          border-color: rgba(34,197,94,0.26);
-          box-shadow: 0 22px 52px rgba(0,0,0,0.26);
+          transform: translateY(-4px);
+          background: rgba(255,255,255,0.025);
+          box-shadow: none;
         }
 
         .landing-feature-icon {
@@ -424,10 +428,15 @@ export default function LandingPage({ hasSession = false, onOpenAccount }) {
           height: 48px;
           display: grid;
           place-items: center;
-          border-radius: 17px;
-          border: 1px solid rgba(34,197,94,0.22);
-          background: rgba(34,197,94,0.10);
-          font-size: 1.25rem;
+          width: auto;
+          height: auto;
+          display: block;
+          border: 0;
+          background: transparent;
+          color: #67c787;
+          font-size: 0.78rem;
+          font-weight: 900;
+          letter-spacing: 0.12em;
         }
 
         .landing-feature-card h3 {
@@ -450,7 +459,7 @@ export default function LandingPage({ hasSession = false, onOpenAccount }) {
 
         .landing-tutorial-card {
           overflow: hidden;
-          border-radius: 24px;
+          border-radius: 16px;
           border: 1px solid rgba(148,163,184,0.13);
           background: rgba(15,23,42,0.56);
         }
@@ -477,6 +486,80 @@ export default function LandingPage({ hasSession = false, onOpenAccount }) {
           font-size: 1.15rem;
           box-shadow: 0 0 38px rgba(34,197,94,0.18);
         }
+
+        .landing-video-label {
+          position: absolute;
+          left: 16px;
+          top: 16px;
+          padding: 6px 9px;
+          border-radius: 999px;
+          background: rgba(7,17,13,0.78);
+          color: #bbf7d0;
+          font-size: 0.68rem;
+          font-weight: 850;
+          letter-spacing: 0.06em;
+          text-transform: uppercase;
+        }
+
+        .landing-collaboration {
+          background: #edf4ec;
+          color: #13261a;
+        }
+
+        .landing-collaboration-grid {
+          display: grid;
+          grid-template-columns: 0.9fr 1.1fr;
+          gap: clamp(40px, 8vw, 100px);
+          align-items: center;
+        }
+
+        .landing-collaboration h2 {
+          margin: 0;
+          color: #102419;
+          font-size: clamp(2.2rem, 4vw, 4rem);
+          line-height: 1.04;
+          letter-spacing: -0.055em;
+        }
+
+        .landing-collaboration p {
+          color: #496052;
+          line-height: 1.75;
+        }
+
+        .landing-access-list {
+          display: grid;
+          gap: 12px;
+        }
+
+        .landing-access-item {
+          padding: 19px 0;
+          display: grid;
+          grid-template-columns: 42px 1fr;
+          gap: 16px;
+          border-bottom: 1px solid rgba(16,36,25,0.14);
+        }
+
+        .landing-access-item strong,
+        .landing-access-item span { display: block; }
+        .landing-access-item strong { color: #183e27; }
+        .landing-access-item span { margin-top: 5px; color: #5b6d61; line-height: 1.55; }
+        .landing-access-number { color: #229551; font-weight: 900; }
+
+        .landing-trust {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 16px;
+          margin-top: 34px;
+        }
+
+        .landing-trust-block {
+          padding: 24px;
+          border-left: 2px solid #32b867;
+          background: rgba(255,255,255,0.035);
+        }
+
+        .landing-trust-block strong { display: block; color: #f8fafc; }
+        .landing-trust-block span { display: block; margin-top: 7px; color: rgba(203,213,225,0.70); line-height: 1.55; }
 
         .landing-tutorial-copy {
           padding: 20px;
@@ -555,6 +638,9 @@ export default function LandingPage({ hasSession = false, onOpenAccount }) {
             grid-template-columns: 1fr 1fr;
           }
 
+          .landing-features-grid { grid-template-columns: 1fr 1fr; }
+          .landing-collaboration-grid { grid-template-columns: 1fr; }
+
           .landing-cta-card {
             align-items: flex-start;
             flex-direction: column;
@@ -583,6 +669,9 @@ export default function LandingPage({ hasSession = false, onOpenAccount }) {
           .landing-product-stats {
             grid-template-columns: 1fr;
           }
+
+          .landing-trust { grid-template-columns: 1fr; }
+          .landing-feature-card { min-height: auto; border-right: 0; border-bottom: 1px solid rgba(226,232,240,0.10); }
 
           .landing-product-map {
             height: 220px;
@@ -640,13 +729,12 @@ export default function LandingPage({ hasSession = false, onOpenAccount }) {
             <span className="landing-eyebrow">Tecnología agrícola desde Costa Rica</span>
 
             <h1 className="landing-title">
-              La finca no solo produce. <span>También piensa.</span>
+              Tu finca tiene una historia. <span>AgroMind la convierte en dirección.</span>
             </h1>
 
             <p className="landing-lead">
-              AgroMind reúne el mapa, las tareas, los procesos, el clima y los
-              indicadores de tu operación en un solo espacio. Menos improvisación,
-              más control y mejores decisiones.
+              Reúne el mapa, las tareas, los procesos, el clima y los números de tu
+              operación en un solo lugar. Para trabajar con orden hoy y decidir mejor mañana.
             </p>
 
             <div className="landing-hero-actions">
@@ -670,9 +758,9 @@ export default function LandingPage({ hasSession = false, onOpenAccount }) {
             </div>
 
             <div className="landing-proof">
-              <span>✓ Arquitectura multi-finca</span>
-              <span>✓ Gestión colaborativa</span>
-              <span>✓ Diseñado para el trabajo real</span>
+              <span>✓ Varias fincas, una sola cuenta</span>
+              <span>✓ Consultores con acceso controlado</span>
+              <span>✓ Soporte cuando lo necesités</span>
             </div>
           </div>
 
@@ -712,17 +800,17 @@ export default function LandingPage({ hasSession = false, onOpenAccount }) {
       <section className="landing-section" id="funciones">
         <div className="landing-container">
           <div className="landing-section-header">
-            <h2>Una operación conectada de principio a fin.</h2>
+            <h2>Del terreno a la decisión, sin perder el hilo.</h2>
             <p>
-              Cada módulo comparte la misma finca, las mismas zonas y el mismo
-              contexto operativo. La información deja de vivir en islas.
+              AgroMind conecta lo que pasa en el campo con lo que necesitás saber
+              para dirigir la operación. Cada registro suma contexto y reduce improvisación.
             </p>
           </div>
 
           <div className="landing-features-grid">
             {features.map((feature) => (
               <article key={feature.title} className="landing-feature-card">
-                <span className="landing-feature-icon">{feature.icon}</span>
+                <span className="landing-feature-icon">{feature.number}</span>
                 <h3>{feature.title}</h3>
                 <p>{feature.text}</p>
               </article>
@@ -731,13 +819,41 @@ export default function LandingPage({ hasSession = false, onOpenAccount }) {
         </div>
       </section>
 
+      <section className="landing-section landing-collaboration">
+        <div className="landing-container landing-collaboration-grid">
+          <div>
+            <span className="landing-eyebrow" style={{ color: "#23834a" }}>Hecho para trabajar en equipo</span>
+            <h2>Tu operación crece. El control también.</h2>
+            <p>
+              Administrá varias fincas desde una sola cuenta e incorporá consultores
+              sin entregarles las llaves de toda la operación. Cada persona ve lo necesario.
+            </p>
+          </div>
+
+          <div className="landing-access-list">
+            <div className="landing-access-item">
+              <span className="landing-access-number">01</span>
+              <div><strong>Gestión multifinca</strong><span>Cambiá de finca sin mezclar mapas, tareas, procesos ni información financiera.</span></div>
+            </div>
+            <div className="landing-access-item">
+              <span className="landing-access-number">02</span>
+              <div><strong>Consultoría con límites claros</strong><span>Invitá profesionales con una vista controlada y mantené la administración bajo tu mando.</span></div>
+            </div>
+            <div className="landing-access-item">
+              <span className="landing-access-number">03</span>
+              <div><strong>Información que permanece</strong><span>Construí una memoria operativa útil para la próxima temporada, el próximo equipo y la próxima decisión.</span></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section className="landing-section" id="tutoriales">
         <div className="landing-container">
           <div className="landing-section-header">
-            <h2>Aprende AgroMind a tu ritmo.</h2>
+            <h2>Aprendé AgroMind a tu ritmo.</h2>
             <p>
-              Esta sección queda preparada para publicar tutoriales, demostraciones,
-              capacitaciones y novedades del producto.
+              Muy pronto encontrarás aquí guías breves conectadas con nuestro canal de YouTube.
+              Sin manuales eternos: mirás, aplicás y seguís trabajando.
             </p>
           </div>
 
@@ -745,6 +861,7 @@ export default function LandingPage({ hasSession = false, onOpenAccount }) {
             {tutorials.map((tutorial) => (
               <article key={tutorial.title} className="landing-tutorial-card">
                 <div className="landing-video-placeholder">
+                  <span className="landing-video-label">Próximamente en YouTube</span>
                   <span className="landing-play">▶</span>
                 </div>
                 <div className="landing-tutorial-copy">
@@ -754,6 +871,17 @@ export default function LandingPage({ hasSession = false, onOpenAccount }) {
               </article>
             ))}
           </div>
+
+          <div className="landing-trust">
+            <div className="landing-trust-block">
+              <strong>No estás solo frente a la plataforma</strong>
+              <span>Te acompañamos con soporte 24/7 para que una duda no detenga el trabajo de tu finca.</span>
+            </div>
+            <div className="landing-trust-block">
+              <strong>Creado desde Costa Rica para el trabajo real</strong>
+              <span>Una herramienta que entiende que la agricultura sucede en movimiento, no detrás de un escritorio.</span>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -761,8 +889,8 @@ export default function LandingPage({ hasSession = false, onOpenAccount }) {
         <div className="landing-container">
           <div className="landing-cta-card">
             <div>
-              <h2>Tu finca ya genera datos. Es hora de convertirlos en dirección.</h2>
-              <p>AgroMind CR: más que software, un aliado estratégico.</p>
+              <h2>El futuro de tu finca empieza con ordenar lo que sucede hoy.</h2>
+              <p>Creá tu espacio y comenzá a construir una operación más clara, conectada y rentable.</p>
             </div>
 
             <button
