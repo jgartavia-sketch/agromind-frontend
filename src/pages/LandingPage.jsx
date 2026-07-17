@@ -11,21 +11,29 @@ const features = [
     icon: "🗺️",
     title: "Mapa inteligente",
     text: "Organiza zonas, puntos, líneas, componentes y evidencias dentro de cada finca.",
+    benefit:
+      "Visualizá la distribución real de la finca, detectá zonas prioritarias y conservá evidencias de cada componente.",
   },
   {
     icon: "📅",
     title: "Calendario Maestro",
     text: "Coordina tareas, procesos, responsables y fechas desde una sola vista operativa.",
+    benefit:
+      "Anticipá pendientes, evitá atrasos y mantené a cada responsable alineado con el trabajo programado.",
   },
   {
     icon: "⚙️",
     title: "Process Lab",
     text: "Diseña procesos agrícolas por etapas y visualiza su avance en tiempo real.",
+    benefit:
+      "Estandarizá procesos, identificá etapas detenidas y reutilizá el conocimiento adquirido en futuros ciclos.",
   },
   {
     icon: "📊",
     title: "Business Intelligence",
     text: "Convierte la operación diaria en indicadores, reportes y mejores decisiones.",
+    benefit:
+      "Registrá ingresos y gastos, respaldá la información de la sección Finanzas y convertí los movimientos de tu operación en indicadores para tomar mejores decisiones.",
   },
 ];
 
@@ -440,19 +448,26 @@ export default function LandingPage({ hasSession = false, onOpenAccount }) {
 
         .landing-feature-card {
           min-height: 220px;
+          max-height: 220px;
           padding: 24px;
           border-radius: 24px 24px 24px 8px;
           border: 1px solid rgba(148,163,184,0.13);
           background:
             linear-gradient(135deg, rgba(34,197,94,0.08), transparent 38%),
             linear-gradient(145deg, rgba(15,31,40,0.88), rgba(8,18,29,0.78));
-          transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+          overflow: hidden;
+          cursor: pointer;
+          transition: transform 240ms ease, border-color 240ms ease, box-shadow 240ms ease, max-height 320ms ease, min-height 320ms ease;
         }
 
-        .landing-feature-card:hover {
+        .landing-feature-card:hover,
+        .landing-feature-card:focus {
           transform: translateY(-3px);
           border-color: rgba(34,197,94,0.26);
           box-shadow: 0 24px 55px rgba(0,0,0,0.28);
+          min-height: 310px;
+          max-height: 360px;
+          outline: none;
         }
 
         .landing-feature-icon {
@@ -476,6 +491,39 @@ export default function LandingPage({ hasSession = false, onOpenAccount }) {
           margin: 10px 0 0;
           color: rgba(203,213,225,0.70);
           line-height: 1.65;
+        }
+
+        .landing-feature-benefit {
+          margin-top: 0;
+          padding-top: 0;
+          max-height: 0;
+          overflow: hidden;
+          border-top: 1px solid transparent;
+          color: rgba(187,247,208,0.86);
+          font-size: 0.9rem;
+          line-height: 1.6;
+          opacity: 0;
+          transform: translateY(10px);
+          transition: opacity 220ms ease, transform 260ms ease, max-height 320ms ease, margin-top 260ms ease, padding-top 260ms ease, border-color 260ms ease;
+        }
+
+        .landing-feature-card:hover .landing-feature-benefit,
+        .landing-feature-card:focus .landing-feature-benefit {
+          margin-top: 18px;
+          padding-top: 16px;
+          max-height: 150px;
+          border-top-color: rgba(74,222,128,0.18);
+          opacity: 1;
+          transform: translateY(0);
+        }
+
+        .landing-feature-benefit strong {
+          display: block;
+          margin-bottom: 5px;
+          color: #4ade80;
+          font-size: 0.72rem;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
         }
 
         .landing-tutorial-grid {
@@ -724,6 +772,16 @@ export default function LandingPage({ hasSession = false, onOpenAccount }) {
           .landing-section {
             padding: 62px 0;
           }
+
+          .landing-feature-card {
+            min-height: 220px;
+            max-height: 220px;
+          }
+
+          .landing-feature-card:focus {
+            min-height: 330px;
+            max-height: 390px;
+          }
         }
       `}</style>
 
@@ -775,7 +833,7 @@ export default function LandingPage({ hasSession = false, onOpenAccount }) {
             </h1>
 
             <p className="landing-lead">
-              AgroMind es el asistente digital que reúne fincas, mapas, tareas,
+              AgroMind es el asistente digital que reúne fincas, mapas satelitales, tareas,
               procesos, clima, finanzas e indicadores en una sola plataforma.
               Administrá varias fincas, trabajá con consultores mediante accesos
               controlados y contá con soporte 24/7 cuando lo necesités.
@@ -855,10 +913,19 @@ export default function LandingPage({ hasSession = false, onOpenAccount }) {
 
           <div className="landing-features-grid">
             {features.map((feature) => (
-              <article key={feature.title} className="landing-feature-card">
+              <article
+                key={feature.title}
+                className="landing-feature-card"
+                tabIndex={0}
+                aria-label={`${feature.title}. Tocá o pasá el cursor para conocer su beneficio.`}
+              >
                 <span className="landing-feature-icon">{feature.icon}</span>
                 <h3>{feature.title}</h3>
                 <p>{feature.text}</p>
+                <div className="landing-feature-benefit">
+                  <strong>Beneficio</strong>
+                  {feature.benefit}
+                </div>
               </article>
             ))}
           </div>
@@ -868,10 +935,10 @@ export default function LandingPage({ hasSession = false, onOpenAccount }) {
       <section className="landing-section" id="tutoriales">
         <div className="landing-container">
           <div className="landing-section-header">
-            <h2>Aprendé AgroMind a tu ritmo.</h2>
+            <h2>Empezá en minutos. Nosotros te guiamos.</h2>
             <p>
-              Esta sección queda preparada para publicar tutoriales, demostraciones,
-              capacitaciones y novedades del producto.
+              Descubrí cada función con tutoriales breves, claros y prácticos.
+              AgroMind está diseñado para que ordenar tu operación sea fácil desde el primer día.
             </p>
           </div>
 
@@ -934,8 +1001,8 @@ export default function LandingPage({ hasSession = false, onOpenAccount }) {
         <div className="landing-container">
           <div className="landing-cta-card">
             <div>
-              <h2>Tu finca ya genera datos. Es hora de convertirlos en dirección.</h2>
-              <p>AgroMind CR: más que software, un aliado estratégico.</p>
+              <h2>Unite a la nueva generación de gestión agropecuaria.</h2>
+              <p>Más orden, más control y mejores decisiones para el futuro de tu operación.</p>
             </div>
 
             <button
