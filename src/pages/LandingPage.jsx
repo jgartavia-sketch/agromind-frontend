@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 function navigateTo(path) {
   window.history.pushState({}, "", path);
@@ -53,6 +53,8 @@ const tutorials = [
 ];
 
 export default function LandingPage({ hasSession = false, onOpenAccount }) {
+  const [activeFeature, setActiveFeature] = useState(null);
+
   useEffect(() => {
     const previousTitle = document.title;
     document.title = "AgroMind CR";
@@ -461,7 +463,8 @@ export default function LandingPage({ hasSession = false, onOpenAccount }) {
         }
 
         .landing-feature-card:hover,
-        .landing-feature-card:focus {
+        .landing-feature-card:focus,
+        .landing-feature-card.is-active {
           transform: translateY(-3px);
           border-color: rgba(34,197,94,0.26);
           box-shadow: 0 24px 55px rgba(0,0,0,0.28);
@@ -508,7 +511,8 @@ export default function LandingPage({ hasSession = false, onOpenAccount }) {
         }
 
         .landing-feature-card:hover .landing-feature-benefit,
-        .landing-feature-card:focus .landing-feature-benefit {
+        .landing-feature-card:focus .landing-feature-benefit,
+        .landing-feature-card.is-active .landing-feature-benefit {
           margin-top: 18px;
           padding-top: 16px;
           max-height: 150px;
@@ -715,6 +719,20 @@ export default function LandingPage({ hasSession = false, onOpenAccount }) {
           flex-wrap: wrap;
         }
 
+        @media (max-width: 1100px) {
+          .landing-title {
+            font-size: clamp(2.8rem, 6.8vw, 4.6rem);
+          }
+
+          .landing-hero-grid {
+            gap: 34px;
+          }
+
+          .landing-product-frame {
+            padding: 15px;
+          }
+        }
+
         @media (max-width: 900px) {
           .landing-hero-grid {
             grid-template-columns: 1fr;
@@ -722,6 +740,8 @@ export default function LandingPage({ hasSession = false, onOpenAccount }) {
 
           .landing-product-frame {
             min-height: 430px;
+            width: min(100%, 680px);
+            margin: 0 auto;
           }
 
           .landing-tutorial-grid {
@@ -735,6 +755,10 @@ export default function LandingPage({ hasSession = false, onOpenAccount }) {
 
           .landing-purpose-grid {
             grid-template-columns: 1fr;
+          }
+
+          .landing-purpose-intro {
+            max-width: 680px;
           }
         }
 
@@ -752,7 +776,8 @@ export default function LandingPage({ hasSession = false, onOpenAccount }) {
           }
 
           .landing-title {
-            font-size: clamp(2.65rem, 14vw, 4.5rem);
+            font-size: clamp(2.55rem, 13vw, 4.35rem);
+            letter-spacing: -0.05em;
           }
 
           .landing-features-grid,
@@ -763,6 +788,10 @@ export default function LandingPage({ hasSession = false, onOpenAccount }) {
 
           .landing-product-map {
             height: 220px;
+          }
+
+          .landing-product-frame {
+            min-height: 0;
           }
 
           .landing-hero-actions .landing-btn {
@@ -778,9 +807,228 @@ export default function LandingPage({ hasSession = false, onOpenAccount }) {
             max-height: 220px;
           }
 
+          .landing-feature-card.is-active {
+            min-height: 0;
+            max-height: 680px;
+          }
+        }
+
+        @media (hover: none) and (pointer: coarse) {
+          .landing-feature-card:hover,
           .landing-feature-card:focus {
-            min-height: 330px;
-            max-height: 390px;
+            min-height: 220px;
+            max-height: 220px;
+            transform: none;
+            border-color: rgba(148,163,184,0.13);
+            box-shadow: none;
+          }
+
+          .landing-feature-card:hover .landing-feature-benefit,
+          .landing-feature-card:focus .landing-feature-benefit {
+            margin-top: 0;
+            padding-top: 0;
+            max-height: 0;
+            border-top-color: transparent;
+            opacity: 0;
+            transform: translateY(10px);
+          }
+
+          .landing-feature-card.is-active {
+            min-height: 0;
+            max-height: 680px;
+            transform: none;
+            border-color: rgba(34,197,94,0.26);
+            box-shadow: 0 18px 42px rgba(0,0,0,0.22);
+          }
+
+          .landing-feature-card.is-active .landing-feature-benefit {
+            margin-top: 18px;
+            padding-top: 16px;
+            max-height: 300px;
+            border-top-color: rgba(74,222,128,0.18);
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        @media (max-width: 480px) {
+          .landing-container {
+            width: min(100% - 18px, 1180px);
+          }
+
+          .landing-nav-inner {
+            min-height: 62px;
+            gap: 8px;
+          }
+
+          .landing-brand {
+            gap: 8px;
+          }
+
+          .landing-brand-mark {
+            width: 38px;
+            height: 38px;
+          }
+
+          .landing-brand-copy strong {
+            font-size: 0.88rem;
+          }
+
+          .landing-nav-actions {
+            gap: 6px;
+          }
+
+          .landing-nav-actions .landing-btn-primary {
+            min-height: 40px;
+            padding: 0 12px;
+            font-size: 0.8rem;
+          }
+
+          .landing-hero {
+            padding: 54px 0 58px;
+          }
+
+          .landing-eyebrow {
+            padding: 7px 10px;
+            font-size: 0.66rem;
+            line-height: 1.45;
+          }
+
+          .landing-title {
+            margin-top: 18px;
+            font-size: clamp(2.3rem, 12.5vw, 3.45rem);
+          }
+
+          .landing-lead {
+            margin-top: 20px;
+            font-size: 0.96rem;
+            line-height: 1.65;
+          }
+
+          .landing-proof {
+            display: grid;
+            gap: 10px;
+          }
+
+          .landing-product-frame {
+            padding: 12px;
+            border-radius: 22px 22px 22px 8px;
+          }
+
+          .landing-product-toolbar {
+            align-items: flex-start;
+          }
+
+          .landing-product-chip {
+            max-width: 72%;
+            text-align: right;
+          }
+
+          .landing-product-map {
+            height: 190px;
+          }
+
+          .landing-mini-card {
+            min-height: 82px;
+          }
+
+          .landing-mini-card strong {
+            margin-top: 7px;
+          }
+
+          .landing-section {
+            padding: 54px 0;
+          }
+
+          .landing-section-header {
+            margin-bottom: 24px;
+          }
+
+          .landing-section-header h2,
+          .landing-purpose-intro h2,
+          .landing-cta-card h2 {
+            font-size: clamp(1.9rem, 9vw, 2.7rem);
+          }
+
+          .landing-feature-card,
+          .landing-purpose-card,
+          .landing-tutorial-copy {
+            padding: 20px;
+          }
+
+          .landing-feature-card {
+            min-height: 205px;
+            max-height: 205px;
+          }
+
+          .landing-feature-card.is-active {
+            min-height: 0;
+            max-height: 720px;
+          }
+
+          .landing-purpose-card p {
+            font-size: 0.96rem;
+          }
+
+          .landing-cta {
+            padding: 58px 0 70px;
+          }
+
+          .landing-cta-card {
+            padding: 26px 20px;
+            border-radius: 24px 24px 24px 8px;
+          }
+
+          .landing-cta-card .landing-btn {
+            width: 100%;
+          }
+
+          .landing-footer-inner {
+            flex-direction: column;
+            text-align: center;
+          }
+        }
+
+        @media (max-width: 360px) {
+          .landing-brand-copy strong {
+            max-width: 76px;
+            line-height: 1.05;
+          }
+
+          .landing-nav-actions .landing-btn-primary {
+            padding: 0 10px;
+            font-size: 0.74rem;
+          }
+
+          .landing-title {
+            font-size: 2.25rem;
+          }
+
+          .landing-product-map {
+            height: 170px;
+          }
+        }
+
+        @media (max-height: 520px) and (orientation: landscape) {
+          .landing-nav {
+            position: relative;
+          }
+
+          .landing-hero {
+            padding-top: 46px;
+          }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          html {
+            scroll-behavior: auto;
+          }
+
+          .landing-btn,
+          .landing-feature-card,
+          .landing-feature-benefit,
+          .landing-tutorial-card {
+            transition: none;
           }
         }
       `}</style>
@@ -915,9 +1163,26 @@ export default function LandingPage({ hasSession = false, onOpenAccount }) {
             {features.map((feature) => (
               <article
                 key={feature.title}
-                className="landing-feature-card"
+                className={`landing-feature-card ${
+                  activeFeature === feature.title ? "is-active" : ""
+                }`}
                 tabIndex={0}
+                role="button"
+                aria-expanded={activeFeature === feature.title}
                 aria-label={`${feature.title}. Tocá o pasá el cursor para conocer su beneficio.`}
+                onClick={() =>
+                  setActiveFeature((current) =>
+                    current === feature.title ? null : feature.title
+                  )
+                }
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    setActiveFeature((current) =>
+                      current === feature.title ? null : feature.title
+                    );
+                  }
+                }}
               >
                 <span className="landing-feature-icon">{feature.icon}</span>
                 <h3>{feature.title}</h3>
