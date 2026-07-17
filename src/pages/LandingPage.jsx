@@ -329,6 +329,23 @@ export default function LandingPage({ hasSession = false, onOpenAccount }) {
             linear-gradient(135deg, #17361f, #10281d 38%, #0d1f1b 70%, #142b22);
         }
 
+        .landing-product-map img {
+          width: 100%;
+          height: 100%;
+          display: block;
+          object-fit: cover;
+          object-position: center;
+          filter: saturate(0.92) contrast(1.04) brightness(0.82);
+        }
+
+        .landing-product-map::after {
+          content: "";
+          position: absolute;
+          inset: 0;
+          pointer-events: none;
+          background: linear-gradient(180deg, transparent 58%, rgba(3,11,19,0.22));
+        }
+
         .landing-zone {
           position: absolute;
           border: 2px solid rgba(74,222,128,0.82);
@@ -526,6 +543,87 @@ export default function LandingPage({ hasSession = false, onOpenAccount }) {
           padding: 84px 0 100px;
         }
 
+        .landing-purpose {
+          overflow: hidden;
+          border-top: 1px solid rgba(148,163,184,0.08);
+          border-bottom: 1px solid rgba(148,163,184,0.08);
+          background:
+            radial-gradient(circle at 85% 18%, rgba(34,197,94,0.10), transparent 30%),
+            linear-gradient(145deg, rgba(8,24,27,0.88), rgba(3,11,19,0.96));
+        }
+
+        .landing-purpose-grid {
+          display: grid;
+          grid-template-columns: 0.88fr 1.12fr;
+          gap: clamp(28px, 6vw, 76px);
+          align-items: stretch;
+        }
+
+        .landing-purpose-intro {
+          padding-right: clamp(0px, 3vw, 38px);
+        }
+
+        .landing-purpose-kicker {
+          display: inline-flex;
+          margin-bottom: 18px;
+          color: #86efac;
+          font-size: 0.75rem;
+          font-weight: 900;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+        }
+
+        .landing-purpose-intro h2 {
+          margin: 0;
+          color: #f8fafc;
+          font-size: clamp(2.2rem, 4vw, 3.7rem);
+          line-height: 1.05;
+          letter-spacing: -0.052em;
+        }
+
+        .landing-purpose-intro p {
+          margin: 20px 0 0;
+          color: rgba(203,213,225,0.72);
+          line-height: 1.75;
+        }
+
+        .landing-purpose-cards {
+          display: grid;
+          gap: 16px;
+        }
+
+        .landing-purpose-card {
+          padding: clamp(24px, 4vw, 34px);
+          border-radius: 24px 24px 24px 8px;
+          border: 1px solid rgba(148,163,184,0.13);
+          background: rgba(15,31,40,0.68);
+          box-shadow: 0 22px 54px rgba(0,0,0,0.18);
+        }
+
+        .landing-purpose-card strong {
+          display: block;
+          color: #5ee08d;
+          font-size: 0.78rem;
+          letter-spacing: 0.09em;
+          text-transform: uppercase;
+        }
+
+        .landing-purpose-card p {
+          margin: 12px 0 0;
+          color: rgba(226,232,240,0.84);
+          font-size: 1.02rem;
+          line-height: 1.7;
+        }
+
+        .landing-future-note {
+          margin-top: 18px;
+          padding-top: 18px;
+          border-top: 1px solid rgba(148,163,184,0.10);
+          color: rgba(148,163,184,0.82);
+          font-size: 0.82rem;
+          line-height: 1.6;
+        }
+
         .landing-cta-card {
           padding: clamp(30px, 6vw, 64px);
           display: flex;
@@ -585,6 +683,10 @@ export default function LandingPage({ hasSession = false, onOpenAccount }) {
           .landing-cta-card {
             align-items: flex-start;
             flex-direction: column;
+          }
+
+          .landing-purpose-grid {
+            grid-template-columns: 1fr;
           }
         }
 
@@ -655,7 +757,7 @@ export default function LandingPage({ hasSession = false, onOpenAccount }) {
               className="landing-btn landing-btn-primary"
               onClick={hasSession ? onOpenAccount : openRegister}
             >
-              {hasSession ? "Ir a mis fincas" : "Crear cuenta"}
+              {hasSession ? "Ir a mis fincas" : "Crear mi cuenta"}
             </button>
           </div>
         </div>
@@ -664,16 +766,19 @@ export default function LandingPage({ hasSession = false, onOpenAccount }) {
       <section className="landing-hero">
         <div className="landing-container landing-hero-grid">
           <div>
-            <span className="landing-eyebrow">Tecnología agrícola desde Costa Rica</span>
+            <span className="landing-eyebrow">
+              Tecnología agropecuaria creada en Costa Rica para el mundo
+            </span>
 
             <h1 className="landing-title">
-              La finca no solo produce. <span>También piensa.</span>
+              Tu operación agropecuaria, <span>bajo control.</span>
             </h1>
 
             <p className="landing-lead">
-              AgroMind reúne el mapa, las tareas, los procesos, el clima y los
-              indicadores de tu operación en un solo espacio. Menos improvisación,
-              más control y mejores decisiones.
+              AgroMind es el asistente digital que reúne fincas, mapas, tareas,
+              procesos, clima, finanzas e indicadores en una sola plataforma.
+              Administrá varias fincas, trabajá con consultores mediante accesos
+              controlados y contá con soporte 24/7 cuando lo necesités.
             </p>
 
             <div className="landing-hero-actions">
@@ -682,7 +787,7 @@ export default function LandingPage({ hasSession = false, onOpenAccount }) {
                 className="landing-btn landing-btn-primary"
                 onClick={hasSession ? onOpenAccount : openRegister}
               >
-                {hasSession ? "Abrir mi espacio" : "Comenzar ahora"}
+                {hasSession ? "Ir a mis fincas" : "Crear mi cuenta"}
               </button>
 
               {!hasSession && (
@@ -691,15 +796,15 @@ export default function LandingPage({ hasSession = false, onOpenAccount }) {
                   className="landing-btn landing-btn-secondary"
                   onClick={openLogin}
                 >
-                  Ya tengo una cuenta
+                  Iniciar sesión
                 </button>
               )}
             </div>
 
             <div className="landing-proof">
-              <span>✓ Arquitectura multi-finca</span>
-              <span>✓ Gestión colaborativa</span>
-              <span>✓ Diseñado para el trabajo real</span>
+              <span>✓ Gestión multifinca</span>
+              <span>✓ Consultores con acceso controlado</span>
+              <span>✓ Acompañamiento y soporte 24/7</span>
             </div>
           </div>
 
@@ -714,8 +819,10 @@ export default function LandingPage({ hasSession = false, onOpenAccount }) {
             </div>
 
             <div className="landing-product-map">
-              <span className="landing-zone landing-zone-one" />
-              <span className="landing-zone landing-zone-two" />
+              <img
+                src="/mapas.PNG"
+                alt="Mapa real de una finca organizado en AgroMind CR"
+              />
             </div>
 
             <div className="landing-product-stats">
@@ -761,7 +868,7 @@ export default function LandingPage({ hasSession = false, onOpenAccount }) {
       <section className="landing-section" id="tutoriales">
         <div className="landing-container">
           <div className="landing-section-header">
-            <h2>Aprende AgroMind a tu ritmo.</h2>
+            <h2>Aprendé AgroMind a tu ritmo.</h2>
             <p>
               Esta sección queda preparada para publicar tutoriales, demostraciones,
               capacitaciones y novedades del producto.
@@ -780,6 +887,45 @@ export default function LandingPage({ hasSession = false, onOpenAccount }) {
                 </div>
               </article>
             ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="landing-section landing-purpose" id="proposito">
+        <div className="landing-container landing-purpose-grid">
+          <div className="landing-purpose-intro">
+            <span className="landing-purpose-kicker">Nuestro propósito</span>
+            <h2>Tecnología del campo, creada para llegar más lejos.</h2>
+            <p>
+              AgroMind nace para acompañar a productores, ganaderos, agricultores,
+              ingenieros, consultores y equipos que necesitan transformar el trabajo
+              diario en una operación más ordenada, conectada y rentable.
+            </p>
+          </div>
+
+          <div className="landing-purpose-cards">
+            <article className="landing-purpose-card">
+              <strong>Nuestra misión</strong>
+              <p>
+                Facilitar la gestión agropecuaria mediante una plataforma accesible
+                que conecte el trabajo de campo, la administración y la toma de decisiones.
+              </p>
+            </article>
+
+            <article className="landing-purpose-card">
+              <strong>Nuestra visión</strong>
+              <p>
+                Construir desde Costa Rica un ecosistema tecnológico para el sector
+                agropecuario del mundo, capaz de integrar fincas, equipos de trabajo,
+                maquinaria, dispositivos y datos productivos en una operación cada vez
+                más conectada, eficiente y rentable.
+              </p>
+              <div className="landing-future-note">
+                Nuestra evolución contempla nuevas integraciones con dispositivos,
+                maquinaria y tecnologías para el campo. Estas capacidades forman parte
+                de la visión futura de AgroMind CR.
+              </div>
+            </article>
           </div>
         </div>
       </section>
@@ -806,7 +952,7 @@ export default function LandingPage({ hasSession = false, onOpenAccount }) {
       <footer className="landing-footer">
         <div className="landing-container landing-footer-inner">
           <span>© {new Date().getFullYear()} AgroMind CR.</span>
-          <span>Construido para una agricultura más clara, conectada y rentable.</span>
+          <span>Construido para una actividad agropecuaria más clara, conectada y rentable.</span>
         </div>
       </footer>
     </main>
