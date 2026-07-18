@@ -18,6 +18,26 @@ const RAW_API_BASE =
   "https://agromind-backend-slem.onrender.com";
 
 const API_BASE = RAW_API_BASE.replace(/\/+$/, "");
+const SIDEBAR_COLLAPSED_KEY = "agromind_sidebar_collapsed";
+
+const SUPPORT_WEBSITE =
+  import.meta.env.VITE_SUPPORT_WEBSITE || "https://agromindcr.es";
+const SUPPORT_EMAIL = String(import.meta.env.VITE_SUPPORT_EMAIL || "").trim();
+const SUPPORT_WHATSAPP = String(
+  import.meta.env.VITE_SUPPORT_WHATSAPP || ""
+).replace(/\D/g, "");
+
+const NAV_ICONS = {
+  dashboard: "â–¦",
+  mapa: "â—‡",
+  tareas: "âœ“",
+  finanzas: "â‚¡",
+  clima: "â˜",
+  bitacora: "â‰¡",
+  team: "â—‰",
+  settings: "âš™",
+  support: "?",
+};
 
 function pickLocalStorage(keys) {
   for (const k of keys) {
@@ -227,7 +247,7 @@ function readStoredZones(farmId) {
   return extractZoneNames(candidates);
 }
 
-function ModuleLoader({ text = "Cargando módulo..." }) {
+function ModuleLoader({ text = "Cargando mÃ³dulo..." }) {
   return (
     <div
       style={{
@@ -246,10 +266,122 @@ function ModuleLoader({ text = "Cargando módulo..." }) {
   );
 }
 
+function SettingsPanel({ user, isAdmin }) {
+  return (
+    <section className="shell-panel" aria-labelledby="settings-title">
+      <div className="shell-panel-heading">
+        <span className="shell-panel-eyebrow">TU ESPACIO</span>
+        <h1 id="settings-title">ConfiguraciÃ³n</h1>
+        <p>Tu perfil y las preferencias generales de AgroMind en un solo lugar.</p>
+      </div>
+
+      <div className="shell-panel-grid">
+        <article className="shell-option-card shell-option-card-featured">
+          <span className="shell-option-icon" aria-hidden="true">â—Ž</span>
+          <div>
+            <span className="shell-option-label">Perfil</span>
+            <h2>{user?.name || user?.nombre || "Usuario AgroMind"}</h2>
+            <p>{user?.email || user?.correo || "Cuenta activa"}</p>
+            <span className="shell-role-badge">
+              {isAdmin ? "Administrador" : "Consultor"}
+            </span>
+          </div>
+        </article>
+
+        <article className="shell-option-card">
+          <span className="shell-option-icon" aria-hidden="true">âœ‰</span>
+          <div>
+            <span className="shell-option-label">Notificaciones</span>
+            <h2>Recordatorios inteligentes</h2>
+            <p>
+              AquÃ­ podrÃ¡s elegir cuÃ¡ndo recibir alertas de tareas y resÃºmenes
+              de actividad.
+            </p>
+            <span className="shell-status-chip">PrÃ³xima integraciÃ³n</span>
+          </div>
+        </article>
+
+        <article className="shell-option-card">
+          <span className="shell-option-icon" aria-hidden="true">â—</span>
+          <div>
+            <span className="shell-option-label">Preferencias</span>
+            <h2>Experiencia de navegaciÃ³n</h2>
+            <p>
+              AgroMind recuerda automÃ¡ticamente si prefieres la barra lateral
+              abierta o contraÃ­da.
+            </p>
+            <span className="shell-status-chip shell-status-chip-ready">Activo</span>
+          </div>
+        </article>
+      </div>
+    </section>
+  );
+}
+
+function SupportPanel() {
+  return (
+    <section className="shell-panel" aria-labelledby="support-title">
+      <div className="shell-panel-heading">
+        <span className="shell-panel-eyebrow">ESTAMOS CONTIGO</span>
+        <h1 id="support-title">Soporte AgroMind</h1>
+        <p>
+          Cuando la operaciÃ³n no puede esperar, encuentra aquÃ­ nuestros canales
+          oficiales de contacto.
+        </p>
+      </div>
+
+      <div className="shell-support-grid">
+        {SUPPORT_WHATSAPP && (
+          <a
+            className="shell-support-card"
+            href={`https://wa.me/${SUPPORT_WHATSAPP}`}
+            target="_blank"
+            rel="noreferrer"
+          >
+            <span className="shell-option-icon" aria-hidden="true">W</span>
+            <span><strong>WhatsApp</strong><small>Hablar con soporte</small></span>
+            <b aria-hidden="true">â†—</b>
+          </a>
+        )}
+
+        {SUPPORT_EMAIL && (
+          <a className="shell-support-card" href={`mailto:${SUPPORT_EMAIL}`}>
+            <span className="shell-option-icon" aria-hidden="true">@</span>
+            <span><strong>Correo</strong><small>{SUPPORT_EMAIL}</small></span>
+            <b aria-hidden="true">â†—</b>
+          </a>
+        )}
+
+        <a
+          className="shell-support-card"
+          href={SUPPORT_WEBSITE}
+          target="_blank"
+          rel="noreferrer"
+        >
+          <span className="shell-option-icon" aria-hidden="true">â—Ž</span>
+          <span><strong>Centro web</strong><small>Visitar agromindcr.es</small></span>
+          <b aria-hidden="true">â†—</b>
+        </a>
+      </div>
+
+      {!SUPPORT_EMAIL && !SUPPORT_WHATSAPP && (
+        <p className="shell-support-note">
+          El correo y WhatsApp de soporte aparecerÃ¡n aquÃ­ al configurar sus
+          variables oficiales.
+        </p>
+      )}
+    </section>
+  );
+}
+
 export default function FarmShell({ user, onLogout }) {
   const { isAdmin, isConsultant } = useFarm();
   const [activeTab, setActiveTab] = useState(() => (isConsultant ? "mapa" : "dashboard"));
   const [focusZoneRequest, setFocusZoneRequest] = useState(null);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(
+    () => localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "true"
+  );
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   const [token, setToken] = useState(() => getAuthToken());
   const [farmId, setFarmId] = useState(() => getActiveFarmId());
@@ -266,19 +398,20 @@ export default function FarmShell({ user, onLogout }) {
     updatedAt: null,
   });
 
-  const mainTabs = isAdmin ? [
-    ["dashboard","Dashboard"],
-    ["mapa","Mapa de la finca"],
-    ["tareas","Tareas"],
-    ["finanzas","Finanzas"],
-    ["clima","Clima"],
-    ["bitacora","Bitácora"],
-] : [
-    ["mapa","Mapa de la finca"],
-    ["tareas","Mis tareas"],
-    ["clima","Clima"],
-    ["bitacora","Mi bitácora"],
-];
+  const mainTabs = useMemo(() => (isAdmin ? [
+    ["dashboard", "Dashboard"],
+    ["mapa", "Mapa de la finca"],
+    ["tareas", "Tareas"],
+    ["finanzas", "Finanzas"],
+    ["clima", "Clima"],
+    ["bitacora", "BitÃ¡cora"],
+    ["team", "Equipo y acceso"],
+  ] : [
+    ["mapa", "Mapa de la finca"],
+    ["tareas", "Mis tareas"],
+    ["clima", "Clima"],
+    ["bitacora", "Mi bitÃ¡cora"],
+  ]), [isAdmin]);
 
   const cleanZoneList = useCallback((items) => {
     const seen = new Set();
@@ -393,7 +526,9 @@ export default function FarmShell({ user, onLogout }) {
 
   useEffect(() => {
     const defaultTab = isConsultant ? "mapa" : "dashboard";
-    const allowed = new Set(mainTabs.map(([k]) => k).concat(isAdmin ? ["team"] : []));
+    const allowed = new Set(
+      mainTabs.map(([k]) => k).concat(["settings", "support"])
+    );
     if (!allowed.has(activeTab)) {
       setActiveTab(defaultTab);
     }
@@ -401,7 +536,16 @@ export default function FarmShell({ user, onLogout }) {
 
   const handleTabChange = (tab) => {
     setActiveTab(tab);
+    setMobileSidebarOpen(false);
     if (tab === "tareas") fetchZonesFromMap({ force: true });
+  };
+
+  const toggleSidebar = () => {
+    setSidebarCollapsed((current) => {
+      const next = !current;
+      localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(next));
+      return next;
+    });
   };
 
   const handleOpenZoneInMap = (zoneName) => {
@@ -471,8 +615,20 @@ export default function FarmShell({ user, onLogout }) {
   };
 
   return (
-    <div className="farm-shell">
+    <div className={sidebarCollapsed ? "farm-shell sidebar-is-collapsed" : "farm-shell"}>
       <header className="farm-shell-header">
+        <button
+          type="button"
+          className="farm-mobile-menu"
+          onClick={() => setMobileSidebarOpen(true)}
+          aria-label="Abrir menÃº"
+          aria-expanded={mobileSidebarOpen}
+        >
+          <span />
+          <span />
+          <span />
+        </button>
+
         <div className="farm-shell-brand">
           <div className="brand-logo-circle">AG</div>
           <div className="brand-text">
@@ -480,40 +636,6 @@ export default function FarmShell({ user, onLogout }) {
             <div className="brand-tagline">La finca que piensa.</div>
           </div>
         </div>
-
-        <nav className="farm-shell-nav" aria-label="Navegación principal">
-          <div className="farm-shell-nav-main">
-            {mainTabs.map(([key, label]) => (
-              <button
-                key={key}
-                type="button"
-                className={
-                  activeTab === key
-                    ? "nav-tab nav-tab-active"
-                    : "nav-tab"
-                }
-                onClick={() => handleTabChange(key)}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-
-          {isAdmin && <>
-          <div className="farm-shell-nav-divider" aria-hidden="true" />
-          <button
-            type="button"
-            className={
-              activeTab === "team"
-                ? "nav-tab nav-tab-team nav-tab-active"
-                : "nav-tab nav-tab-team"
-            }
-            onClick={() => handleTabChange("team")}
-          >
-            Equipo y acceso
-          </button>
-          </>}
-        </nav>
 
         <div className="farm-shell-right">
           <button
@@ -526,17 +648,116 @@ export default function FarmShell({ user, onLogout }) {
             Cambiar finca
           </button>
 
-          {onLogout && (
+        </div>
+      </header>
+
+      {mobileSidebarOpen && (
+        <button
+          type="button"
+          className="farm-sidebar-backdrop"
+          onClick={() => setMobileSidebarOpen(false)}
+          aria-label="Cerrar menÃº"
+        />
+      )}
+
+      <aside
+        className={
+          mobileSidebarOpen
+            ? "farm-sidebar farm-sidebar-mobile-open"
+            : "farm-sidebar"
+        }
+        aria-label="NavegaciÃ³n de AgroMind"
+      >
+        <div className="farm-sidebar-top">
+          <div className="farm-sidebar-mobile-brand">
+            <div className="brand-logo-circle">AG</div>
+            <div>
+              <strong>AgroMind CR</strong>
+              <span>{isAdmin ? "Administrador" : "Consultor"}</span>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            className="farm-sidebar-collapse"
+            onClick={toggleSidebar}
+            aria-label={sidebarCollapsed ? "Expandir barra lateral" : "Contraer barra lateral"}
+            title={sidebarCollapsed ? "Expandir" : "Contraer"}
+          >
+            <span aria-hidden="true">{sidebarCollapsed ? "â€º" : "â€¹"}</span>
+          </button>
+
+          <button
+            type="button"
+            className="farm-sidebar-mobile-close"
+            onClick={() => setMobileSidebarOpen(false)}
+            aria-label="Cerrar menÃº"
+          >
+            Ã—
+          </button>
+        </div>
+
+        <nav className="farm-sidebar-nav">
+          <span className="farm-sidebar-section-label">OPERACIÃ“N</span>
+          {mainTabs.map(([key, label]) => (
             <button
+              key={key}
               type="button"
-              className="farm-logout-btn"
-              onClick={handleLogoutClick}
+              className={
+                activeTab === key
+                  ? "farm-sidebar-item farm-sidebar-item-active"
+                  : "farm-sidebar-item"
+              }
+              onClick={() => handleTabChange(key)}
+              title={sidebarCollapsed ? label : undefined}
             >
-              Cerrar sesión
+              <span className="farm-sidebar-icon" aria-hidden="true">
+                {NAV_ICONS[key]}
+              </span>
+              <span className="farm-sidebar-label">{label}</span>
+            </button>
+          ))}
+        </nav>
+
+        <div className="farm-sidebar-footer">
+          <button
+            type="button"
+            className={activeTab === "settings" ? "farm-sidebar-item farm-sidebar-item-active" : "farm-sidebar-item"}
+            onClick={() => handleTabChange("settings")}
+            title={sidebarCollapsed ? "ConfiguraciÃ³n" : undefined}
+          >
+            <span className="farm-sidebar-icon" aria-hidden="true">{NAV_ICONS.settings}</span>
+            <span className="farm-sidebar-label">ConfiguraciÃ³n</span>
+          </button>
+
+          <button
+            type="button"
+            className={activeTab === "support" ? "farm-sidebar-item farm-sidebar-item-support farm-sidebar-item-active" : "farm-sidebar-item farm-sidebar-item-support"}
+            onClick={() => handleTabChange("support")}
+            title={sidebarCollapsed ? "Soporte AgroMind" : undefined}
+          >
+            <span className="farm-sidebar-icon" aria-hidden="true">{NAV_ICONS.support}</span>
+            <span className="farm-sidebar-label">Soporte AgroMind</span>
+          </button>
+
+          <div className="farm-sidebar-profile">
+            <span className="farm-profile-avatar" aria-hidden="true">
+              {String(user?.name || user?.nombre || "U").trim().charAt(0).toUpperCase()}
+            </span>
+            <span className="farm-sidebar-profile-copy">
+              <strong>{user?.name || user?.nombre || "Usuario"}</strong>
+              <small>{isAdmin ? "Administrador" : "Consultor"}</small>
+            </span>
+          </div>
+
+          {onLogout && (
+            <button type="button" className="farm-sidebar-logout" onClick={handleLogoutClick}>
+              <span className="farm-sidebar-icon" aria-hidden="true">â†’</span>
+              <span className="farm-sidebar-label">Cerrar sesiÃ³n</span>
             </button>
           )}
         </div>
-      </header>
+      </aside>
 
       <main className="farm-shell-main">
         <section className="farm-shell-map-card">
@@ -585,6 +806,12 @@ export default function FarmShell({ user, onLogout }) {
             {isAdmin && activeTab === "team" && (
               <TeamAccessPage token={token} farmId={farmId} />
             )}
+
+            {activeTab === "settings" && (
+              <SettingsPanel user={user} isAdmin={isAdmin} />
+            )}
+
+            {activeTab === "support" && <SupportPanel />}
           </Suspense>
         </section>
       </main>
