@@ -42,9 +42,9 @@ const COMPONENT_TYPES = [
   "Bodega",
   "Lote de cultivo",
   "Pasillo",
-  "Ãrea de descanso",
+  "Área de descanso",
   "Animal",
-  "Ãrbol",
+  "Árbol",
   "Riego",
   "Otro",
 ];
@@ -52,16 +52,16 @@ const COMPONENT_TYPES = [
 function getComponentIcon(type = "Otro") {
   const value = String(type || "Otro").toLowerCase();
 
-  if (value.includes("animal") || value.includes("gallina") || value.includes("vaca") || value.includes("cerdo")) return "ðŸ„";
-  if (value.includes("cultivo") || value.includes("lote")) return "ðŸŒ±";
-  if (value.includes("bebedero") || value.includes("riego")) return "ðŸ’§";
-  if (value.includes("comedero")) return "ðŸŒ¾";
-  if (value.includes("bodega")) return "ðŸ ";
-  if (value.includes("pasillo")) return "â†”ï¸";
-  if (value.includes("descanso")) return "ðŸŸ¢";
-  if (value.includes("Ã¡rbol") || value.includes("arbol")) return "ðŸŒ³";
+  if (value.includes("animal") || value.includes("gallina") || value.includes("vaca") || value.includes("cerdo")) return "🐄";
+  if (value.includes("cultivo") || value.includes("lote")) return "🌱";
+  if (value.includes("bebedero") || value.includes("riego")) return "💧";
+  if (value.includes("comedero")) return "🌾";
+  if (value.includes("bodega")) return "🏠";
+  if (value.includes("pasillo")) return "↔️";
+  if (value.includes("descanso")) return "🟢";
+  if (value.includes("árbol") || value.includes("arbol")) return "🌳";
 
-  return "ðŸ“";
+  return "📍";
 }
 
 function getComponentDisplayName(component, index = 0) {
@@ -122,7 +122,7 @@ function generateName(kind, countersRef) {
   counters[kind] = next;
 
   if (kind === "point") return `Punto ${next}`;
-  if (kind === "line") return `LÃ­nea ${next}`;
+  if (kind === "line") return `Línea ${next}`;
   return `Zona ${next}`;
 }
 
@@ -170,7 +170,7 @@ function normalizeApiErrorMessage(status, data) {
       data.includes("Cannot PUT /api/processes/step") ||
       data.includes("Cannot DELETE /api/processes/step")
     ) {
-      return "El backend desplegado todavÃ­a no tiene activas las rutas del gestor de procesos.";
+      return "El backend desplegado todavía no tiene activas las rutas del gestor de procesos.";
     }
 
     if (looksLikeHtml(data)) {
@@ -758,7 +758,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
           : kind === "point"
           ? `Punto ${counters[kind]}`
           : kind === "line"
-          ? `LÃ­nea ${counters[kind]}`
+          ? `Línea ${counters[kind]}`
           : `Zona ${counters[kind]}`;
 
       const color = meta?.color || pickColor(kind, colorIndexRef);
@@ -968,7 +968,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
         dirtyRef.current = false;
         emitFarmLocationChange("autosave");
       } catch (err) {
-        console.warn("Autosave backend fallÃ³:", err?.message || err);
+        console.warn("Autosave backend falló:", err?.message || err);
       }
     }, 900);
   };
@@ -1115,7 +1115,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
         farmsCount: nextFarms.length,
       });
     } catch (err) {
-      console.warn("Backend load fallÃ³:", err?.message || err);
+      console.warn("Backend load falló:", err?.message || err);
       setFarmError(err?.message || "No se pudieron cargar las fincas.");
     } finally {
       debugTimeEnd(totalTimer);
@@ -1195,7 +1195,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
         : null;
 
       if (!newFarm?.id) {
-        throw new Error("El servidor no devolviÃ³ la finca creada.");
+        throw new Error("El servidor no devolvió la finca creada.");
       }
 
       const nextFarms = [newFarm, ...farms.filter((farm) => farm.id !== newFarm.id)];
@@ -1203,7 +1203,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
       setActiveFarm(newFarm);
       setFarmMenuOpen(false);
       setFarmViewPinned(true);
-      setFarmSavedNotice(`âœ“ Vista establecida para ${newFarm.name || name}`);
+      setFarmSavedNotice(`✓ Vista establecida para ${newFarm.name || name}`);
       setTimeout(() => setFarmSavedNotice(""), 4500);
       setEditingFarmId(newFarm.id);
       setEditingFarmName(newFarm.name || name);
@@ -1276,7 +1276,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
 
       setEditingFarmId(null);
       setEditingFarmName("");
-      setFarmSavedNotice(`âœ“ Nombre actualizado: ${updatedFarm.name || nextName}`);
+      setFarmSavedNotice(`✓ Nombre actualizado: ${updatedFarm.name || nextName}`);
       setTimeout(() => setFarmSavedNotice(""), 3500);
     } catch (err) {
       console.warn("RENAME_FARM_ERROR:", err?.message || err);
@@ -1308,7 +1308,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
           id:
             f?.id ||
             `${center[0]}-${center[1]}-${Math.random().toString(36).slice(2, 6)}`,
-          place_name: f?.place_name || f?.text || "UbicaciÃ³n",
+          place_name: f?.place_name || f?.text || "Ubicación",
           center,
         };
       })
@@ -1429,7 +1429,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
       const baseLayer = new TileLayer({
         source: new XYZ({
           url: `https://api.maptiler.com/maps/hybrid/256/{z}/{x}/{y}.jpg?key=${apiKey}`,
-          attributions: "Â© MapTiler Â© OpenStreetMap contributors",
+          attributions: "© MapTiler © OpenStreetMap contributors",
         }),
       });
 
@@ -1575,7 +1575,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
                   : safeKind === "point"
                   ? `Punto ${counters[safeKind]}`
                   : safeKind === "line"
-                  ? `LÃ­nea ${counters[safeKind]}`
+                  ? `Línea ${counters[safeKind]}`
                   : `Zona ${counters[safeKind]}`;
 
               const finalColor = color || pickColor(safeKind, colorIndexRef);
@@ -1951,12 +1951,12 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
       return {
         id: target.id,
         kind,
-        icon: "ðŸ§­",
+        icon: "🧭",
         title: "Eliminar zona",
-        eyebrow: "AcciÃ³n destructiva",
+        eyebrow: "Acción destructiva",
         name: safeName,
         message:
-          "TambiÃ©n se eliminarÃ¡n sus componentes, procesos y evidencias asociadas.",
+          "También se eliminarán sus componentes, procesos y evidencias asociadas.",
         confirmLabel: "Eliminar zona",
       };
     }
@@ -1965,12 +1965,12 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
       return {
         id: target.id,
         kind,
-        icon: "ã€°ï¸",
-        title: "Eliminar lÃ­nea",
-        eyebrow: "AcciÃ³n destructiva",
+        icon: "〰️",
+        title: "Eliminar línea",
+        eyebrow: "Acción destructiva",
         name: safeName,
-        message: "Esta lÃ­nea se eliminarÃ¡ del mapa de la finca.",
-        confirmLabel: "Eliminar lÃ­nea",
+        message: "Esta línea se eliminará del mapa de la finca.",
+        confirmLabel: "Eliminar línea",
       };
     }
 
@@ -1978,11 +1978,11 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
       return {
         id: target.id,
         kind,
-        icon: "ðŸ“",
+        icon: "📍",
         title: "Eliminar punto",
-        eyebrow: "AcciÃ³n destructiva",
+        eyebrow: "Acción destructiva",
         name: safeName,
-        message: "Este punto se eliminarÃ¡ del mapa de la finca.",
+        message: "Este punto se eliminará del mapa de la finca.",
         confirmLabel: "Eliminar punto",
       };
     }
@@ -1990,11 +1990,11 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
     return {
       id: target?.id,
       kind,
-      icon: "ðŸ—‘",
+      icon: "🗑",
       title: "Eliminar elemento",
-      eyebrow: "AcciÃ³n destructiva",
+      eyebrow: "Acción destructiva",
       name: safeName,
-      message: "Este elemento se eliminarÃ¡ del mapa de la finca.",
+      message: "Este elemento se eliminará del mapa de la finca.",
       confirmLabel: "Eliminar elemento",
     };
   };
@@ -2106,7 +2106,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
       }
 
       setFarmViewPinned(true);
-      setFarmSavedNotice(`âœ“ Vista establecida para ${activeFarmName}`);
+      setFarmSavedNotice(`✓ Vista establecida para ${activeFarmName}`);
       setTimeout(() => setFarmSavedNotice(""), 4500);
       emitFarmLocationChange("save-view");
     } catch (err) {
@@ -2308,7 +2308,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
           Falta configurar la llave de mapas (<code>VITE_MAPTILER_KEY</code>).
         </p>
         <p>
-          CreÃ¡ una cuenta gratis en MapTiler, ponÃ© la key en el archivo <code>.env</code> y recargÃ¡ la pÃ¡gina.
+          Creá una cuenta gratis en MapTiler, poné la key en el archivo <code>.env</code> y recargá la página.
         </p>
       </div>
     );
@@ -2427,7 +2427,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
                 className={drawMode === "line" ? "tool-btn active" : "tool-btn"}
                 onClick={() => setDrawMode("line")}
               >
-                LÃ­nea
+                Línea
               </button>
               <button
                 type="button"
@@ -2477,9 +2477,9 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
                 whiteSpace: "nowrap",
               }}
             >
-              ðŸŒ± {farmsLoading ? "Cargando fincas..." : activeFarmName}
+              🌱 {farmsLoading ? "Cargando fincas..." : activeFarmName}
             </span>
-            <span style={{ opacity: 0.75 }}>{farmMenuOpen ? "â–²" : "â–¼"}</span>
+            <span style={{ opacity: 0.75 }}>{farmMenuOpen ? "▲" : "▼"}</span>
           </button>
 
           {farmMenuOpen && (
@@ -2551,7 +2551,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
                       fontSize: "0.86rem",
                     }}
                   >
-                    AÃºn no hay fincas guardadas.
+                    Aún no hay fincas guardadas.
                   </div>
                 ) : (
                   farms.map((farm, index) => {
@@ -2633,7 +2633,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
                                 style={{ padding: "0.35rem 0.5rem" }}
                                 title="Guardar nombre"
                               >
-                                âœ“
+                                ✓
                               </button>
                               <button
                                 type="button"
@@ -2643,7 +2643,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
                                 style={{ padding: "0.35rem 0.25rem" }}
                                 title="Cancelar"
                               >
-                                âœ•
+                                ✕
                               </button>
                             </span>
                           ) : (
@@ -2669,7 +2669,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
                               >
                                 {isActiveFarm
                                   ? farmViewPinned
-                                    ? "Finca activa Â· vista establecida"
+                                    ? "Finca activa · vista establecida"
                                     : "Finca activa"
                                   : "Clic para abrir"}
                               </span>
@@ -2689,7 +2689,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
                             }}
                           >
                             {isActiveFarm && farmViewPinned ? (
-                              <span title="Vista establecida">âœ…</span>
+                              <span title="Vista establecida">✅</span>
                             ) : null}
                             {!isConsultant && (
                               <button
@@ -2700,10 +2700,10 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
                                 style={{ padding: "0.28rem 0.45rem" }}
                                 title="Renombrar finca"
                               >
-                                âœï¸
+                                ✏️
                               </button>
                             )}
-                            <span>{isActiveFarm ? "âœ“" : "â€º"}</span>
+                            <span>{isActiveFarm ? "✓" : "›"}</span>
                           </span>
                         )}
                       </div>
@@ -2739,7 +2739,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
                   }}
                   title="Crear una finca nueva desde la vista actual del mapa"
                 >
-                  {farmActionLoading ? "Procesando..." : "âž• Nueva finca"}
+                  {farmActionLoading ? "Procesando..." : "➕ Nueva finca"}
                   </button>
                 )}
 
@@ -2755,9 +2755,9 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
                     minWidth: 0,
                     maxWidth: "100%",
                   }}
-                  title="Actualizar la ubicaciÃ³n base de la finca activa"
+                  title="Actualizar la ubicación base de la finca activa"
                 >
-                  {farmViewPinned ? "âœ… Vista establecida" : "ðŸ“Œ Establecer vista"}
+                  {farmViewPinned ? "✅ Vista establecida" : "📌 Establecer vista"}
                   </button>
                 )}
 
@@ -2775,7 +2775,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
                       fontWeight: 850,
                     }}
                   >
-                    Modo consulta Â· sin permisos para modificar la finca
+                    Modo consulta · sin permisos para modificar la finca
                   </div>
                 )}
               </div>
@@ -2846,7 +2846,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
         >
           <span className="summary-dot dot-line" />
           <span className="summary-label">
-            {lineCount} {lineCount === 1 ? "lÃ­nea" : "lÃ­neas"}
+            {lineCount} {lineCount === 1 ? "línea" : "líneas"}
           </span>
         </button>
 
@@ -2981,7 +2981,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
                       </select>
                     )
                   ) : (
-                    <span className="status-label">â€”</span>
+                    <span className="status-label">—</span>
                   )}
                 </div>
 
@@ -3025,7 +3025,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
                           }}
                         >
                           <span data-lab-icon style={getLabIconStyle("components")}>
-                            ðŸŒ¿
+                            🌿
                           </span>
                           <span
                             style={{
@@ -3058,7 +3058,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
                             flex: "0 0 auto",
                           }}
                         >
-                          â†’
+                          →
                         </span>
                       </button>
 
@@ -3092,7 +3092,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
                           }}
                         >
                           <span data-lab-icon style={getLabIconStyle("processes")}>
-                            âš™ï¸
+                            ⚙️
                           </span>
                           <span
                             style={{
@@ -3125,7 +3125,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
                             flex: "0 0 auto",
                           }}
                         >
-                          â†’
+                          →
                         </span>
                       </button>
                     </>
@@ -3154,7 +3154,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
                           transition: "transform 160ms ease",
                         }}
                       >
-                        ðŸ—‘
+                        🗑
                       </span>
                     </button>
                   )}
@@ -3270,7 +3270,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
                   style={{ flex: "0 0 auto", padding: "0.35rem 0.65rem" }}
                   title="Cerrar"
                 >
-                  âœ•
+                  ✕
                 </button>
               </div>
 
@@ -3404,7 +3404,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
                     fontSize: "1.12rem",
                   }}
                 >
-                  {deleteConfirm.icon || "ðŸ—‘"}
+                  {deleteConfirm.icon || "🗑"}
                 </span>
 
                 <div style={{ minWidth: 0 }}>
@@ -3417,7 +3417,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
                       textTransform: "uppercase",
                     }}
                   >
-                    {deleteConfirm.eyebrow || "AcciÃ³n destructiva"}
+                    {deleteConfirm.eyebrow || "Acción destructiva"}
                   </div>
                   <h3
                     style={{
@@ -3440,7 +3440,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
                 style={{ padding: "0.34rem 0.62rem", flex: "0 0 auto" }}
                 title="Cancelar"
               >
-                âœ•
+                ✕
               </button>
             </div>
 
@@ -3456,7 +3456,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
                   lineHeight: 1.55,
                 }}
               >
-                <strong style={{ color: "#f8fafc" }}>Â¿Eliminar {deleteConfirm.name}?</strong>
+                <strong style={{ color: "#f8fafc" }}>¿Eliminar {deleteConfirm.name}?</strong>
                 <div style={{ marginTop: "0.42rem" }}>{deleteConfirm.message}</div>
               </div>
 

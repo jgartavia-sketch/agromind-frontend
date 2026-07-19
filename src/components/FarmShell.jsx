@@ -18,8 +18,6 @@ const RAW_API_BASE =
   "https://agromind-backend-slem.onrender.com";
 
 const API_BASE = RAW_API_BASE.replace(/\/+$/, "");
-const SIDEBAR_COLLAPSED_KEY = "agromind_sidebar_collapsed";
-
 const SUPPORT_WEBSITE =
   import.meta.env.VITE_SUPPORT_WEBSITE || "https://agromindcr.es";
 const SUPPORT_EMAIL = String(import.meta.env.VITE_SUPPORT_EMAIL || "").trim();
@@ -27,17 +25,21 @@ const SUPPORT_WHATSAPP = String(
   import.meta.env.VITE_SUPPORT_WHATSAPP || ""
 ).replace(/\D/g, "");
 
-const NAV_ICONS = {
-  dashboard: "▦",
-  mapa: "◇",
-  tareas: "✓",
-  finanzas: "₡",
-  clima: "☁",
-  bitacora: "≡",
-  team: "◉",
-  settings: "⚙",
-  support: "?",
-};
+function NavIcon({ name }) {
+  const paths = {
+    dashboard: <><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></>,
+    mapa: <><path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3Z"/><path d="M9 3v15M15 6v15"/></>,
+    tareas: <><rect x="4" y="3" width="16" height="18" rx="3"/><path d="m8 9 2 2 4-4M8 16h8"/></>,
+    finanzas: <><circle cx="12" cy="12" r="9"/><path d="M16 8.5c-.7-.9-1.9-1.5-3.5-1.5-2 0-3.5 1-3.5 2.5 0 3.5 7 1.5 7 5 0 1.5-1.5 2.5-3.5 2.5-1.7 0-3-.6-3.8-1.7M12 5v14"/></>,
+    clima: <><path d="M7 18h10a4 4 0 0 0 .6-8 6 6 0 0 0-11.4 1.8A3.2 3.2 0 0 0 7 18Z"/><path d="M12 2v2M4.9 4.9l1.4 1.4M19.1 4.9l-1.4 1.4"/></>,
+    bitacora: <><path d="M5 4h14v17H5z"/><path d="M8 2v4M16 2v4M8 10h8M8 14h8M8 18h5"/></>,
+    team: <><circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M3 20c0-4 2.4-6 6-6s6 2 6 6M15 15c3.5 0 5.5 1.6 5.5 5"/></>,
+    settings: <><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3A1.7 1.7 0 0 0 14 21v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14h-.2v-4H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1A1.7 1.7 0 0 0 9 4.6 1.7 1.7 0 0 0 10 3v-.2h4V3a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v4H21a1.7 1.7 0 0 0-1.6 1Z"/></>,
+    support: <><path d="M4 13a8 8 0 0 1 16 0M4 13v4a2 2 0 0 0 2 2h2v-7H6a2 2 0 0 0-2 2M20 13v4a2 2 0 0 1-2 2h-2v-7h2a2 2 0 0 1 2 2M16 19c0 2-1.5 3-4 3"/></>,
+    logout: <><path d="M10 4H5v16h5M14 8l4 4-4 4M18 12H9"/></>,
+  };
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[name] || paths.dashboard}</svg>;
+}
 
 function pickLocalStorage(keys) {
   for (const k of keys) {
@@ -378,9 +380,6 @@ export default function FarmShell({ user, onLogout }) {
   const { isAdmin, isConsultant } = useFarm();
   const [activeTab, setActiveTab] = useState(() => (isConsultant ? "mapa" : "dashboard"));
   const [focusZoneRequest, setFocusZoneRequest] = useState(null);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(
-    () => localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "true"
-  );
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   const [token, setToken] = useState(() => getAuthToken());
@@ -540,13 +539,22 @@ export default function FarmShell({ user, onLogout }) {
     if (tab === "tareas") fetchZonesFromMap({ force: true });
   };
 
-  const toggleSidebar = () => {
-    setSidebarCollapsed((current) => {
-      const next = !current;
-      localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(next));
-      return next;
-    });
-  };
+  useEffect(() => {
+    if (!mobileSidebarOpen) return undefined;
+    const bodyOverflow = document.body.style.overflow;
+    const htmlOverflow = document.documentElement.style.overflow;
+    document.body.style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
+    const closeOnEscape = (event) => {
+      if (event.key === "Escape") setMobileSidebarOpen(false);
+    };
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.body.style.overflow = bodyOverflow;
+      document.documentElement.style.overflow = htmlOverflow;
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [mobileSidebarOpen]);
 
   const handleOpenZoneInMap = (zoneName) => {
     if (!zoneName) return;
@@ -615,7 +623,7 @@ export default function FarmShell({ user, onLogout }) {
   };
 
   return (
-    <div className={sidebarCollapsed ? "farm-shell sidebar-is-collapsed" : "farm-shell"}>
+    <div className="farm-shell">
       <header className="farm-shell-header">
         <button
           type="button"
@@ -669,23 +677,14 @@ export default function FarmShell({ user, onLogout }) {
         aria-label="Navegación de AgroMind"
       >
         <div className="farm-sidebar-top">
-          <div className="farm-sidebar-mobile-brand">
-            <div className="brand-logo-circle">AG</div>
-            <div>
-              <strong>AgroMind CR</strong>
-              <span>{isAdmin ? "Administrador" : "Consultor"}</span>
+          <div className="farm-sidebar-cinematic">
+            <div className="farm-sidebar-cinematic-glow" aria-hidden="true" />
+            <div className="farm-sidebar-cinematic-copy">
+              <span>AgroMind CR</span>
+              <strong>Somos Agro<br />Inteligencia</strong>
+              <small>La finca que piensa.</small>
             </div>
           </div>
-
-          <button
-            type="button"
-            className="farm-sidebar-collapse"
-            onClick={toggleSidebar}
-            aria-label={sidebarCollapsed ? "Expandir barra lateral" : "Contraer barra lateral"}
-            title={sidebarCollapsed ? "Expandir" : "Contraer"}
-          >
-            <span aria-hidden="true">{sidebarCollapsed ? "›" : "‹"}</span>
-          </button>
 
           <button
             type="button"
@@ -709,10 +708,9 @@ export default function FarmShell({ user, onLogout }) {
                   : "farm-sidebar-item"
               }
               onClick={() => handleTabChange(key)}
-              title={sidebarCollapsed ? label : undefined}
             >
               <span className="farm-sidebar-icon" aria-hidden="true">
-                {NAV_ICONS[key]}
+                <NavIcon name={key} />
               </span>
               <span className="farm-sidebar-label">{label}</span>
             </button>
@@ -724,9 +722,8 @@ export default function FarmShell({ user, onLogout }) {
             type="button"
             className={activeTab === "settings" ? "farm-sidebar-item farm-sidebar-item-active" : "farm-sidebar-item"}
             onClick={() => handleTabChange("settings")}
-            title={sidebarCollapsed ? "Configuración" : undefined}
           >
-            <span className="farm-sidebar-icon" aria-hidden="true">{NAV_ICONS.settings}</span>
+            <span className="farm-sidebar-icon" aria-hidden="true"><NavIcon name="settings" /></span>
             <span className="farm-sidebar-label">Configuración</span>
           </button>
 
@@ -734,9 +731,8 @@ export default function FarmShell({ user, onLogout }) {
             type="button"
             className={activeTab === "support" ? "farm-sidebar-item farm-sidebar-item-support farm-sidebar-item-active" : "farm-sidebar-item farm-sidebar-item-support"}
             onClick={() => handleTabChange("support")}
-            title={sidebarCollapsed ? "Soporte AgroMind" : undefined}
           >
-            <span className="farm-sidebar-icon" aria-hidden="true">{NAV_ICONS.support}</span>
+            <span className="farm-sidebar-icon" aria-hidden="true"><NavIcon name="support" /></span>
             <span className="farm-sidebar-label">Soporte AgroMind</span>
           </button>
 
@@ -752,7 +748,7 @@ export default function FarmShell({ user, onLogout }) {
 
           {onLogout && (
             <button type="button" className="farm-sidebar-logout" onClick={handleLogoutClick}>
-              <span className="farm-sidebar-icon" aria-hidden="true">→</span>
+              <span className="farm-sidebar-icon" aria-hidden="true"><NavIcon name="logout" /></span>
               <span className="farm-sidebar-label">Cerrar sesión</span>
             </button>
           )}
