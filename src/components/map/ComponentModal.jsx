@@ -641,6 +641,7 @@ export default function ComponentModal({
         padding: isMobileLayout ? "8px" : "16px",
         overflow: "hidden",
         overscrollBehavior: "none",
+        isolation: "isolate",
       }}
     >
       <div
@@ -648,6 +649,7 @@ export default function ComponentModal({
         style={{
           position: "absolute",
           inset: 0,
+          zIndex: 0,
           background:
             "radial-gradient(circle at top, rgba(34,197,94,0.13), transparent 36%), rgba(0,0,0,0.62)",
           backdropFilter: "blur(5px)",
@@ -658,6 +660,7 @@ export default function ComponentModal({
         onClick={(e) => e.stopPropagation()}
         style={{
           position: "relative",
+          zIndex: 1,
           width: isMobileLayout ? "100%" : "min(1080px, 100%)",
           height: isMobileLayout
             ? "calc(100dvh - 16px)"
@@ -676,6 +679,7 @@ export default function ComponentModal({
           WebkitOverflowScrolling: "touch",
           overscrollBehavior: "contain",
           minHeight: 0,
+          isolation: "isolate",
         }}
       >
         <div

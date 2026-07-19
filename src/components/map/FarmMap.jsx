@@ -3214,6 +3214,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
               background: "rgba(2,6,23,0.72)",
               backdropFilter: "blur(8px)",
               overflow: "hidden",
+              isolation: "isolate",
             }}
             onClick={closeComponentsModal}
           >
@@ -3222,6 +3223,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
               className="agromind-process-modal"
               style={{
                 position: "relative",
+                zIndex: 1,
                 width: "min(1280px, 100%)",
                 height: "min(860px, calc(100dvh - 36px))",
                 maxWidth: "100%",

@@ -955,3 +955,64 @@
 .task-field .task-date-picker::-webkit-calendar-picker-indicator:hover {
   background-color: rgba(34, 197, 94, .28);
 }
+
+/* Acciones propias del editor: no dependen de estilos de otros modulos. */
+.task-editor .task-editor-actions .primary-btn,
+.task-editor .task-editor-actions .secondary-btn {
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: .68rem 1.15rem;
+  border-radius: 999px;
+  font-family: inherit;
+  font-size: .9rem;
+  font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+  transition: transform .15s ease, border-color .15s ease,
+    background .15s ease, box-shadow .15s ease, color .15s ease;
+}
+
+.task-editor .task-editor-actions .primary-btn {
+  border: 1px solid #22c55e;
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  color: #03130a;
+  box-shadow: 0 10px 24px rgba(34, 197, 94, .22);
+}
+
+.task-editor .task-editor-actions .primary-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  background: linear-gradient(135deg, #4ade80, #22c55e);
+  box-shadow: 0 13px 30px rgba(34, 197, 94, .3);
+}
+
+.task-editor .task-editor-actions .secondary-btn {
+  border: 1px solid rgba(100, 116, 139, .55);
+  background: rgba(15, 23, 42, .8);
+  color: #e2e8f0;
+}
+
+.task-editor .task-editor-actions .secondary-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: rgba(148, 163, 184, .72);
+  background: rgba(30, 41, 59, .95);
+}
+
+.task-editor .task-editor-actions button:disabled {
+  cursor: not-allowed;
+  opacity: .58;
+  transform: none;
+  box-shadow: none;
+}
+
+@media (max-width: 520px) {
+  .task-editor .task-editor-actions {
+    flex-direction: column;
+  }
+
+  .task-editor .task-editor-actions .primary-btn,
+  .task-editor .task-editor-actions .secondary-btn {
+    width: 100%;
+  }
+}
