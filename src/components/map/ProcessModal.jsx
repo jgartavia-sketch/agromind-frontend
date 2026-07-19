@@ -255,8 +255,6 @@ function ProcessModalView({
       setNewProcessDescription("");
       setNewProcessOwner("");
       setNewProcessPriority("Media");
-      setNewProcessStartDate("");
-      setNewProcessTargetDate("");
       setDraftSteps([getEmptyStepDraft(1)]);
     }
   }, [modalZone?.id]);
@@ -297,8 +295,6 @@ function ProcessModalView({
     setNewProcessDescription("");
     setNewProcessOwner("");
     setNewProcessPriority("Media");
-    setNewProcessStartDate("");
-    setNewProcessTargetDate("");
     setDraftSteps([getEmptyStepDraft(1)]);
     setProcessesError("");
   };
