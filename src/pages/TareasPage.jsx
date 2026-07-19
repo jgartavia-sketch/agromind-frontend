@@ -3716,8 +3716,18 @@ export default function TareasPage({
                 <label>Inicio</label>
                 <input
                   type="date"
+                  className="task-date-picker"
+                  inputMode="none"
                   value={formData.start}
                   onChange={(e) => handleFormChange("start", e.target.value)}
+                  onClick={(e) => e.currentTarget.showPicker?.()}
+                  onKeyDown={(e) => {
+                    if (!['Tab', 'Escape'].includes(e.key)) {
+                      e.preventDefault();
+                      e.currentTarget.showPicker?.();
+                    }
+                  }}
+                  onPaste={(e) => e.preventDefault()}
                   disabled={saving}
                 />
               </div>
@@ -3726,8 +3736,19 @@ export default function TareasPage({
                 <label>Vence</label>
                 <input
                   type="date"
+                  className="task-date-picker"
+                  inputMode="none"
                   value={formData.due}
                   onChange={(e) => handleFormChange("due", e.target.value)}
+                  onClick={(e) => e.currentTarget.showPicker?.()}
+                  onKeyDown={(e) => {
+                    if (!['Tab', 'Escape'].includes(e.key)) {
+                      e.preventDefault();
+                      e.currentTarget.showPicker?.();
+                    }
+                  }}
+                  onPaste={(e) => e.preventDefault()}
+                  min={formData.start || undefined}
                   disabled={saving}
                 />
               </div>

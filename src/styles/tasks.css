@@ -933,3 +933,25 @@
     font-size: 0.95rem;
   }
 }
+
+/* Selector de fechas: toda el area abre el calendario nativo. */
+.task-field .task-date-picker {
+  cursor: pointer;
+  color-scheme: dark;
+  caret-color: transparent;
+  user-select: none;
+}
+
+.task-field .task-date-picker::-webkit-calendar-picker-indicator {
+  width: 1.25rem;
+  height: 1.25rem;
+  padding: .25rem;
+  border-radius: .45rem;
+  background-color: rgba(34, 197, 94, .16);
+  cursor: pointer;
+  filter: invert(78%) sepia(45%) saturate(700%) hue-rotate(86deg);
+}
+
+.task-field .task-date-picker::-webkit-calendar-picker-indicator:hover {
+  background-color: rgba(34, 197, 94, .28);
+}
