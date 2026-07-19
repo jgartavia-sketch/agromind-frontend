@@ -444,6 +444,10 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
   const [componentsDraft, setComponentsDraft] = useState([]);
   const [editingNotesMap, setEditingNotesMap] = useState({});
 
+  const modalZone = componentsModalZoneId
+    ? zonesOnly.find((zone) => String(zone.id) === String(componentsModalZoneId)) || null
+    : null;
+
   const openComponentsModal = async (zoneId, view = "components") => {
     if (isConsultant) return;
     const zone = zonesOnly.find((z) => z.id === zoneId);
