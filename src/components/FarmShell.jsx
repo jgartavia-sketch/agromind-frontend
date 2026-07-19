@@ -28,14 +28,14 @@ const SUPPORT_WHATSAPP = String(
 ).replace(/\D/g, "");
 
 const NAV_ICONS = {
-  dashboard: "â–¦",
-  mapa: "â—‡",
-  tareas: "âœ“",
-  finanzas: "â‚¡",
-  clima: "â˜",
-  bitacora: "â‰¡",
-  team: "â—‰",
-  settings: "âš™",
+  dashboard: "▦",
+  mapa: "◇",
+  tareas: "✓",
+  finanzas: "₡",
+  clima: "☁",
+  bitacora: "≡",
+  team: "◉",
+  settings: "⚙",
   support: "?",
 };
 
@@ -247,7 +247,7 @@ function readStoredZones(farmId) {
   return extractZoneNames(candidates);
 }
 
-function ModuleLoader({ text = "Cargando mÃ³dulo..." }) {
+function ModuleLoader({ text = "Cargando módulo..." }) {
   return (
     <div
       style={{
@@ -271,13 +271,13 @@ function SettingsPanel({ user, isAdmin }) {
     <section className="shell-panel" aria-labelledby="settings-title">
       <div className="shell-panel-heading">
         <span className="shell-panel-eyebrow">TU ESPACIO</span>
-        <h1 id="settings-title">ConfiguraciÃ³n</h1>
+        <h1 id="settings-title">Configuración</h1>
         <p>Tu perfil y las preferencias generales de AgroMind en un solo lugar.</p>
       </div>
 
       <div className="shell-panel-grid">
         <article className="shell-option-card shell-option-card-featured">
-          <span className="shell-option-icon" aria-hidden="true">â—Ž</span>
+          <span className="shell-option-icon" aria-hidden="true">◎</span>
           <div>
             <span className="shell-option-label">Perfil</span>
             <h2>{user?.name || user?.nombre || "Usuario AgroMind"}</h2>
@@ -289,26 +289,26 @@ function SettingsPanel({ user, isAdmin }) {
         </article>
 
         <article className="shell-option-card">
-          <span className="shell-option-icon" aria-hidden="true">âœ‰</span>
+          <span className="shell-option-icon" aria-hidden="true">✉</span>
           <div>
             <span className="shell-option-label">Notificaciones</span>
             <h2>Recordatorios inteligentes</h2>
             <p>
-              AquÃ­ podrÃ¡s elegir cuÃ¡ndo recibir alertas de tareas y resÃºmenes
+              Aquí podrás elegir cuándo recibir alertas de tareas y resúmenes
               de actividad.
             </p>
-            <span className="shell-status-chip">PrÃ³xima integraciÃ³n</span>
+            <span className="shell-status-chip">Próxima integración</span>
           </div>
         </article>
 
         <article className="shell-option-card">
-          <span className="shell-option-icon" aria-hidden="true">â—</span>
+          <span className="shell-option-icon" aria-hidden="true">◐</span>
           <div>
             <span className="shell-option-label">Preferencias</span>
-            <h2>Experiencia de navegaciÃ³n</h2>
+            <h2>Experiencia de navegación</h2>
             <p>
-              AgroMind recuerda automÃ¡ticamente si prefieres la barra lateral
-              abierta o contraÃ­da.
+              AgroMind recuerda automáticamente si prefieres la barra lateral
+              abierta o contraída.
             </p>
             <span className="shell-status-chip shell-status-chip-ready">Activo</span>
           </div>
@@ -325,7 +325,7 @@ function SupportPanel() {
         <span className="shell-panel-eyebrow">ESTAMOS CONTIGO</span>
         <h1 id="support-title">Soporte AgroMind</h1>
         <p>
-          Cuando la operaciÃ³n no puede esperar, encuentra aquÃ­ nuestros canales
+          Cuando la operación no puede esperar, encuentra aquí nuestros canales
           oficiales de contacto.
         </p>
       </div>
@@ -340,7 +340,7 @@ function SupportPanel() {
           >
             <span className="shell-option-icon" aria-hidden="true">W</span>
             <span><strong>WhatsApp</strong><small>Hablar con soporte</small></span>
-            <b aria-hidden="true">â†—</b>
+            <b aria-hidden="true">↗</b>
           </a>
         )}
 
@@ -348,7 +348,7 @@ function SupportPanel() {
           <a className="shell-support-card" href={`mailto:${SUPPORT_EMAIL}`}>
             <span className="shell-option-icon" aria-hidden="true">@</span>
             <span><strong>Correo</strong><small>{SUPPORT_EMAIL}</small></span>
-            <b aria-hidden="true">â†—</b>
+            <b aria-hidden="true">↗</b>
           </a>
         )}
 
@@ -358,15 +358,15 @@ function SupportPanel() {
           target="_blank"
           rel="noreferrer"
         >
-          <span className="shell-option-icon" aria-hidden="true">â—Ž</span>
+          <span className="shell-option-icon" aria-hidden="true">◎</span>
           <span><strong>Centro web</strong><small>Visitar agromindcr.es</small></span>
-          <b aria-hidden="true">â†—</b>
+          <b aria-hidden="true">↗</b>
         </a>
       </div>
 
       {!SUPPORT_EMAIL && !SUPPORT_WHATSAPP && (
         <p className="shell-support-note">
-          El correo y WhatsApp de soporte aparecerÃ¡n aquÃ­ al configurar sus
+          El correo y WhatsApp de soporte aparecerán aquí al configurar sus
           variables oficiales.
         </p>
       )}
@@ -404,13 +404,13 @@ export default function FarmShell({ user, onLogout }) {
     ["tareas", "Tareas"],
     ["finanzas", "Finanzas"],
     ["clima", "Clima"],
-    ["bitacora", "BitÃ¡cora"],
+    ["bitacora", "Bitácora"],
     ["team", "Equipo y acceso"],
   ] : [
     ["mapa", "Mapa de la finca"],
     ["tareas", "Mis tareas"],
     ["clima", "Clima"],
-    ["bitacora", "Mi bitÃ¡cora"],
+    ["bitacora", "Mi bitácora"],
   ]), [isAdmin]);
 
   const cleanZoneList = useCallback((items) => {
@@ -621,7 +621,7 @@ export default function FarmShell({ user, onLogout }) {
           type="button"
           className="farm-mobile-menu"
           onClick={() => setMobileSidebarOpen(true)}
-          aria-label="Abrir menÃº"
+          aria-label="Abrir menú"
           aria-expanded={mobileSidebarOpen}
         >
           <span />
@@ -656,7 +656,7 @@ export default function FarmShell({ user, onLogout }) {
           type="button"
           className="farm-sidebar-backdrop"
           onClick={() => setMobileSidebarOpen(false)}
-          aria-label="Cerrar menÃº"
+          aria-label="Cerrar menú"
         />
       )}
 
@@ -666,7 +666,7 @@ export default function FarmShell({ user, onLogout }) {
             ? "farm-sidebar farm-sidebar-mobile-open"
             : "farm-sidebar"
         }
-        aria-label="NavegaciÃ³n de AgroMind"
+        aria-label="Navegación de AgroMind"
       >
         <div className="farm-sidebar-top">
           <div className="farm-sidebar-mobile-brand">
@@ -684,21 +684,21 @@ export default function FarmShell({ user, onLogout }) {
             aria-label={sidebarCollapsed ? "Expandir barra lateral" : "Contraer barra lateral"}
             title={sidebarCollapsed ? "Expandir" : "Contraer"}
           >
-            <span aria-hidden="true">{sidebarCollapsed ? "â€º" : "â€¹"}</span>
+            <span aria-hidden="true">{sidebarCollapsed ? "›" : "‹"}</span>
           </button>
 
           <button
             type="button"
             className="farm-sidebar-mobile-close"
             onClick={() => setMobileSidebarOpen(false)}
-            aria-label="Cerrar menÃº"
+            aria-label="Cerrar menú"
           >
-            Ã—
+            ×
           </button>
         </div>
 
         <nav className="farm-sidebar-nav">
-          <span className="farm-sidebar-section-label">OPERACIÃ“N</span>
+          <span className="farm-sidebar-section-label">OPERACIÓN</span>
           {mainTabs.map(([key, label]) => (
             <button
               key={key}
@@ -724,10 +724,10 @@ export default function FarmShell({ user, onLogout }) {
             type="button"
             className={activeTab === "settings" ? "farm-sidebar-item farm-sidebar-item-active" : "farm-sidebar-item"}
             onClick={() => handleTabChange("settings")}
-            title={sidebarCollapsed ? "ConfiguraciÃ³n" : undefined}
+            title={sidebarCollapsed ? "Configuración" : undefined}
           >
             <span className="farm-sidebar-icon" aria-hidden="true">{NAV_ICONS.settings}</span>
-            <span className="farm-sidebar-label">ConfiguraciÃ³n</span>
+            <span className="farm-sidebar-label">Configuración</span>
           </button>
 
           <button
@@ -752,8 +752,8 @@ export default function FarmShell({ user, onLogout }) {
 
           {onLogout && (
             <button type="button" className="farm-sidebar-logout" onClick={handleLogoutClick}>
-              <span className="farm-sidebar-icon" aria-hidden="true">â†’</span>
-              <span className="farm-sidebar-label">Cerrar sesiÃ³n</span>
+              <span className="farm-sidebar-icon" aria-hidden="true">→</span>
+              <span className="farm-sidebar-label">Cerrar sesión</span>
             </button>
           )}
         </div>
