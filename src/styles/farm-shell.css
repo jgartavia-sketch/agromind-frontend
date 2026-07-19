@@ -784,6 +784,62 @@ body {
   }
 }
 
+/* Mantener estas capas visuales al final de la cascada. */
+.farm-sidebar,
+.sidebar-is-collapsed .farm-sidebar {
+  background:
+    linear-gradient(180deg, rgba(2, 8, 23, .48), rgba(2, 8, 23, .84) 36%, rgba(2, 6, 23, .98)),
+    linear-gradient(90deg, rgba(2, 6, 23, .9), rgba(2, 6, 23, .28)),
+    url("../assets/agromind-sidebar-cinematic.webp") center / cover no-repeat;
+}
+
+.farm-sidebar-top {
+  background:
+    linear-gradient(180deg, rgba(2, 6, 23, .05), rgba(2, 8, 23, .88) 88%, rgba(2, 8, 23, .98)),
+    linear-gradient(90deg, rgba(2, 6, 23, .78), transparent),
+    url("../assets/agromind-sidebar-cinematic.webp") 64% 8% / cover no-repeat;
+}
+
+/* Fondo cinematografico AgroMind */
+.farm-sidebar,
+.sidebar-is-collapsed .farm-sidebar {
+  background:
+    linear-gradient(180deg, rgba(2, 8, 23, .48) 0%, rgba(2, 8, 23, .82) 34%, rgba(2, 6, 23, .97) 100%),
+    linear-gradient(90deg, rgba(2, 6, 23, .9), rgba(2, 6, 23, .28)),
+    url("../assets/agromind-sidebar-cinematic.webp") center / cover no-repeat;
+}
+
+.farm-sidebar-top {
+  background:
+    linear-gradient(180deg, rgba(2, 6, 23, .05), rgba(2, 8, 23, .86) 88%, rgba(2, 8, 23, .98)),
+    linear-gradient(90deg, rgba(2, 6, 23, .76), transparent),
+    url("../assets/agromind-sidebar-cinematic.webp") 64% 8% / cover no-repeat;
+}
+
+.farm-sidebar-nav,
+.farm-sidebar-footer {
+  position: relative;
+  z-index: 2;
+}
+
+.farm-sidebar-item,
+.farm-sidebar-logout,
+.farm-sidebar-profile {
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.farm-sidebar-item:hover,
+.farm-sidebar-logout:hover {
+  background: rgba(8, 20, 31, .88);
+}
+
+.farm-sidebar-item-active {
+  background: linear-gradient(90deg, rgba(5, 72, 48, .9), rgba(4, 47, 46, .66));
+  border-color: rgba(52, 211, 153, .42);
+  box-shadow: inset 3px 0 #34d399, 0 10px 28px rgba(0, 0, 0, .2);
+}
+
 /* =========================================================
    Navegación lateral AgroMind
    ========================================================= */
@@ -1429,6 +1485,10 @@ body {
   transform: translateX(-105%);
   visibility: hidden;
   opacity: 0;
+  background:
+    linear-gradient(180deg, rgba(2, 8, 23, .48), rgba(2, 8, 23, .84) 36%, rgba(2, 6, 23, .98)),
+    linear-gradient(90deg, rgba(2, 6, 23, .9), rgba(2, 6, 23, .28)),
+    url("../assets/agromind-sidebar-cinematic.webp") center / cover no-repeat;
 }
 
 .farm-sidebar.farm-sidebar-mobile-open {
@@ -1449,6 +1509,10 @@ body {
   min-height: 190px;
   flex: 0 0 190px;
   justify-content: flex-start;
+  background:
+    linear-gradient(180deg, rgba(2, 6, 23, .05), rgba(2, 8, 23, .88) 88%, rgba(2, 8, 23, .98)),
+    linear-gradient(90deg, rgba(2, 6, 23, .78), transparent),
+    url("../assets/agromind-sidebar-cinematic.webp") 64% 8% / cover no-repeat;
 }
 
 .farm-sidebar-collapse,
