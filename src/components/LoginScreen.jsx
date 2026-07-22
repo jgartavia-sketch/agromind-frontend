@@ -376,7 +376,7 @@ export default function LoginScreen({ onLogin }) {
               <label>Nombre</label>
               <input
                 type="text"
-                placeholder="Ej: José Artavia"
+                placeholder="Ej: Carlos Sanchez"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 autoComplete="name"
