@@ -706,17 +706,104 @@ export default function LandingPage({ hasSession = false, onOpenAccount }) {
         }
 
         .landing-footer {
-          padding: 24px 0 34px;
+          position: relative;
+          padding: 54px 0 30px;
           border-top: 1px solid rgba(148,163,184,0.10);
           color: rgba(148,163,184,0.70);
           font-size: 0.8rem;
+          background:
+            radial-gradient(circle at 10% 0%, rgba(34,197,94,0.10), transparent 30%),
+            linear-gradient(180deg, rgba(3,11,19,0.58), rgba(2,6,23,0.92));
         }
 
         .landing-footer-inner {
+          display: grid;
+          gap: 34px;
+        }
+
+        .landing-footer-main {
+          display: grid;
+          grid-template-columns: minmax(240px, 0.8fr) minmax(0, 1.2fr);
+          align-items: center;
+          gap: clamp(28px, 6vw, 76px);
+        }
+
+        .landing-footer-brand {
+          max-width: 420px;
+        }
+
+        .landing-footer-brand strong {
+          display: block;
+          color: #f8fafc;
+          font-size: clamp(1.35rem, 2vw, 1.7rem);
+          letter-spacing: -0.03em;
+        }
+
+        .landing-footer-brand p {
+          margin: 12px 0 0;
+          color: rgba(203,213,225,0.68);
+          font-size: 0.88rem;
+          line-height: 1.65;
+        }
+
+        .landing-contact-grid {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 12px;
+        }
+
+        .landing-contact-link {
+          min-height: 112px;
+          padding: 17px;
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
+          gap: 14px;
+          border: 1px solid rgba(148,163,184,0.13);
+          border-radius: 18px 18px 18px 6px;
+          background: linear-gradient(145deg, rgba(15,31,40,0.84), rgba(8,18,29,0.72));
+          color: #e2e8f0;
+          text-decoration: none;
+          transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+        }
+
+        .landing-contact-link:hover {
+          transform: translateY(-3px);
+          border-color: rgba(74,222,128,0.34);
+          box-shadow: 0 18px 42px rgba(0,0,0,0.24);
+        }
+
+        .landing-contact-link svg {
+          width: 23px;
+          height: 23px;
+          color: #4ade80;
+        }
+
+        .landing-contact-link span {
+          display: block;
+          color: rgba(148,163,184,0.82);
+          font-size: 0.66rem;
+          font-weight: 900;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+        }
+
+        .landing-contact-link strong {
+          display: block;
+          margin-top: 5px;
+          overflow-wrap: anywhere;
+          color: #f8fafc;
+          font-size: 0.78rem;
+          line-height: 1.35;
+        }
+
+        .landing-footer-bottom {
+          padding-top: 22px;
           display: flex;
           justify-content: space-between;
           gap: 18px;
           flex-wrap: wrap;
+          border-top: 1px solid rgba(148,163,184,0.10);
         }
 
         @media (max-width: 1100px) {
@@ -760,6 +847,10 @@ export default function LandingPage({ hasSession = false, onOpenAccount }) {
           .landing-purpose-intro {
             max-width: 680px;
           }
+
+          .landing-footer-main {
+            grid-template-columns: 1fr;
+          }
         }
 
         @media (max-width: 680px) {
@@ -796,6 +887,17 @@ export default function LandingPage({ hasSession = false, onOpenAccount }) {
 
           .landing-hero-actions .landing-btn {
             width: 100%;
+          }
+
+          .landing-contact-grid {
+            grid-template-columns: 1fr;
+          }
+
+          .landing-contact-link {
+            min-height: 88px;
+            flex-direction: row;
+            align-items: center;
+            justify-content: flex-start;
           }
 
           .landing-section {
@@ -983,9 +1085,17 @@ export default function LandingPage({ hasSession = false, onOpenAccount }) {
             width: 100%;
           }
 
-          .landing-footer-inner {
-            flex-direction: column;
+          .landing-footer {
+            padding-top: 44px;
+          }
+
+          .landing-footer-brand,
+          .landing-footer-bottom {
             text-align: center;
+          }
+
+          .landing-footer-bottom {
+            flex-direction: column;
           }
         }
 
@@ -1027,7 +1137,8 @@ export default function LandingPage({ hasSession = false, onOpenAccount }) {
           .landing-btn,
           .landing-feature-card,
           .landing-feature-benefit,
-          .landing-tutorial-card {
+          .landing-tutorial-card,
+          .landing-contact-link {
             transition: none;
           }
         }
@@ -1283,8 +1394,69 @@ export default function LandingPage({ hasSession = false, onOpenAccount }) {
 
       <footer className="landing-footer">
         <div className="landing-container landing-footer-inner">
-          <span>© {new Date().getFullYear()} AgroMind CR.</span>
-          <span>Construido para una actividad agropecuaria más clara, conectada y rentable.</span>
+          <div className="landing-footer-main">
+            <div className="landing-footer-brand">
+              <strong>AgroMind CR</strong>
+              <p>
+                Tecnología costarricense para una gestión agropecuaria más clara,
+                conectada y rentable. ¿Tenés alguna consulta? Estamos para ayudarte.
+              </p>
+            </div>
+
+            <div className="landing-contact-grid" aria-label="Canales de contacto">
+              <a
+                className="landing-contact-link"
+                href="https://www.facebook.com/profile.php?id=61589456532841"
+                target="_blank"
+                rel="noreferrer"
+                aria-label="Visitar AgroMind CR en Facebook"
+              >
+                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M13.5 22v-8h2.75l.41-3.2H13.5V8.76c0-.93.26-1.56 1.59-1.56h1.7V4.34c-.29-.04-1.3-.13-2.47-.13-2.44 0-4.12 1.49-4.12 4.23v2.36H7.44V14h2.76v8h3.3Z" />
+                </svg>
+                <div>
+                  <span>Seguinos</span>
+                  <strong>Facebook</strong>
+                </div>
+              </a>
+
+              <a
+                className="landing-contact-link"
+                href="mailto:agromindcostarica@gmail.com"
+                aria-label="Enviar correo a AgroMind CR"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                  <path d="M4 5h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z" />
+                  <path d="m22 7-10 7L2 7" />
+                </svg>
+                <div>
+                  <span>Escribinos</span>
+                  <strong>agromindcostarica@gmail.com</strong>
+                </div>
+              </a>
+
+              <a
+                className="landing-contact-link"
+                href="https://wa.me/50662964881?text=Hola%20AgroMind%20CR%2C%20necesito%20m%C3%A1s%20informaci%C3%B3n."
+                target="_blank"
+                rel="noreferrer"
+                aria-label="Contactar a AgroMind CR por WhatsApp"
+              >
+                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M12.04 2a9.84 9.84 0 0 0-8.48 14.82L2 22l5.3-1.53A9.95 9.95 0 1 0 12.04 2Zm0 17.93a8.02 8.02 0 0 1-4.08-1.12l-.29-.17-3.15.91.93-3.07-.19-.31a7.93 7.93 0 1 1 6.78 3.76Zm4.36-5.94c-.24-.12-1.42-.7-1.64-.78-.22-.08-.38-.12-.54.12-.16.24-.62.78-.76.94-.14.16-.28.18-.52.06-.24-.12-1.01-.37-1.92-1.19a7.2 7.2 0 0 1-1.33-1.65c-.14-.24-.01-.37.11-.49.11-.11.24-.28.36-.42.12-.14.16-.24.24-.4.08-.16.04-.3-.02-.42-.06-.12-.54-1.3-.74-1.78-.19-.47-.39-.4-.54-.41h-.46c-.16 0-.42.06-.64.3-.22.24-.84.82-.84 2s.86 2.32.98 2.48c.12.16 1.69 2.58 4.1 3.62.57.25 1.02.39 1.37.5.58.18 1.1.16 1.51.1.46-.07 1.42-.58 1.62-1.14.2-.56.2-1.04.14-1.14-.06-.1-.22-.16-.46-.28Z" />
+                </svg>
+                <div>
+                  <span>Hablemos</span>
+                  <strong>+506 6296-4881</strong>
+                </div>
+              </a>
+            </div>
+          </div>
+
+          <div className="landing-footer-bottom">
+            <span>© {new Date().getFullYear()} AgroMind CR.</span>
+            <span>Agrointeligencia para el campo que avanza.</span>
+          </div>
         </div>
       </footer>
     </main>
