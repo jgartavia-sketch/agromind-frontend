@@ -20,10 +20,15 @@ const RAW_API_BASE =
 const API_BASE = RAW_API_BASE.replace(/\/+$/, "");
 const SUPPORT_WEBSITE =
   import.meta.env.VITE_SUPPORT_WEBSITE || "https://agromindcr.es";
-const SUPPORT_EMAIL = String(import.meta.env.VITE_SUPPORT_EMAIL || "").trim();
+const SUPPORT_EMAIL = String(
+  import.meta.env.VITE_SUPPORT_EMAIL || "agromindcostarica@gmail.com"
+).trim();
 const SUPPORT_WHATSAPP = String(
-  import.meta.env.VITE_SUPPORT_WHATSAPP || ""
+  import.meta.env.VITE_SUPPORT_WHATSAPP || "50662964881"
 ).replace(/\D/g, "");
+const SUPPORT_FACEBOOK =
+  import.meta.env.VITE_SUPPORT_FACEBOOK ||
+  "https://www.facebook.com/profile.php?id=61589456532841";
 
 function NavIcon({ name }) {
   const paths = {
@@ -321,6 +326,30 @@ function SettingsPanel({ user, isAdmin }) {
 }
 
 function SupportPanel() {
+  const [contactTitle, setContactTitle] = useState("");
+  const [contactDescription, setContactDescription] = useState("");
+
+  const handleContactSubmit = (event) => {
+    event.preventDefault();
+
+    const subject = contactTitle.trim();
+    const description = contactDescription.trim();
+
+    if (!subject || !description) return;
+
+    const body = [
+      "Hola, equipo de AgroMind CR:",
+      "",
+      description,
+      "",
+      "Enviado desde la sección Soporte AgroMind.",
+    ].join("\n");
+
+    window.location.href = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(
+      subject
+    )}&body=${encodeURIComponent(body)}`;
+  };
+
   return (
     <section className="shell-panel" aria-labelledby="support-title">
       <div className="shell-panel-heading">
@@ -336,7 +365,9 @@ function SupportPanel() {
         {SUPPORT_WHATSAPP && (
           <a
             className="shell-support-card"
-            href={`https://wa.me/${SUPPORT_WHATSAPP}`}
+            href={`https://wa.me/${SUPPORT_WHATSAPP}?text=${encodeURIComponent(
+              "Hola, necesito ayuda con AgroMind CR."
+            )}`}
             target="_blank"
             rel="noreferrer"
           >
@@ -346,13 +377,25 @@ function SupportPanel() {
           </a>
         )}
 
-        {SUPPORT_EMAIL && (
-          <a className="shell-support-card" href={`mailto:${SUPPORT_EMAIL}`}>
+        <a
+          className="shell-support-card"
+          href={SUPPORT_FACEBOOK}
+          target="_blank"
+          rel="noreferrer"
+        >
+          <span className="shell-option-icon" aria-hidden="true">f</span>
+          <span><strong>Facebook</strong><small>Seguir AgroMind CR</small></span>
+          <b aria-hidden="true">↗</b>
+        </a>
+
+        <a
+          className="shell-support-card"
+          href={`mailto:${SUPPORT_EMAIL}`}
+        >
             <span className="shell-option-icon" aria-hidden="true">@</span>
-            <span><strong>Correo</strong><small>{SUPPORT_EMAIL}</small></span>
+            <span><strong>Correo directo</strong><small>{SUPPORT_EMAIL}</small></span>
             <b aria-hidden="true">↗</b>
-          </a>
-        )}
+        </a>
 
         <a
           className="shell-support-card"
@@ -366,12 +409,122 @@ function SupportPanel() {
         </a>
       </div>
 
-      {!SUPPORT_EMAIL && !SUPPORT_WHATSAPP && (
-        <p className="shell-support-note">
-          El correo y WhatsApp de soporte aparecerán aquí al configurar sus
-          variables oficiales.
-        </p>
-      )}
+      <form
+        className="shell-contact-form"
+        onSubmit={handleContactSubmit}
+        style={{
+          marginTop: "28px",
+          padding: "clamp(20px, 4vw, 34px)",
+          border: "1px solid rgba(42, 113, 54, 0.18)",
+          borderRadius: "22px",
+          background:
+            "linear-gradient(145deg, rgba(255,255,255,.98), rgba(239,248,239,.94))",
+          boxShadow: "0 18px 45px rgba(20, 65, 28, 0.08)",
+        }}
+      >
+        <div style={{ marginBottom: "20px" }}>
+          <span className="shell-panel-eyebrow">CONTACTO POR CORREO</span>
+          <h2 style={{ margin: "7px 0 6px", color: "#173b1a" }}>
+            Cuéntanos cómo podemos ayudarte
+          </h2>
+          <p style={{ margin: 0, color: "#5d6f60" }}>
+            Completa el título y la descripción. Prepararemos el correo para que
+            puedas enviarlo desde tu aplicación habitual.
+          </p>
+        </div>
+
+        <label
+          htmlFor="support-contact-title"
+          style={{ display: "block", marginBottom: "18px" }}
+        >
+          <span
+            style={{
+              display: "block",
+              marginBottom: "8px",
+              color: "#244b29",
+              fontWeight: 700,
+            }}
+          >
+            Título o asunto
+          </span>
+          <input
+            id="support-contact-title"
+            type="text"
+            value={contactTitle}
+            onChange={(event) => setContactTitle(event.target.value)}
+            placeholder="Ej: Necesito ayuda con una tarea"
+            required
+            maxLength={120}
+            style={{
+              width: "100%",
+              boxSizing: "border-box",
+              padding: "13px 15px",
+              border: "1px solid rgba(35, 91, 44, 0.25)",
+              borderRadius: "12px",
+              background: "#fff",
+              color: "#173b1a",
+              font: "inherit",
+              outlineColor: "#2f7d3b",
+            }}
+          />
+        </label>
+
+        <label
+          htmlFor="support-contact-description"
+          style={{ display: "block", marginBottom: "20px" }}
+        >
+          <span
+            style={{
+              display: "block",
+              marginBottom: "8px",
+              color: "#244b29",
+              fontWeight: 700,
+            }}
+          >
+            Descripción
+          </span>
+          <textarea
+            id="support-contact-description"
+            value={contactDescription}
+            onChange={(event) => setContactDescription(event.target.value)}
+            placeholder="Explícanos brevemente el motivo de tu consulta..."
+            required
+            rows={6}
+            maxLength={2000}
+            style={{
+              width: "100%",
+              boxSizing: "border-box",
+              padding: "13px 15px",
+              border: "1px solid rgba(35, 91, 44, 0.25)",
+              borderRadius: "12px",
+              background: "#fff",
+              color: "#173b1a",
+              font: "inherit",
+              lineHeight: 1.55,
+              resize: "vertical",
+              outlineColor: "#2f7d3b",
+            }}
+          />
+        </label>
+
+        <button
+          type="submit"
+          style={{
+            minHeight: "48px",
+            padding: "12px 22px",
+            border: 0,
+            borderRadius: "12px",
+            background: "linear-gradient(135deg, #226c31, #41a34f)",
+            color: "#fff",
+            font: "inherit",
+            fontWeight: 800,
+            cursor: "pointer",
+            boxShadow: "0 10px 24px rgba(34, 108, 49, 0.22)",
+          }}
+        >
+          Preparar correo
+        </button>
+      </form>
     </section>
   );
 }
