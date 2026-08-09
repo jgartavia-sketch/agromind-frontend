@@ -1311,10 +1311,10 @@ export default function LandingPage({ hasSession = false, onOpenAccount }) {
       <section className="landing-section" id="tutoriales">
         <div className="landing-container">
           <div className="landing-section-header">
-            <h2>Empezá en minutos. Nosotros te guiamos.</h2>
+            <h2>Pronto encontrarás aquí los videos tutoriales GRATIS</h2>
             <p>
-              Descubrí cada función con tutoriales breves, claros y prácticos.
-              AgroMind está diseñado para que ordenar tu operación sea fácil desde el primer día.
+              Estamos preparando guías breves, claras y prácticas para que
+              aproveches cada función de AgroMind desde el primer día.
             </p>
           </div>
 
