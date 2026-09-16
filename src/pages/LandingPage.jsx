@@ -8,43 +8,43 @@ function navigateTo(path) {
 
 const features = [
   {
-    icon: "ðŸ—ºï¸",
+    icon: "🗺️",
     title: "Mapa inteligente",
-    text: "Organiza zonas, puntos, lÃ­neas, componentes y evidencias dentro de cada finca.",
+    text: "Organiza zonas, puntos, líneas, componentes y evidencias dentro de cada finca.",
     benefit:
-      "VisualizÃ¡ la distribuciÃ³n real de la finca, detectÃ¡ zonas prioritarias y conservÃ¡ evidencias de cada componente.",
+      "Visualizá la distribución real de la finca, detectá zonas prioritarias y conservá evidencias de cada componente.",
   },
   {
-    icon: "ðŸ“…",
+    icon: "📅",
     title: "Calendario Maestro",
     text: "Coordina tareas, procesos, responsables y fechas desde una sola vista operativa.",
     benefit:
-      "AnticipÃ¡ pendientes, evitÃ¡ atrasos y mantenÃ© a cada responsable alineado con el trabajo programado.",
+      "Anticipá pendientes, evitá atrasos y mantené a cada responsable alineado con el trabajo programado.",
   },
   {
-    icon: "âš™ï¸",
+    icon: "⚙️",
     title: "Process Lab",
-    text: "DiseÃ±a procesos agrÃ­colas por etapas y visualiza su avance en tiempo real.",
+    text: "Diseña procesos agrícolas por etapas y visualiza su avance en tiempo real.",
     benefit:
-      "EstandarizÃ¡ procesos, identificÃ¡ etapas detenidas y reutilizÃ¡ el conocimiento adquirido en futuros ciclos.",
+      "Estandarizá procesos, identificá etapas detenidas y reutilizá el conocimiento adquirido en futuros ciclos.",
   },
   {
-    icon: "ðŸ“Š",
+    icon: "📊",
     title: "Business Intelligence",
-    text: "Convierte la operaciÃ³n diaria en indicadores, reportes y mejores decisiones.",
+    text: "Convierte la operación diaria en indicadores, reportes y mejores decisiones.",
     benefit:
-      "RegistrÃ¡ ingresos y gastos, respaldÃ¡ la informaciÃ³n de la secciÃ³n Finanzas y convertÃ­ los movimientos de tu operaciÃ³n en indicadores para tomar mejores decisiones.",
+      "Registrá ingresos y gastos, respaldá la información de la sección Finanzas y convertí los movimientos de tu operación en indicadores para tomar mejores decisiones.",
   },
 ];
 
 const tutorials = [
   {
     title: "Primeros pasos en AgroMind",
-    text: "Crea tu finca, define su ubicaciÃ³n y comienza a construir tu espacio de trabajo.",
+    text: "Crea tu finca, define su ubicación y comienza a construir tu espacio de trabajo.",
   },
   {
     title: "Mapa y zonas productivas",
-    text: "Aprende a representar la finca y organizar visualmente sus Ã¡reas y componentes.",
+    text: "Aprende a representar la finca y organizar visualmente sus áreas y componentes.",
   },
   {
     title: "Tareas y procesos",
@@ -1178,7 +1178,7 @@ export default function LandingPage({ hasSession = false, onOpenAccount }) {
                 className="landing-btn landing-btn-secondary"
                 onClick={openLogin}
               >
-                Iniciar sesiÃ³n
+                Iniciar sesión
               </button>
             )}
 
@@ -1197,18 +1197,18 @@ export default function LandingPage({ hasSession = false, onOpenAccount }) {
         <div className="landing-container landing-hero-grid">
           <div>
             <span className="landing-eyebrow">
-              TecnologÃ­a agropecuaria creada en Costa Rica para el mundo
+              Tecnología agropecuaria creada en Costa Rica para el mundo
             </span>
 
             <h1 className="landing-title">
-              Tu operaciÃ³n agropecuaria, <span>bajo control.</span>
+              Tu operación agropecuaria, <span>bajo control.</span>
             </h1>
 
             <p className="landing-lead">
-              AgroMind es el asistente digital que reÃºne fincas, mapas satelitales, tareas,
+              AgroMind es el asistente digital que reúne fincas, mapas satelitales, tareas,
               procesos, clima, finanzas e indicadores en una sola plataforma.
-              AdministrÃ¡ varias fincas, trabajÃ¡ con consultores mediante accesos
-              controlados y contÃ¡ con soporte 24/7 cuando lo necesitÃ©s.
+              Administrá varias fincas, trabajá con consultores mediante accesos
+              controlados y contá con soporte 24/7 cuando lo necesités.
             </p>
 
             <div className="landing-hero-actions">
@@ -1226,15 +1226,15 @@ export default function LandingPage({ hasSession = false, onOpenAccount }) {
                   className="landing-btn landing-btn-secondary"
                   onClick={openLogin}
                 >
-                  Iniciar sesiÃ³n
+                  Iniciar sesión
                 </button>
               )}
             </div>
 
             <div className="landing-proof">
-              <span>âœ“ GestiÃ³n multifinca</span>
-              <span>âœ“ Consultores con acceso controlado</span>
-              <span>âœ“ AcompaÃ±amiento y soporte 24/7</span>
+              <span>✓ Gestión multifinca</span>
+              <span>✓ Consultores con acceso controlado</span>
+              <span>✓ Acompañamiento y soporte 24/7</span>
             </div>
           </div>
 
@@ -1245,7 +1245,7 @@ export default function LandingPage({ hasSession = false, onOpenAccount }) {
                 <span />
                 <span />
               </div>
-              <span className="landing-product-chip">Finca El Roble Â· Activa</span>
+              <span className="landing-product-chip">Finca El Roble · Activa</span>
             </div>
 
             <div className="landing-product-map">
@@ -1276,10 +1276,10 @@ export default function LandingPage({ hasSession = false, onOpenAccount }) {
       <section className="landing-section" id="funciones">
         <div className="landing-container">
           <div className="landing-section-header">
-            <h2>Una operaciÃ³n conectada de principio a fin.</h2>
+            <h2>Una operación conectada de principio a fin.</h2>
             <p>
-              Cada mÃ³dulo comparte la misma finca, las mismas zonas y el mismo
-              contexto operativo. La informaciÃ³n deja de vivir en islas.
+              Cada módulo comparte la misma finca, las mismas zonas y el mismo
+              contexto operativo. La información deja de vivir en islas.
             </p>
           </div>
 
@@ -1293,7 +1293,7 @@ export default function LandingPage({ hasSession = false, onOpenAccount }) {
                 tabIndex={0}
                 role="button"
                 aria-expanded={activeFeature === feature.title}
-                aria-label={`${feature.title}. TocÃ¡ o pasÃ¡ el cursor para conocer su beneficio.`}
+                aria-label={`${feature.title}. Tocá o pasá el cursor para conocer su beneficio.`}
                 onClick={() =>
                   setActiveFeature((current) =>
                     current === feature.title ? null : feature.title
@@ -1324,10 +1324,10 @@ export default function LandingPage({ hasSession = false, onOpenAccount }) {
       <section className="landing-section" id="tutoriales">
         <div className="landing-container">
           <div className="landing-section-header">
-            <h2>Pronto encontrarÃ¡s aquÃ­ los videos tutoriales GRATIS</h2>
+            <h2>Pronto encontrarás aquí los videos tutoriales GRATIS</h2>
             <p>
-              Estamos preparando guÃ­as breves, claras y prÃ¡cticas para que
-              aproveches cada funciÃ³n de AgroMind desde el primer dÃ­a.
+              Estamos preparando guías breves, claras y prácticas para que
+              aproveches cada función de AgroMind desde el primer día.
             </p>
           </div>
 
@@ -1335,7 +1335,7 @@ export default function LandingPage({ hasSession = false, onOpenAccount }) {
             {tutorials.map((tutorial) => (
               <article key={tutorial.title} className="landing-tutorial-card">
                 <div className="landing-video-placeholder">
-                  <span className="landing-play">â–¶</span>
+                  <span className="landing-play">▶</span>
                 </div>
                 <div className="landing-tutorial-copy">
                   <h3>{tutorial.title}</h3>
@@ -1350,36 +1350,36 @@ export default function LandingPage({ hasSession = false, onOpenAccount }) {
       <section className="landing-section landing-purpose" id="proposito">
         <div className="landing-container landing-purpose-grid">
           <div className="landing-purpose-intro">
-            <span className="landing-purpose-kicker">Nuestro propÃ³sito</span>
-            <h2>TecnologÃ­a del campo, creada para llegar mÃ¡s lejos.</h2>
+            <span className="landing-purpose-kicker">Nuestro propósito</span>
+            <h2>Tecnología del campo, creada para llegar más lejos.</h2>
             <p>
-              AgroMind nace para acompaÃ±ar a productores, ganaderos, agricultores,
+              AgroMind nace para acompañar a productores, ganaderos, agricultores,
               ingenieros, consultores y equipos que necesitan transformar el trabajo
-              diario en una operaciÃ³n mÃ¡s ordenada, conectada y rentable.
+              diario en una operación más ordenada, conectada y rentable.
             </p>
           </div>
 
           <div className="landing-purpose-cards">
             <article className="landing-purpose-card">
-              <strong>Nuestra misiÃ³n</strong>
+              <strong>Nuestra misión</strong>
               <p>
-                Facilitar la gestiÃ³n agropecuaria mediante una plataforma accesible
-                que conecte el trabajo de campo, la administraciÃ³n y la toma de decisiones.
+                Facilitar la gestión agropecuaria mediante una plataforma accesible
+                que conecte el trabajo de campo, la administración y la toma de decisiones.
               </p>
             </article>
 
             <article className="landing-purpose-card">
-              <strong>Nuestra visiÃ³n</strong>
+              <strong>Nuestra visión</strong>
               <p>
-                Construir desde Costa Rica un ecosistema tecnolÃ³gico para el sector
+                Construir desde Costa Rica un ecosistema tecnológico para el sector
                 agropecuario del mundo, capaz de integrar fincas, equipos de trabajo,
-                maquinaria, dispositivos y datos productivos en una operaciÃ³n cada vez
-                mÃ¡s conectada, eficiente y rentable.
+                maquinaria, dispositivos y datos productivos en una operación cada vez
+                más conectada, eficiente y rentable.
               </p>
               <div className="landing-future-note">
-                Nuestra evoluciÃ³n contempla nuevas integraciones con dispositivos,
-                maquinaria y tecnologÃ­as para el campo. Estas capacidades forman parte
-                de la visiÃ³n futura de AgroMind CR.
+                Nuestra evolución contempla nuevas integraciones con dispositivos,
+                maquinaria y tecnologías para el campo. Estas capacidades forman parte
+                de la visión futura de AgroMind CR.
               </div>
             </article>
           </div>
@@ -1390,8 +1390,8 @@ export default function LandingPage({ hasSession = false, onOpenAccount }) {
         <div className="landing-container">
           <div className="landing-cta-card">
             <div>
-              <h2>Unite a la nueva generaciÃ³n de gestiÃ³n agropecuaria.</h2>
-              <p>MÃ¡s orden, mÃ¡s control y mejores decisiones para el futuro de tu operaciÃ³n.</p>
+              <h2>Unite a la nueva generación de gestión agropecuaria.</h2>
+              <p>Más orden, más control y mejores decisiones para el futuro de tu operación.</p>
             </div>
 
             <button
@@ -1411,8 +1411,8 @@ export default function LandingPage({ hasSession = false, onOpenAccount }) {
             <div className="landing-footer-brand">
               <strong>AgroMind CR</strong>
               <p>
-                TecnologÃ­a costarricense para una gestiÃ³n agropecuaria mÃ¡s clara,
-                conectada y rentable. Â¿TenÃ©s alguna consulta? Estamos para ayudarte.
+                Tecnología costarricense para una gestión agropecuaria más clara,
+                conectada y rentable. ¿Tenés alguna consulta? Estamos para ayudarte.
               </p>
             </div>
 
@@ -1467,7 +1467,7 @@ export default function LandingPage({ hasSession = false, onOpenAccount }) {
           </div>
 
           <div className="landing-footer-bottom">
-            <span>Â© {new Date().getFullYear()} AgroMind CR.</span>
+            <span>© {new Date().getFullYear()} AgroMind CR.</span>
             <span>Agrointeligencia para el campo que avanza.</span>
           </div>
         </div>
