@@ -1,6 +1,7 @@
 /* Contenedor general */
 .agromind-auth-shell {
   min-height: 100vh;
+  min-height: 100dvh;
   background: radial-gradient(circle at top, #020617 0, #020617 40%, #000 100%);
   display: flex;
   align-items: center;
@@ -94,6 +95,7 @@
 }
 
 .auth-field input {
+  width: 100%;
   border-radius: 0.6rem;
   border: 1px solid rgba(31, 41, 55, 0.9);
   background: #020617;
@@ -110,6 +112,50 @@
 .auth-field input:focus {
   border-color: #22c55e;
   box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.35);
+}
+
+.auth-password-wrap {
+  position: relative;
+  width: 100%;
+}
+
+.auth-password-wrap input {
+  padding-right: 2.9rem;
+}
+
+.auth-password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 0.45rem;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  transform: translateY(-50%);
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #94a3b8;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.auth-password-toggle:hover,
+.auth-password-toggle:focus-visible {
+  background: rgba(34, 197, 94, 0.1);
+  color: #86efac;
+  outline: none;
+}
+
+.auth-password-toggle:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.auth-password-toggle svg {
+  width: 20px;
+  height: 20px;
+  display: block;
 }
 
 .auth-hint {
@@ -177,6 +223,14 @@
 
 /* Responsive básico */
 @media (max-width: 500px) {
+  .agromind-auth-shell {
+    align-items: flex-start;
+    padding: max(1rem, env(safe-area-inset-top, 0px)) 0.75rem
+      max(1rem, env(safe-area-inset-bottom, 0px));
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
   .agromind-auth-card {
     padding: 1.25rem 1.1rem;
   }

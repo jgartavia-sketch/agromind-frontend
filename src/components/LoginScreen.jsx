@@ -47,12 +47,48 @@ function clearInvitationSession() {
   }
 }
 
+function EyeIcon({ visible }) {
+  return visible ? (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        d="M3 3l18 18M10.6 10.7a2 2 0 002.7 2.7M9.9 4.3A10.9 10.9 0 0112 4c5.5 0 9 5 9 5a15.7 15.7 0 01-2.2 2.7M6.2 6.2C4.2 7.5 3 9 3 9s3.5 5 9 5c1 0 1.9-.2 2.8-.5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  ) : (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        d="M3 12s3.5-5 9-5 9 5 9 5-3.5 5-9 5-9-5-9-5z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <circle
+        cx="12"
+        cy="12"
+        r="2.4"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+      />
+    </svg>
+  );
+}
+
 export default function LoginScreen({ onLogin }) {
   const [mode, setMode] = useState(getInitialMode);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [pass, setPass] = useState("");
   const [pass2, setPass2] = useState("");
+  const [showPass, setShowPass] = useState(false);
+  const [showPass2, setShowPass2] = useState(false);
 
   const [invitationToken] = useState(getStoredInvitationToken);
 
@@ -278,6 +314,8 @@ export default function LoginScreen({ onLogin }) {
 
       setPass("");
       setPass2("");
+      setShowPass(false);
+      setShowPass2(false);
 
       onLogin?.({
         token,
@@ -306,6 +344,8 @@ export default function LoginScreen({ onLogin }) {
     setSuccess("");
     setPass("");
     setPass2("");
+    setShowPass(false);
+    setShowPass2(false);
     setMode(nextMode);
 
     try {
@@ -401,18 +441,32 @@ export default function LoginScreen({ onLogin }) {
           {mode !== "forgot" && (
             <div className="auth-field">
               <label>Contraseña</label>
-              <input
-                type="password"
-                placeholder={
-                  mode === "signup" ? "Mínimo 8 caracteres" : "Tu contraseña"
-                }
-                value={pass}
-                onChange={(e) => setPass(e.target.value)}
-                autoComplete={
-                  mode === "signup" ? "new-password" : "current-password"
-                }
-                disabled={loading}
-              />
+              <div className="auth-password-wrap">
+                <input
+                  type={showPass ? "text" : "password"}
+                  placeholder={
+                    mode === "signup" ? "Mínimo 8 caracteres" : "Tu contraseña"
+                  }
+                  value={pass}
+                  onChange={(e) => setPass(e.target.value)}
+                  autoComplete={
+                    mode === "signup" ? "new-password" : "current-password"
+                  }
+                  disabled={loading}
+                />
+                <button
+                  type="button"
+                  className="auth-password-toggle"
+                  onClick={() => setShowPass((value) => !value)}
+                  disabled={loading}
+                  aria-label={
+                    showPass ? "Ocultar contraseña" : "Mostrar contraseña"
+                  }
+                  title={showPass ? "Ocultar contraseña" : "Mostrar contraseña"}
+                >
+                  <EyeIcon visible={showPass} />
+                </button>
+              </div>
             </div>
           )}
 
@@ -446,14 +500,28 @@ export default function LoginScreen({ onLogin }) {
           {mode === "signup" && (
             <div className="auth-field">
               <label>Confirmar contraseña</label>
-              <input
-                type="password"
-                placeholder="Repite la contraseña"
-                value={pass2}
-                onChange={(e) => setPass2(e.target.value)}
-                autoComplete="new-password"
-                disabled={loading}
-              />
+              <div className="auth-password-wrap">
+                <input
+                  type={showPass2 ? "text" : "password"}
+                  placeholder="Repite la contraseña"
+                  value={pass2}
+                  onChange={(e) => setPass2(e.target.value)}
+                  autoComplete="new-password"
+                  disabled={loading}
+                />
+                <button
+                  type="button"
+                  className="auth-password-toggle"
+                  onClick={() => setShowPass2((value) => !value)}
+                  disabled={loading}
+                  aria-label={
+                    showPass2 ? "Ocultar contraseña" : "Mostrar contraseña"
+                  }
+                  title={showPass2 ? "Ocultar contraseña" : "Mostrar contraseña"}
+                >
+                  <EyeIcon visible={showPass2} />
+                </button>
+              </div>
             </div>
           )}
 
