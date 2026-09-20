@@ -6,7 +6,7 @@ import interactionPlugin from "@fullcalendar/interaction";
 import listPlugin from "@fullcalendar/list";
 
 import { useEffect, useMemo, useState, useCallback } from "react";
-import { useFarm } from "../context/FarmContext";
+import { useFarm } from "../context/useFarm";
 import { loadCalendarItems } from "../services/calendarService";
 import "../styles/tasks.css";
 
@@ -38,19 +38,6 @@ function normalizeTaskStatus(status) {
   return status === "Completada" ? "Completada" : "En progreso";
 }
 
-function getSuggestionClass(level) {
-  switch (level) {
-    case "alert":
-      return "ia-suggestion ia-alert";
-    case "warning":
-      return "ia-suggestion ia-warning";
-    case "info":
-      return "ia-suggestion ia-info";
-    default:
-      return "ia-suggestion";
-  }
-}
-
 const PRIORIDADES = ["Alta", "Media", "Baja"];
 const TIPOS = ["Riego", "Alimentación", "Mantenimiento", "Cosecha"];
 const ESTADOS = ["En progreso", "Completada"];
@@ -67,12 +54,6 @@ const EMPTY_FORM = {
   due: "",
   status: "En progreso",
   owner: "",
-};
-
-const DEFAULT_WEATHER_LOCATION = {
-  name: "Ciudad Quesada, Costa Rica",
-  latitude: 10.3238,
-  longitude: -84.4271,
 };
 
 function pickLocalStorage(keys) {
@@ -436,40 +417,6 @@ function getStrategicEventClass(item) {
   return "calendar-event-task";
 }
 
-function getWeatherCodeLabel(code) {
-  const map = {
-    0: "Despejado",
-    1: "Mayormente despejado",
-    2: "Parcialmente nublado",
-    3: "Nublado",
-    45: "Neblina",
-    48: "Neblina con escarcha",
-    51: "Llovizna ligera",
-    53: "Llovizna moderada",
-    55: "Llovizna intensa",
-    56: "Llovizna helada ligera",
-    57: "Llovizna helada intensa",
-    61: "Lluvia ligera",
-    63: "Lluvia moderada",
-    65: "Lluvia fuerte",
-    66: "Lluvia helada ligera",
-    67: "Lluvia helada fuerte",
-    71: "Nieve ligera",
-    73: "Nieve moderada",
-    75: "Nieve fuerte",
-    77: "Granos de nieve",
-    80: "Chubascos ligeros",
-    81: "Chubascos moderados",
-    82: "Chubascos violentos",
-    85: "Nevadas ligeras",
-    86: "Nevadas fuertes",
-    95: "Tormenta",
-    96: "Tormenta con granizo ligero",
-    99: "Tormenta con granizo fuerte",
-  };
-  return map[code] || "Condición variable";
-}
-
 function normalizeZoneName(value) {
   return String(value || "").trim().toLowerCase();
 }
@@ -745,112 +692,6 @@ function findMapElementByTask(task, elements = []) {
   return null;
 }
 
-function readStoredMapZones(farmId) {
-  if (typeof window === "undefined" || !window.localStorage) return [];
-
-  const candidates = [];
-  const activeFarmKeys = [
-    "agromind_active_farm",
-    "activeFarm",
-    "selectedFarm",
-    "farm",
-  ];
-
-  activeFarmKeys.forEach((key) => {
-    const raw = localStorage.getItem(key);
-    if (!raw) return;
-    try {
-      const parsed = JSON.parse(raw);
-      if (!farmId || String(parsed?.id || parsed?._id || parsed?.farmId || "") === String(farmId)) {
-        candidates.push(parsed);
-      }
-    } catch {}
-  });
-
-  for (let i = 0; i < localStorage.length; i += 1) {
-    const key = localStorage.key(i) || "";
-    const lowerKey = key.toLowerCase();
-    if (!lowerKey.includes("agromind") && !lowerKey.includes("farm") && !lowerKey.includes("map")) {
-      continue;
-    }
-
-    const raw = localStorage.getItem(key);
-    if (!raw || raw.length > 700000) continue;
-
-    try {
-      const parsed = JSON.parse(raw);
-      candidates.push(parsed);
-    } catch {}
-  }
-
-  const seen = new Set();
-  return candidates
-    .flatMap((candidate) => extractMapElements(candidate))
-    .filter((element) => {
-      const key = element?.id ? `id:${element.id}` : `name:${normalizeZoneName(element?.name)}`;
-      if (!element?.name || seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-}
-
-
-async function reverseGeocodeName(latitude, longitude) {
-  try {
-    const url = `https://geocoding-api.open-meteo.com/v1/reverse?latitude=${latitude}&longitude=${longitude}&language=es&format=json`;
-    const res = await fetch(url, { cache: "no-store" });
-    const data = await res.json();
-    const item = Array.isArray(data?.results) ? data.results[0] : null;
-    if (!item) return "";
-    const parts = [item.name, item.admin2, item.admin1, item.country].filter(Boolean);
-    return parts.join(", ");
-  } catch {
-    return "";
-  }
-}
-
-async function resolveBrowserLocation() {
-  return new Promise((resolve) => {
-    if (!navigator?.geolocation) {
-      resolve(DEFAULT_WEATHER_LOCATION);
-      return;
-    }
-
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        const latitude = position?.coords?.latitude;
-        const longitude = position?.coords?.longitude;
-
-        if (
-          typeof latitude !== "number" ||
-          Number.isNaN(latitude) ||
-          typeof longitude !== "number" ||
-          Number.isNaN(longitude)
-        ) {
-          resolve(DEFAULT_WEATHER_LOCATION);
-          return;
-        }
-
-        const name =
-          (await reverseGeocodeName(latitude, longitude)) ||
-          "Ubicación actual";
-
-        resolve({
-          name,
-          latitude,
-          longitude,
-        });
-      },
-      () => resolve(DEFAULT_WEATHER_LOCATION),
-      {
-        enableHighAccuracy: true,
-        timeout: 7000,
-        maximumAge: 1000 * 60 * 15,
-      }
-    );
-  });
-}
-
 export default function TareasPage({
   onOpenZoneInMap,
   zonesFromMap = [],
@@ -864,15 +705,6 @@ export default function TareasPage({
   const [calendarSaving, setCalendarSaving] = useState(false);
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
-
-  const [weatherLoading, setWeatherLoading] = useState(false);
-  const [weatherError, setWeatherError] = useState("");
-  const [weatherData, setWeatherData] = useState(null);
-  const [weatherRisk, setWeatherRisk] = useState(null);
-
-  const [suggestions, setSuggestions] = useState([]);
-  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
-  const [ignoredSuggestions, setIgnoredSuggestions] = useState(() => new Set());
 
   const [statusFilter, setStatusFilter] = useState("Todas");
   const [typeFilter, setTypeFilter] = useState("Todas");
@@ -901,8 +733,6 @@ export default function TareasPage({
         return true;
       });
   }, [zonesFromMap, fetchedMapZones]);
-
-  const mapZones = useMemo(() => mapElements.map((element) => element.name), [mapElements]);
 
   const API_BASE =
     import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || "";
@@ -938,18 +768,12 @@ export default function TareasPage({
   const activeFarmName =
     contextFarmName || activeFarm?.name || (farmId ? "Finca activa" : "Sin finca activa");
 
-  function authHeaders() {
-    return {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    };
-  }
-
-  async function apiFetch(path, options = {}) {
+  const apiFetch = useCallback(async (path, options = {}) => {
     const res = await fetch(`${API_BASE}${path}`, {
       ...options,
       headers: {
-        ...authHeaders(),
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...(options.headers || {}),
       },
       cache: "no-store",
@@ -958,14 +782,17 @@ export default function TareasPage({
     let data = null;
     try {
       data = await res.json();
-    } catch {}
+    } catch {
+      // Respuesta sin JSON.
+    }
 
     if (!res.ok) {
       const msg = data?.error || `Error HTTP ${res.status}`;
       throw new Error(msg);
     }
+
     return data;
-  }
+  }, [API_BASE, token]);
 
   const fetchFarms = useCallback(async () => {
     if (!token) {
@@ -997,7 +824,7 @@ export default function TareasPage({
     } finally {
       setFarmsLoading(false);
     }
-  }, [token, API_BASE, contextFarmId, contextActiveFarm?.id, setActiveFarm]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [token, apiFetch, contextFarmId, contextActiveFarm?.id, setActiveFarm]);
 
 
   const fetchMapZones = useCallback(async () => {
@@ -1036,68 +863,8 @@ export default function TareasPage({
       });
 
     setFetchedMapZones(cleanElements);
-  }, [farmId, token, zonesFromMap, contextActiveFarm]);
+  }, [farmId, token, zonesFromMap, contextActiveFarm, apiFetch]);
 
-  const fetchWeather = useCallback(async () => {
-    setWeatherLoading(true);
-    setWeatherError("");
-
-    try {
-      const location = await resolveBrowserLocation();
-
-      const url =
-        `https://api.open-meteo.com/v1/forecast?latitude=${location.latitude}` +
-        `&longitude=${location.longitude}` +
-        `&current=temperature_2m,relative_humidity_2m,precipitation,weather_code,wind_speed_10m` +
-        `&hourly=uv_index,precipitation_probability` +
-        `&forecast_days=1&timezone=auto`;
-
-      const res = await fetch(url, { cache: "no-store" });
-      const data = await res.json();
-
-      const current = data?.current || {};
-      const hourly = data?.hourly || {};
-      const currentTime = current?.time || "";
-      const hourlyTimes = Array.isArray(hourly?.time) ? hourly.time : [];
-
-      let hourlyIndex = hourlyTimes.findIndex((t) => t === currentTime);
-      if (hourlyIndex < 0) hourlyIndex = 0;
-
-      const uvIndex = Array.isArray(hourly?.uv_index)
-        ? Number(hourly.uv_index[hourlyIndex] ?? 0)
-        : 0;
-
-      const precipitationProbability = Array.isArray(
-        hourly?.precipitation_probability
-      )
-        ? Number(hourly.precipitation_probability[hourlyIndex] ?? 0)
-        : 0;
-
-      const normalized = {
-        locationName: location.name || DEFAULT_WEATHER_LOCATION.name,
-        latitude: location.latitude,
-        longitude: location.longitude,
-        temperature: Number(current?.temperature_2m ?? 0),
-        humidity: Number(current?.relative_humidity_2m ?? 0),
-        precipitation: Number(current?.precipitation ?? 0),
-        precipitationProbability,
-        weatherCode: Number(current?.weather_code ?? -1),
-        weatherLabel: getWeatherCodeLabel(Number(current?.weather_code ?? -1)),
-        windSpeed: Number(current?.wind_speed_10m ?? 0),
-        uvIndex,
-        time: currentTime,
-      };
-
-      setWeatherData(normalized);
-      setWeatherRisk(buildWeatherRisk(normalized));
-    } catch {
-      setWeatherError("No se pudo cargar el clima actual para tareas.");
-      setWeatherData(null);
-      setWeatherRisk(null);
-    } finally {
-      setWeatherLoading(false);
-    }
-  }, []);
 
   const fetchTasks = useCallback(async () => {
     setErrorMsg("");
@@ -1135,15 +902,8 @@ export default function TareasPage({
     } finally {
       setLoading(false);
     }
-  }, [farmId, token, API_BASE]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [farmId, token, apiFetch]);
 
-  const fetchSuggestions = useCallback(async () => {
-    // El backend actual no expone /tasks/suggestions.
-    // Mantener esta función sin llamar endpoints evita 404 repetidos y ciclos visuales.
-    setLoadingSuggestions(false);
-    setSuggestions([]);
-    return [];
-  }, []);
 
   const fetchCalendarItems = useCallback(async () => {
     if (!farmId) {
@@ -1200,7 +960,6 @@ export default function TareasPage({
       if (cancelled) return;
       setCalendarLoading(false);
 
-      fetchWeather();
     }
 
     loadAll();
@@ -1208,7 +967,7 @@ export default function TareasPage({
     return () => {
       cancelled = true;
     };
-  }, [fetchFarms, fetchTasks, fetchCalendarItems, fetchMapZones, fetchWeather]);
+  }, [fetchFarms, fetchTasks, fetchCalendarItems, fetchMapZones]);
 
   useEffect(() => {
     function onRefreshEvent(e) {
@@ -1239,7 +998,6 @@ export default function TareasPage({
     setAppliedSearchText("");
     setEditingId(null);
     setFormData(EMPTY_FORM);
-    setIgnoredSuggestions(new Set());
   }, [farmId]);
 
   const summary = useMemo(() => {
@@ -1353,128 +1111,6 @@ export default function TareasPage({
     return matchStatus && matchType && matchZone && matchSearch;
   });
 
-  const visibleSuggestions = useMemo(() => {
-    const list = Array.isArray(suggestions) ? suggestions : [];
-    return list.filter((s) => {
-      const id = s?.id || s?._id || "";
-      return id ? !ignoredSuggestions.has(String(id)) : true;
-    });
-  }, [suggestions, ignoredSuggestions]);
-
-  const weatherTaskMatches = useMemo(() => {
-    if (!weatherRisk || !Array.isArray(filteredTasks) || filteredTasks.length === 0) {
-      return [];
-    }
-
-    const riskKeys = new Set((weatherRisk.risks || []).map((r) => r.key));
-
-    return filteredTasks.filter((task) => {
-      const title = String(task?.title || "").toLowerCase();
-      const type = String(task?.type || "").toLowerCase();
-      const zone = normalizeZoneName(task?.zone);
-
-      if (
-        riskKeys.has("rain") &&
-        (
-          title.includes("cosecha") ||
-          title.includes("fumig") ||
-          title.includes("secado") ||
-          type.includes("cosecha")
-        )
-      ) {
-        return true;
-      }
-
-      if (
-        riskKeys.has("wind") &&
-        (
-          title.includes("fumig") ||
-          title.includes("aspers") ||
-          title.includes("altura")
-        )
-      ) {
-        return true;
-      }
-
-      if (
-        riskKeys.has("humidity") &&
-        (
-          title.includes("hong") ||
-          title.includes("dren") ||
-          zone.includes("vivero") ||
-          zone.includes("invernadero")
-        )
-      ) {
-        return true;
-      }
-
-      if (
-        riskKeys.has("uv") &&
-        (
-          type.includes("mantenimiento") ||
-          type.includes("cosecha") ||
-          title.includes("campo")
-        )
-      ) {
-        return true;
-      }
-
-      return false;
-    });
-  }, [filteredTasks, weatherRisk]);
-
-  const weatherContextSuggestions = useMemo(() => {
-    if (weatherError) {
-      return [
-        {
-          id: "weather-unavailable",
-          level: "info",
-          title: "Clima no disponible para cruzar con tareas",
-          zone: "Clima",
-          message: "Las tareas siguen funcionando normal. Revisa la sección Clima o actualiza la ubicación de la finca cuando esté disponible.",
-          actionPayload: null,
-          source: "weather",
-        },
-      ];
-    }
-
-    if (!weatherRisk || !weatherData) return [];
-
-    const level = weatherRisk.level === "alert" ? "alert" : weatherRisk.level === "warning" ? "warning" : "info";
-
-    const matched = weatherTaskMatches.slice(0, 4).map((task) => ({
-      id: `weather-${task.id}`,
-      level,
-      title: `Clima puede afectar: ${task.title}`,
-      zone: task.zone || GENERAL_ZONE_OPTION,
-      message: `${weatherRisk.summary}. ${weatherRisk.recommendations?.[0] || "Revisa si conviene ajustar la fecha o preparar condiciones de protección."}`,
-      actionPayload: null,
-      source: "weather",
-    }));
-
-    if (matched.length > 0) return matched;
-
-    if (weatherRisk.level === "alert" || weatherRisk.level === "warning") {
-      return [
-        {
-          id: `weather-general-${weatherRisk.level}`,
-          level,
-          title: "Clima con impacto operativo",
-          zone: weatherData.locationName || "Finca",
-          message: `${weatherRisk.summary}. ${weatherRisk.recommendations?.[0] || "Antes de ejecutar labores sensibles, revisa la sección Clima."}`,
-          actionPayload: null,
-          source: "weather",
-        },
-      ];
-    }
-
-    return [];
-  }, [weatherRisk, weatherData, weatherTaskMatches, weatherError]);
-
-  const combinedSuggestions = useMemo(() => {
-    return [...weatherContextSuggestions, ...visibleSuggestions];
-  }, [weatherContextSuggestions, visibleSuggestions]);
-
   const handleSearchSubmit = () => {
     setAppliedSearchText(searchText);
   };
@@ -1493,16 +1129,6 @@ export default function TareasPage({
     if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
-  const ignoreSuggestion = (sug) => {
-    const id = sug?.id || sug?._id;
-    if (!id) return;
-    setIgnoredSuggestions((prev) => {
-      const next = new Set(prev);
-      next.add(String(id));
-      return next;
-    });
-  };
-
   const fireTasksRefresh = () => {
     try {
       // No disparamos el evento en esta misma pestaña: la tarea ya se actualiza en estado local.
@@ -1511,31 +1137,6 @@ export default function TareasPage({
     } catch {
       // no-op
     }
-  };
-
-  const applySuggestionToForm = (sug) => {
-    const payload = sug?.actionPayload || null;
-    if (!payload) return;
-
-    const next = {
-      ...EMPTY_FORM,
-      title: (payload.title || "").toString(),
-      zone: (payload.zone || GENERAL_ZONE_OPTION).toString(),
-      zoneId: (payload.zoneId || "").toString(),
-      zoneType: (payload.zoneType || (payload.zoneId ? "zone" : "general")).toString(),
-      type: payload.type || "Mantenimiento",
-      priority: payload.priority || "Media",
-      start: toYYYYMMDD(payload.start),
-      due: toYYYYMMDD(payload.due),
-      status: normalizeTaskStatus(payload.status),
-      owner: (payload.owner || "").toString(),
-    };
-
-    setEditingId(null);
-    setFormData(next);
-
-    ignoreSuggestion(sug);
-    scrollToEditor();
   };
 
   const handleSubmit = async (e) => {
@@ -3387,7 +2988,6 @@ export default function TareasPage({
                 className="master-ghost-btn"
                 onClick={() => {
                   fetchTasks();
-                  fetchSuggestions();
                   fetchCalendarItems();
                 }}
                 disabled={loading || saving}

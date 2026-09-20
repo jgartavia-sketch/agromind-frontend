@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { useFarm } from "../../context/FarmContext";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useFarm } from "../../context/useFarm";
 
 
 const MAX_COMPONENT_PHOTOS = 5;
@@ -181,7 +181,10 @@ export default function ComponentModal({
 }) {
   const { isConsultant } = useFarm();
   const canEdit = !isConsultant;
-  const safeComponents = Array.isArray(componentsDraft) ? componentsDraft : [];
+  const safeComponents = useMemo(
+    () => (Array.isArray(componentsDraft) ? componentsDraft : []),
+    [componentsDraft]
+  );
   const totalComponents = safeComponents.length;
 
   const savedComponentIds = useMemo(() => {
@@ -272,7 +275,7 @@ export default function ComponentModal({
     );
   }, [COMPONENT_TYPES]);
 
-  const resolveIcon = (type) => {
+  const resolveIcon = useCallback((type) => {
     if (typeof getComponentIcon === "function") return getComponentIcon(type);
 
     const value = String(type || "Otro").toLowerCase();
@@ -292,9 +295,9 @@ export default function ComponentModal({
     if (value.includes("pasillo")) return "↔️";
     if (value.includes("descanso")) return "🟢";
     return "📍";
-  };
+  }, [getComponentIcon]);
 
-  const resolveDisplayName = (component, index) => {
+  const resolveDisplayName = useCallback((component, index) => {
     if (typeof getComponentDisplayName === "function") {
       return getComponentDisplayName(component, index);
     }
@@ -304,7 +307,7 @@ export default function ComponentModal({
 
     const type = String(component?.type || "Componente").trim() || "Componente";
     return `${type} #${index + 1}`;
-  };
+  }, [getComponentDisplayName]);
 
   const typeCounts = useMemo(() => {
     const counts = {};
@@ -333,7 +336,7 @@ export default function ComponentModal({
         icon: resolveIcon(component?.type),
         label: resolveDisplayName(component, index),
       })),
-    [safeComponents]
+    [safeComponents, resolveIcon, resolveDisplayName]
   );
 
   const remainingIconCount = Math.max(totalComponents - componentIconPreview.length, 0);
@@ -530,7 +533,7 @@ export default function ComponentModal({
     return () => {
       cancelled = true;
     };
-  }, [modalZone?.id, componentIdsSignature]);
+  }, [modalZone?.id, componentIdsSignature, photosByComponent]);
 
   const handlePhotoInputChange = async (componentId, event) => {
     if (!canEdit) return;

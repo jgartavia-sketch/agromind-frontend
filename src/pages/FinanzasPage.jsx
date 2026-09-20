@@ -10,7 +10,7 @@ import ZoneMonthlyChart from "../components/finance/ZoneMonthlyChart";
 import AddMovementModal from "../components/finance/AddMovementModal";
 
 import { summarizeMovements } from "../utils/financeUtils";
-import { useFarm } from "../context/FarmContext";
+import { useFarm } from "../context/useFarm";
 
 /* ========================= */
 function formatMoneyCRC(value) {
@@ -1100,6 +1100,8 @@ export default function FinanzasPage({ token: tokenProp } = {}) {
 
         {showModal && (
           <AddMovementModal
+
+            key={editingMovement?.id || "new-movement"}
             onClose={() => {
               setEditingMovement(null);
               setShowModal(false);

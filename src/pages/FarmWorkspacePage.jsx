@@ -1,7 +1,7 @@
 // src/pages/FarmWorkspacePage.jsx
 
 import { useMemo, useState } from "react";
-import { useFarm } from "../context/FarmContext";
+import { useFarm } from "../context/useFarm";
 
 const RAW_API_BASE =
   import.meta.env.VITE_API_URL ||

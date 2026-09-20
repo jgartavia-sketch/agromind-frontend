@@ -1,12 +1,11 @@
 import {
-  createContext,
   useCallback,
-  useContext,
   useEffect,
   useMemo,
   useRef,
   useState,
 } from "react";
+import { FarmContext } from "./FarmContextStore";
 
 const ACTIVE_FARM_KEY = "agromind_active_farm_id";
 const ACTIVE_FARM_NAME_KEY = "agromind_active_farm_name";
@@ -15,7 +14,6 @@ const ACTIVE_FARM_ROLE_KEY = "agromind_active_farm_role";
 const API_BASE =
   import.meta.env.VITE_API_URL || "https://agromind-backend-slem.onrender.com";
 
-const FarmContext = createContext(null);
 
 function getAuthToken() {
   return (
@@ -457,14 +455,4 @@ export function FarmProvider({ children }) {
   );
 
   return <FarmContext.Provider value={value}>{children}</FarmContext.Provider>;
-}
-
-export function useFarm() {
-  const context = useContext(FarmContext);
-
-  if (!context) {
-    throw new Error("useFarm debe usarse dentro de FarmProvider.");
-  }
-
-  return context;
 }

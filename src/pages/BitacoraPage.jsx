@@ -1,6 +1,6 @@
 // src/pages/BitacoraPage.jsx
 import { useEffect, useMemo, useState } from "react";
-import { useFarm } from "../context/FarmContext";
+import { useFarm } from "../context/useFarm";
 import {
   createBitacoraEntry,
   deleteBitacoraEntry,

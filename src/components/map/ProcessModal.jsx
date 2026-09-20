@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { useFarm } from "../../context/FarmContext";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useFarm } from "../../context/useFarm";
 
 function nowIso() {
   return new Date().toISOString();
@@ -248,17 +248,6 @@ function ProcessModalView({
   const shouldShowBuilder =
     canEdit && (showCreateProcessForm || modalZoneProcesses.length === 0);
 
-  useEffect(() => {
-    if (!modalZone?.id) return;
-    if (!newProcessName && modalZoneProcesses.length === 0) {
-      setNewProcessName("");
-      setNewProcessDescription("");
-      setNewProcessOwner("");
-      setNewProcessPriority("Media");
-      setDraftSteps([getEmptyStepDraft(1)]);
-    }
-  }, [modalZone?.id]);
-
   const processStats = useMemo(() => {
     const total = modalZoneProcesses.length;
     const active = modalZoneProcesses.filter((p) => p.status === "Activo").length;
@@ -275,10 +264,6 @@ function ProcessModalView({
         .some((value) => String(value).toLowerCase().includes(query));
     });
   }, [modalZoneProcesses, searchText]);
-
-  useEffect(() => {
-    setExpandedProcessById({});
-  }, [modalZone?.id]);
 
   const toggleProcessExpansion = (processId) => {
     setExpandedProcessById((prev) => ({
@@ -1854,7 +1839,7 @@ export default function ProcessModal({ modalZone, onBeforeCreate }) {
   const [newStepByProcess, setNewStepByProcess] = useState({});
   const [openStepFormByProcess, setOpenStepFormByProcess] = useState({});
 
-  const loadZoneProcesses = async () => {
+  const loadZoneProcesses = useCallback(async () => {
     if (!modalZone?.id) return;
 
     try {
@@ -1869,18 +1854,11 @@ export default function ProcessModal({ modalZone, onBeforeCreate }) {
     } finally {
       setProcessesLoading(false);
     }
-  };
+  }, [modalZone?.id]);
 
   useEffect(() => {
-    setShowCreateProcessForm(false);
-    setNewProcessName("");
-    setNewProcessDescription("");
-    setNewProcessOwner("");
-    setNewProcessPriority("Media");
-    setNewStepByProcess({});
-    setOpenStepFormByProcess({});
     loadZoneProcesses();
-  }, [modalZone?.id]);
+  }, [loadZoneProcesses]);
 
   const updateStepDraftField = (processId, field, value) => {
     setNewStepByProcess((previous) => ({
@@ -2076,6 +2054,8 @@ export default function ProcessModal({ modalZone, onBeforeCreate }) {
 
   return (
     <ProcessModalView
+
+      key={modalZone?.id || "process-view"}
       modalZone={modalZone}
       modalZoneProcesses={modalZoneProcesses}
       processesLoading={processesLoading}

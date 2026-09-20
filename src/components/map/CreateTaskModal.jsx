@@ -1,5 +1,4 @@
 // src/components/map/CreateTaskModal.jsx
-import { useMemo } from "react";
 
 function todayYYYYMMDD() {
   const d = new Date();
@@ -31,12 +30,10 @@ export default function CreateTaskModal({
   const start = draft?.start || todayYYYYMMDD();
   const due = draft?.due || start;
 
-  const canConfirm = useMemo(() => {
-    if (!title.trim()) return false;
-    if (!String(start || "").match(/^\d{4}-\d{2}-\d{2}$/)) return false;
-    if (!String(due || "").match(/^\d{4}-\d{2}-\d{2}$/)) return false;
-    return true;
-  }, [title, start, due]);
+  const canConfirm =
+    Boolean(title.trim()) &&
+    /^\d{4}-\d{2}-\d{2}$/.test(String(start || "")) &&
+    /^\d{4}-\d{2}-\d{2}$/.test(String(due || ""));
 
   return (
     <div

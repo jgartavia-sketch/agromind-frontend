@@ -82,16 +82,6 @@ export default function AddMovementModal({
   });
 
   useEffect(() => {
-    setForm(initial);
-
-    const current = String(initial.category || "").trim();
-    setSelectedCategory(
-      current ? (isKnownCategory(current) ? current : "Otro") : ""
-    );
-    setCustomCategory(current && !isKnownCategory(current) ? current : "");
-  }, [initial]);
-
-  useEffect(() => {
     const previousBodyOverflow = document.body.style.overflow;
     const previousHtmlOverflow = document.documentElement.style.overflow;
 

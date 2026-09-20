@@ -1,4 +1,11 @@
-import { useEffect, useRef, useState, useMemo } from "react";
+import {
+  useCallback,
+  useEffect,
+  useEffectEvent,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { createPortal } from "react-dom";
 import "ol/ol.css";
 import "../../styles/farm-map.css";
@@ -23,7 +30,7 @@ import {
 import Point from "ol/geom/Point";
 import LineString from "ol/geom/LineString";
 import Polygon from "ol/geom/Polygon";
-import { useFarm } from "../../context/FarmContext";
+import { useFarm } from "../../context/useFarm";
 import ProcessModal from "./ProcessModal";
 import ComponentModal from "./ComponentModal";
 
@@ -355,6 +362,8 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
       onFarmLocationChange(payload);
     }
   };
+
+  const emitFarmLocationChangeEffect = useEffectEvent(emitFarmLocationChange);
 
   const activeFarm = useMemo(
     () =>
@@ -1083,6 +1092,8 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
     setTimeout(() => emitFarmLocationChange("farm-load"), 0);
   };
 
+  const loadFarmMapEffect = useEffectEvent(loadFarmMap);
+
   const ensureFarmAndLoad = async () => {
     const totalTimer = debugTimeStart("ensureFarmAndLoad total");
 
@@ -1125,6 +1136,8 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
       debugTimeEnd(totalTimer);
     }
   };
+
+  const ensureFarmAndLoadEffect = useEffectEvent(ensureFarmAndLoad);
 
   const handleSelectFarm = async (farmId) => {
     if (!farmId || farmId === contextFarmId || farmActionLoading) {
@@ -1291,7 +1304,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
   };
 
 
-  const geocodeSearch = async (q, signal) => {
+  const geocodeSearch = useCallback(async (q, signal) => {
     if (!apiKey || apiKey === "TU_API_KEY_AQUI") {
       throw new Error("Falta VITE_MAPTILER_KEY para buscar lugares.");
     }
@@ -1317,7 +1330,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
         };
       })
       .filter(Boolean);
-  };
+  }, [apiKey]);
 
   useEffect(() => {
     const q = debouncedQuery;
@@ -1351,7 +1364,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
       clearTimeout(t);
       controller.abort();
     };
-  }, [debouncedQuery, apiKey]);
+  }, [debouncedQuery, geocodeSearch]);
 
   const goToLocation = (lon, lat, zoom = 16) => {
     const map = mapInstanceRef.current;
@@ -1693,7 +1706,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
         });
 
         if (foundId) {
-          handleSelectFeature(foundId);
+          handleSelectFeatureEffect(foundId);
         } else {
           const vectorSourceLocal = vectorSourceRef.current;
           if (vectorSourceLocal) {
@@ -1704,7 +1717,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
       };
 
       const handleMoveEnd = () => {
-        emitFarmLocationChange("moveend");
+        emitFarmLocationChangeEffect("moveend");
       };
 
       map.on("pointermove", handlePointerMove);
@@ -1714,7 +1727,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
       debugTimeEnd(eventsTimer);
 
       setMapReady(true);
-      setTimeout(() => emitFarmLocationChange("init"), 0);
+      setTimeout(() => emitFarmLocationChangeEffect("init"), 0);
       debugTimeEnd(mapInitTimer);
 
       return () => {
@@ -1734,14 +1747,14 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
 
   useEffect(() => {
     if (!mapReady) return;
-    ensureFarmAndLoad();
+    ensureFarmAndLoadEffect();
   }, [mapReady]);
 
   useEffect(() => {
     if (!mapReady || !contextFarmId) return;
 
     if (loadedFarmIdRef.current === contextFarmId) {
-      emitFarmLocationChange("farm-id-change");
+      emitFarmLocationChangeEffect("farm-id-change");
       return;
     }
 
@@ -1751,7 +1764,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
         setListFilter({ kind: "all", status: null });
         closeComponentsModal();
 
-        await loadFarmMap(contextFarmId, {
+        await loadFarmMapEffect(contextFarmId, {
           allowLocalFallback: false,
           farmsCount: farms.length,
         });
@@ -1762,7 +1775,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
     };
 
     syncMapWithActiveFarm();
-  }, [contextFarmId, mapReady]);
+  }, [contextFarmId, mapReady, farms.length]);
 
   useEffect(() => {
     const featuresMap = featuresMapRef.current;
@@ -1844,6 +1857,8 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
     forceMapResize();
   };
 
+  const handleDrawEndEffect = useEffectEvent(handleDrawEnd);
+
   useEffect(() => {
     const map = mapInstanceRef.current;
     const vectorSource = vectorSourceRef.current;
@@ -1872,7 +1887,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
 
     draw.on("drawend", (evt) => {
       const f = evt.feature;
-      handleDrawEnd(f, drawMode);
+      handleDrawEndEffect(f, drawMode);
     });
 
     map.addInteraction(draw);
@@ -1905,6 +1920,8 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
 
     setSelectedId(id);
   };
+
+  const handleSelectFeatureEffect = useEffectEvent(handleSelectFeature);
 
   const handleNameChange = (id, value) => {
     if (isConsultant) return;
@@ -2147,7 +2164,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
     );
 
     if (target) {
-      handleSelectFeature(target.id);
+      handleSelectFeatureEffect(target.id);
       setTimeout(() => forceMapResize(), 0);
     }
   }, [focusZoneRequest, zonesOnly]);
@@ -3300,6 +3317,8 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
                 }}
               >
                 <ProcessModal
+
+                  key={modalZone?.id || "process-modal"}
                   modalZone={modalZone}
                   onBeforeCreate={async () =>
                     saveMapNow(latestFeaturesListRef.current || [])

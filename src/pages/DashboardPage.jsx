@@ -1,6 +1,6 @@
 // src/pages/DashboardPage.jsx
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useFarm } from "../context/FarmContext";
+import { useFarm } from "../context/useFarm";
 import { loadBitacoraEntries } from "../services/bitacoraService";
 import { downloadDashboardReport } from "../utils/dashboardReport";
 import "../styles/dashboard.css";

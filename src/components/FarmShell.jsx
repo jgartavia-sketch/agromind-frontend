@@ -1,6 +1,6 @@
 // src/components/FarmShell.jsx
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useFarm } from "../context/FarmContext";
+import { useFarm } from "../context/useFarm";
 import "../styles/farm-shell.css";
 
 const FarmMap = lazy(() => import("./map/FarmMap"));
@@ -726,7 +726,11 @@ export default function FarmShell({ user, onLogout }) {
   }, []);
 
   useEffect(() => {
-    fetchZonesFromMap();
+    const timerId = window.setTimeout(() => {
+      fetchZonesFromMap();
+    }, 0);
+
+    return () => window.clearTimeout(timerId);
   }, [fetchZonesFromMap]);
 
   useEffect(() => {
@@ -757,9 +761,14 @@ export default function FarmShell({ user, onLogout }) {
     const allowed = new Set(
       mainTabs.map(([k]) => k).concat(["settings", "support"])
     );
-    if (!allowed.has(activeTab)) {
+
+    if (allowed.has(activeTab)) return undefined;
+
+    const timerId = window.setTimeout(() => {
       setActiveTab(defaultTab);
-    }
+    }, 0);
+
+    return () => window.clearTimeout(timerId);
   }, [isAdmin, isConsultant, mainTabs, activeTab]);
 
   const handleTabChange = (tab) => {

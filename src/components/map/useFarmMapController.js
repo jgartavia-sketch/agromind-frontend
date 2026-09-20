@@ -1,6 +1,6 @@
 // src/components/map/useFarmMapController.js
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 import "ol/ol.css";
 
 import Map from "ol/Map";
@@ -296,7 +296,6 @@ export default function useFarmMapController({ focusZoneRequest }) {
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [componentsModalOpen, createTaskModalOpen]);
 
   // =========================
@@ -791,6 +790,8 @@ export default function useFarmMapController({ focusZoneRequest }) {
     }
   };
 
+  const ensureFarmAndLoadEffect = useEffectEvent(ensureFarmAndLoad);
+
   const handleSwitchFarm = async (farmId) => {
     if (!farmId || farmId === activeFarmId) return;
 
@@ -948,7 +949,7 @@ export default function useFarmMapController({ focusZoneRequest }) {
 
     const t = setTimeout(async () => {
       try {
-        const results = await geocodeSearch(q, controller.signal);
+        const results = await geocodeSearchEffect(q, controller.signal);
         setSearchResults(results);
         setShowResults(true);
       } catch (err) {
@@ -964,8 +965,9 @@ export default function useFarmMapController({ focusZoneRequest }) {
       clearTimeout(t);
       controller.abort();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedQuery, apiKey]);
+
+  const geocodeSearchEffect = useEffectEvent(geocodeSearch);
 
   const goToLocation = (lon, lat, zoom = 16, options = {}) => {
     const map = mapInstanceRef.current;
@@ -1028,7 +1030,6 @@ export default function useFarmMapController({ focusZoneRequest }) {
       window.removeEventListener("resize", handleWindowResize);
       document.removeEventListener("visibilitychange", handleVisibility);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -1260,13 +1261,11 @@ export default function useFarmMapController({ focusZoneRequest }) {
         }
       };
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apiKey]);
 
   useEffect(() => {
     if (!mapReady) return;
-    ensureFarmAndLoad();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    ensureFarmAndLoadEffect();
   }, [mapReady]);
 
   useEffect(() => {
@@ -1316,6 +1315,8 @@ export default function useFarmMapController({ focusZoneRequest }) {
     forceMapResize();
   };
 
+  const handleDrawEndEffect = useEffectEvent(handleDrawEnd);
+
   useEffect(() => {
     const map = mapInstanceRef.current;
     const vectorSource = vectorSourceRef.current;
@@ -1331,13 +1332,12 @@ export default function useFarmMapController({ focusZoneRequest }) {
     const type = drawMode === "point" ? "Point" : drawMode === "line" ? "LineString" : "Polygon";
     const draw = new Draw({ source: vectorSource, type });
 
-    draw.on("drawend", (evt) => handleDrawEnd(evt.feature, drawMode));
+    draw.on("drawend", (evt) => handleDrawEndEffect(evt.feature, drawMode));
 
     map.addInteraction(draw);
     drawInteractionRef.current = draw;
 
     forceMapResize();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [drawMode]);
 
   const handleSelectFeature = (id) => {
@@ -1440,7 +1440,6 @@ export default function useFarmMapController({ focusZoneRequest }) {
       handleSelectFeature(target.id);
       setTimeout(() => forceMapResize(), 0);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusZoneRequest, zonesOnly]);
 
   // Counts

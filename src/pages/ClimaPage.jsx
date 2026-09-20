@@ -1,58 +1,7 @@
 // src/pages/ClimaPage.jsx
 import { useCallback, useEffect, useMemo, useState } from "react";
 import "../styles/clima.css";
-import { useFarm } from "../context/FarmContext";
-
-const API_BASE =
-  import.meta.env.VITE_API_URL || "https://agromind-backend-slem.onrender.com";
-
-function getAuthToken() {
-  return (
-    localStorage.getItem("agromind_token") ||
-    localStorage.getItem("token") ||
-    localStorage.getItem("agromind_auth_token") ||
-    localStorage.getItem("auth_token") ||
-    localStorage.getItem("jwt") ||
-    ""
-  );
-}
-
-async function apiFetch(path, options = {}) {
-  const token = getAuthToken();
-  const headers = {
-    "Content-Type": "application/json",
-    ...(options.headers || {}),
-  };
-
-  if (token) headers.Authorization = `Bearer ${token}`;
-
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...options,
-    headers,
-  });
-
-  const text = await res.text();
-  let data = null;
-
-  try {
-    data = text ? JSON.parse(text) : null;
-  } catch {
-    data = text;
-  }
-
-  if (!res.ok) {
-    const message =
-      data && typeof data === "object" && data.error
-        ? data.error
-        : typeof data === "string" && data.trim()
-        ? data
-        : "Error en request.";
-    throw new Error(message);
-  }
-
-  return data;
-}
-
+import { useFarm } from "../context/useFarm";
 
 const WEATHER_CODE_LABELS = {
   0: "Despejado",
@@ -309,7 +258,6 @@ export default function ClimaPage() {
   const [locationName, setLocationName] = useState("Ubicación de la finca no definida");
   const [coords, setCoords] = useState(null);
   const [weather, setWeather] = useState(null);
-  const [loadingLocation, setLoadingLocation] = useState(false);
   const [loadingWeather, setLoadingWeather] = useState(false);
   const [error, setError] = useState("");
   const [hasFarmLocation, setHasFarmLocation] = useState(false);
@@ -478,7 +426,7 @@ export default function ClimaPage() {
 
   const alerts = useMemo(() => buildAlerts(weather), [weather]);
 
-  const showEmptyState = !coords && !loadingLocation && !loadingWeather;
+  const showEmptyState = !coords && !loadingWeather;
 
   return (
     <div className="clima-page">
