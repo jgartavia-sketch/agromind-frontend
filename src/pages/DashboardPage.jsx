@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useFarm } from "../context/useFarm";
 import { loadBitacoraEntries } from "../services/bitacoraService";
 import { downloadDashboardReport } from "../utils/dashboardReport";
+import PrivateBetaAgronomicDashboard from "../components/PrivateBetaAgronomicDashboard";
 import "../styles/dashboard.css";
 
 const RAW_API_BASE =
@@ -713,6 +714,8 @@ export default function DashboardPage({ user }) {
           </button>
         </div>
       </section>
+
+      <PrivateBetaAgronomicDashboard user={user} farmId={farmId} />
 
       {errorMsg ? (
         <div

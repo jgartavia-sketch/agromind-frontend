@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useFarm } from "../context/useFarm";
+import TechnicalSheetsLibraryPage from "./TechnicalSheetsLibraryPage";
 
 const RAW_API_BASE =
   import.meta.env.VITE_API_URL ||
@@ -48,6 +49,7 @@ export default function FarmWorkspacePage({ user, onOpenFarm, onLogout }) {
   const [deleteFarmTarget, setDeleteFarmTarget] = useState(null);
   const [leaveFarmTarget, setLeaveFarmTarget] = useState(null);
   const [leavingFarm, setLeavingFarm] = useState(false);
+  const [isTechnicalSheetsOpen, setIsTechnicalSheetsOpen] = useState(false);
 
   const adminFarms = useMemo(
     () => farms.filter((farm) => farm.role === "ADMIN"),
@@ -58,6 +60,9 @@ export default function FarmWorkspacePage({ user, onOpenFarm, onLogout }) {
     () => farms.filter((farm) => farm.role === "CONSULTANT"),
     [farms]
   );
+
+  const technicalBetaEnabled =
+    String(user?.email || "").trim().toLowerCase() === "memo@gmail.com";
 
   const handleOpenFarm = (farm) => {
     if (!farm?.id) return;
@@ -249,6 +254,15 @@ export default function FarmWorkspacePage({ user, onOpenFarm, onLogout }) {
     }
   };
 
+  if (isTechnicalSheetsOpen && technicalBetaEnabled) {
+    return (
+      <TechnicalSheetsLibraryPage
+        user={user}
+        onClose={() => setIsTechnicalSheetsOpen(false)}
+      />
+    );
+  }
+
   return (
     <div
       style={{
@@ -426,17 +440,38 @@ export default function FarmWorkspacePage({ user, onOpenFarm, onLogout }) {
               <h2 style={{ margin: 0, color: "#f8fafc" }}>Mis fincas</h2>
             </div>
 
-            <button
-              type="button"
-              onClick={() => {
-                setFeedback("");
-                setFarmName("");
-                setIsCreateOpen(true);
-              }}
-              style={primaryButtonStyle}
-            >
-              Crear nueva finca
-            </button>
+            <div style={{ display: "flex", gap: "0.7rem", flexWrap: "wrap" }}>
+              {technicalBetaEnabled && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFeedback("");
+                    setIsTechnicalSheetsOpen(true);
+                  }}
+                  style={{
+                    ...primaryButtonStyle,
+                    background: "rgba(13,148,136,0.16)",
+                    color: "#99f6e4",
+                    border: "1px solid rgba(45,212,191,0.32)",
+                    boxShadow: "none",
+                  }}
+                >
+                  Agregar ficha técnica · BETA
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={() => {
+                  setFeedback("");
+                  setFarmName("");
+                  setIsCreateOpen(true);
+                }}
+                style={primaryButtonStyle}
+              >
+                Crear nueva finca
+              </button>
+            </div>
           </div>
 
           {farmsLoading ? (

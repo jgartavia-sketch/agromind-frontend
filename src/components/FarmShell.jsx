@@ -10,6 +10,7 @@ const ClimaPage = lazy(() => import("../pages/ClimaPage"));
 const BitacoraPage = lazy(() => import("../pages/BitacoraPage"));
 const DashboardPage = lazy(() => import("../pages/DashboardPage"));
 const TeamAccessPage = lazy(() => import("../pages/TeamAccessPage"));
+const TechnicalProgramPage = lazy(() => import("../pages/TechnicalProgramPage"));
 const Footer = lazy(() => import("./Footer"));
 
 const RAW_API_BASE =
@@ -36,6 +37,7 @@ function NavIcon({ name }) {
     finanzas: <><circle cx="12" cy="12" r="9"/><path d="M16 8.5c-.7-.9-1.9-1.5-3.5-1.5-2 0-3.5 1-3.5 2.5 0 3.5 7 1.5 7 5 0 1.5-1.5 2.5-3.5 2.5-1.7 0-3-.6-3.8-1.7M12 5v14"/></>,
     clima: <><path d="M7 18h10a4 4 0 0 0 .6-8 6 6 0 0 0-11.4 1.8A3.2 3.2 0 0 0 7 18Z"/><path d="M12 2v2M4.9 4.9l1.4 1.4M19.1 4.9l-1.4 1.4"/></>,
     bitacora: <><path d="M5 4h14v17H5z"/><path d="M8 2v4M16 2v4M8 10h8M8 14h8M8 18h5"/></>,
+    programa: <><path d="M4 5h16v14H4z"/><path d="M8 9h8M8 13h5M7 3v4M17 3v4"/></>,
     team: <><circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M3 20c0-4 2.4-6 6-6s6 2 6 6M15 15c3.5 0 5.5 1.6 5.5 5"/></>,
     settings: <><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3A1.7 1.7 0 0 0 14 21v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14h-.2v-4H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1A1.7 1.7 0 0 0 9 4.6 1.7 1.7 0 0 0 10 3v-.2h4V3a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v4H21a1.7 1.7 0 0 0-1.6 1Z"/></>,
     support: <><path d="M4 13a8 8 0 0 1 16 0M4 13v4a2 2 0 0 0 2 2h2v-7H6a2 2 0 0 0-2 2M20 13v4a2 2 0 0 1-2 2h-2v-7h2a2 2 0 0 1 2 2M16 19c0 2-1.5 3-4 3"/></>,
@@ -626,10 +628,14 @@ export default function FarmShell({ user, onLogout }) {
     updatedAt: null,
   });
 
+  const technicalBetaEnabled =
+    String(user?.email || "").trim().toLowerCase() === "memo@gmail.com";
+
   const mainTabs = useMemo(() => (isAdmin ? [
     ["dashboard", "Dashboard"],
     ["mapa", "Mapa de la finca"],
     ["tareas", "Tareas"],
+    ...(technicalBetaEnabled ? [["programa", "Programación técnica · BETA"]] : []),
     ["finanzas", "Finanzas"],
     ["clima", "Clima"],
     ["bitacora", "Bitácora"],
@@ -639,7 +645,7 @@ export default function FarmShell({ user, onLogout }) {
     ["tareas", "Mis tareas"],
     ["clima", "Clima"],
     ["bitacora", "Mi bitácora"],
-  ]), [isAdmin]);
+  ]), [isAdmin, technicalBetaEnabled]);
 
   const cleanZoneList = useCallback((items) => {
     const seen = new Set();
@@ -1021,6 +1027,10 @@ export default function FarmShell({ user, onLogout }) {
                 token={token}
                 farmId={farmId}
               />
+            )}
+
+            {isAdmin && technicalBetaEnabled && activeTab === "programa" && (
+              <TechnicalProgramPage token={token} farmId={farmId} />
             )}
 
             {isAdmin && activeTab === "finanzas" && (

@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useFarm } from "../../context/useFarm";
+import TechnicalSheetProcessLink from "./TechnicalSheetProcessLink";
 
 function nowIso() {
   return new Date().toISOString();
@@ -244,6 +245,14 @@ function ProcessModalView({
   const [draftSteps, setDraftSteps] = useState([getEmptyStepDraft(1)]);
   const [searchText, setSearchText] = useState("");
   const [expandedProcessById, setExpandedProcessById] = useState({});
+  const [technicalSheetLink, setTechnicalSheetLink] = useState({
+    enabled: false,
+    sheetId: "",
+    revisionId: "",
+    startDate: todayYYYYMMDD(),
+    configuration: null,
+    label: "",
+  });
 
   const shouldShowBuilder =
     canEdit && (showCreateProcessForm || modalZoneProcesses.length === 0);
@@ -281,6 +290,14 @@ function ProcessModalView({
     setNewProcessOwner("");
     setNewProcessPriority("Media");
     setDraftSteps([getEmptyStepDraft(1)]);
+    setTechnicalSheetLink({
+      enabled: false,
+      sheetId: "",
+      revisionId: "",
+      startDate: todayYYYYMMDD(),
+      configuration: null,
+      label: "",
+    });
     setProcessesError("");
   };
 
@@ -358,13 +375,22 @@ function ProcessModalView({
         description: newProcessDescription,
         owner: newProcessOwner,
         priority: newProcessPriority,
-        type: "General",
+        type: technicalSheetLink?.enabled ? "Cultivo" : "General",
         status: "Activo",
+        technicalSheetLink,
       },
-      cleanSteps
+      technicalSheetLink?.enabled ? [] : cleanSteps
     );
 
     setDraftSteps([getEmptyStepDraft(1)]);
+    setTechnicalSheetLink({
+      enabled: false,
+      sheetId: "",
+      revisionId: "",
+      startDate: todayYYYYMMDD(),
+      configuration: null,
+      label: "",
+    });
   };
 
   return (
@@ -1077,6 +1103,11 @@ function ProcessModalView({
             </div>
           </div>
 
+          <TechnicalSheetProcessLink
+            value={technicalSheetLink}
+            onChange={setTechnicalSheetLink}
+          />
+
           <div
             style={{
               display: "grid",
@@ -1132,6 +1163,8 @@ function ProcessModalView({
             </div>
           </div>
 
+          {!technicalSheetLink?.enabled && (
+            <>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px", flexWrap: "wrap", marginBottom: "10px" }}>
             <strong style={{ color: "#e5e7eb", fontSize: "0.9rem" }}>Etapas del proceso</strong>
             <button type="button" className="secondary-btn" onClick={addDraftStep} disabled={processActionLoading}>
@@ -1234,6 +1267,9 @@ function ProcessModalView({
             })}
           </div>
 
+            </>
+          )}
+
           <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", justifyContent: "flex-end", marginTop: "14px" }}>
             {modalZoneProcesses.length > 0 && (
               <button type="button" className="secondary-btn" onClick={resetBuilder} disabled={processActionLoading}>
@@ -1242,7 +1278,11 @@ function ProcessModalView({
             )}
 
             <button type="button" className="primary-btn" onClick={saveProcessLab} disabled={processActionLoading}>
-              {processActionLoading ? "Guardando..." : "Guardar proceso con etapas"}
+              {processActionLoading
+                ? "Guardando..."
+                : technicalSheetLink?.enabled
+                  ? "Crear proceso + programación técnica"
+                  : "Guardar proceso con etapas"}
             </button>
           </div>
         </div>
@@ -1426,6 +1466,9 @@ function ProcessModalView({
                           <span>{completedSteps}/{steps.length} etapas</span>
                           <span>Responsable: {process.owner || "—"}</span>
                           <span>Tipo: {process.type || "General"}</span>
+                          {process.technicalSheetName ? (
+                            <span>Ficha: {process.technicalSheetName} v{process.technicalSheetVersion || 1}</span>
+                          ) : null}
                         </div>
                       </div>
 
@@ -1823,7 +1866,7 @@ async function apiFetch(path, options = {}) {
 }
 
 export default function ProcessModal({ modalZone, onBeforeCreate }) {
-  const { isConsultant } = useFarm();
+  const { isConsultant, farmId } = useFarm();
 
   const [modalZoneProcesses, setModalZoneProcesses] = useState([]);
   const [processesLoading, setProcessesLoading] = useState(false);
@@ -1880,7 +1923,7 @@ export default function ProcessModal({ modalZone, onBeforeCreate }) {
     const safeOwner = String(source.owner ?? newProcessOwner).trim();
     const safePriority = source.priority || newProcessPriority || "Media";
 
-    if (!safeName) {
+    if (!safeName && !source?.technicalSheetLink?.enabled) {
       setProcessesError("Escribe el nombre del proceso.");
       return null;
     }
@@ -1890,6 +1933,54 @@ export default function ProcessModal({ modalZone, onBeforeCreate }) {
       setProcessesError("");
 
       if (typeof onBeforeCreate === "function") await onBeforeCreate();
+
+      const technicalLink = source?.technicalSheetLink;
+
+      if (technicalLink?.enabled) {
+        if (!farmId) throw new Error("No se detectó la finca activa.");
+        if (!technicalLink.sheetId || !technicalLink.revisionId) {
+          throw new Error("Selecciona una ficha técnica y su versión.");
+        }
+        if (!technicalLink.startDate) {
+          throw new Error("Selecciona la fecha real de inicio para aplicar la ficha.");
+        }
+
+        const linked = await apiFetch(
+          `/api/farms/${farmId}/technical-sheets/link-process`,
+          {
+            method: "POST",
+            body: JSON.stringify({
+              zoneId: modalZone.id,
+              technicalSheetId: technicalLink.sheetId,
+              revisionId: technicalLink.revisionId,
+              startDate: technicalLink.startDate,
+              configuration: technicalLink.configuration,
+              process: {
+                name: safeName,
+                description: safeDescription,
+                owner: safeOwner,
+                priority: safePriority,
+                type: source.type || "Cultivo",
+                status: source.status || "Activo",
+              },
+            }),
+          }
+        );
+
+        setNewProcessName("");
+        setNewProcessDescription("");
+        setNewProcessOwner("");
+        setNewProcessPriority("Media");
+        setShowCreateProcessForm(false);
+        await loadZoneProcesses();
+        window.dispatchEvent(
+          new CustomEvent("agromind:technical:refresh", { detail: { farmId } })
+        );
+        window.dispatchEvent(
+          new CustomEvent("agromind:tasks:refresh", { detail: { farmId } })
+        );
+        return linked?.process || null;
+      }
 
       const createdProcess = await apiFetch("/api/processes", {
         method: "POST",

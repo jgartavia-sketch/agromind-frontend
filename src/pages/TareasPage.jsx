@@ -39,7 +39,7 @@ function normalizeTaskStatus(status) {
 }
 
 const PRIORIDADES = ["Alta", "Media", "Baja"];
-const TIPOS = ["Riego", "Alimentación", "Mantenimiento", "Cosecha"];
+const TIPOS = ["Riego", "Alimentación", "Mantenimiento", "Cosecha", "Aplicación"];
 const ESTADOS = ["En progreso", "Completada"];
 const GENERAL_ZONE_OPTION = "Zona general";
 
