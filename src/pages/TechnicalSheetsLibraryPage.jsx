@@ -12,6 +12,22 @@ const TOKEN_KEYS = ["agromind_token", "agromind_jwt", "token", "jwt", "access_to
 const REQUIREMENT_TYPES = ["Obligatorio", "Recomendado", "Referencia técnica", "Condicional", "Regulatorio", "Buena práctica"];
 const TRIGGER_TYPES = ["Día desde siembra", "Semana desde siembra", "Mes desde siembra", "Días desde etapa", "Semanas desde evento", "Etapa fenológica", "Condición/resultado"];
 
+const TECHNICAL_SECTION_TABS = [
+  { id: 1, label: "Identidad" },
+  { id: 2, label: "Sitio y unidad" },
+  { id: 3, label: "Siembra" },
+  { id: 4, label: "Etapas" },
+  { id: 5, label: "Análisis" },
+  { id: 6, label: "Nutrición" },
+  { id: 7, label: "Agua y riego" },
+  { id: 8, label: "Plagas" },
+  { id: 9, label: "Cosecha" },
+  { id: 10, label: "Residuos" },
+  { id: 11, label: "Cumplimiento" },
+  { id: 12, label: "Referencias" },
+  { id: 13, label: "Notas" },
+];
+
 function pickToken() {
   for (const key of TOKEN_KEYS) {
     const value = localStorage.getItem(key);
@@ -361,18 +377,20 @@ function SelectField({ label, value, onChange, options }) {
   );
 }
 
-function Section({ title, subtitle, badge, children, open = false }) {
+function Section({ title, subtitle, badge, children, active = false }) {
+  if (!active) return null;
+
   return (
-    <details className="agts-section" open={open}>
-      <summary>
+    <section className="agts-section agts-section-active">
+      <div className="agts-section-head">
         <div>
           <strong>{title}</strong>
           {subtitle && <span>{subtitle}</span>}
         </div>
         {badge !== undefined && <b className="agts-section-badge">{badge}</b>}
-      </summary>
+      </div>
       <div className="agts-section-body">{children}</div>
-    </details>
+    </section>
   );
 }
 
@@ -391,6 +409,7 @@ export default function TechnicalSheetsLibraryPage({ user, onClose }) {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [proPlusNotice, setProPlusNotice] = useState(false);
+  const [activeSection, setActiveSection] = useState(1);
   const editorRef = useRef(null);
 
   const selectedSheet = useMemo(
@@ -459,6 +478,7 @@ export default function TechnicalSheetsLibraryPage({ user, onClose }) {
     setMessage("");
     setError("");
     setProPlusNotice(false);
+    setActiveSection(1);
   }
 
   function newSheet() {
@@ -468,11 +488,21 @@ export default function TechnicalSheetsLibraryPage({ user, onClose }) {
     setMessage("Nueva ficha. Cuando la guardes se creará la versión 1.");
     setError("");
     setProPlusNotice(false);
+    setActiveSection(1);
   }
 
   function scrollToManual() {
     newSheet();
+    setActiveSection(1);
     window.setTimeout(() => editorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+  }
+
+  function goToSection(sectionId, { scroll = false } = {}) {
+    const nextSection = Math.min(TECHNICAL_SECTION_TABS.length, Math.max(1, Number(sectionId) || 1));
+    setActiveSection(nextSection);
+    if (scroll) {
+      window.setTimeout(() => editorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 20);
+    }
   }
 
   function updateProfileGroup(group, field, value) {
@@ -727,11 +757,32 @@ export default function TechnicalSheetsLibraryPage({ user, onClose }) {
               </div>
             </div>
 
-            <div className="agts-guide-strip">
-              <span>1. Ficha maestra</span><i>→</i><span>2. Finca / lote</span><i>→</i><span>3. Ciclo productivo</span><i>→</i><span>4. Ejecución y evidencia</span>
+            <div className="agts-tabs-shell">
+              <div className="agts-tabs-heading">
+                <div>
+                  <span className="agts-kicker">Recorrido de la ficha</span>
+                  <strong>Sección {activeSection} de {TECHNICAL_SECTION_TABS.length}</strong>
+                </div>
+                <small>Selecciona una pestaña. Debajo verás únicamente su formulario.</small>
+              </div>
+              <div className="agts-tabs" role="tablist" aria-label="Secciones de la ficha técnica">
+                {TECHNICAL_SECTION_TABS.map((tab) => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={activeSection === tab.id}
+                    className={`agts-tab ${activeSection === tab.id ? "active" : ""}`}
+                    onClick={() => goToSection(tab.id)}
+                  >
+                    <span>{tab.id}</span>
+                    <b>{tab.label}</b>
+                  </button>
+                ))}
+              </div>
             </div>
 
-            <Section title="1 · Identidad, fuente y alcance" subtitle="Qué cultivo describe, para dónde aplica y de dónde sale la información." open>
+            <Section active={activeSection === 1} title="1 · Identidad, fuente y alcance" subtitle="Qué cultivo describe, para dónde aplica y de dónde sale la información.">
               <div className="agts-grid cols-4">
                 <Field label="Nombre de ficha *" value={editor.name} onChange={(value) => setEditor((prev) => ({ ...prev, name: value }))} placeholder="Ej: BPA Piña Costa Rica" />
                 <Field label="Cultivo *" value={editor.crop} onChange={(value) => setEditor((prev) => ({ ...prev, crop: value }))} placeholder="Ej: Piña" />
@@ -752,7 +803,7 @@ export default function TechnicalSheetsLibraryPage({ user, onClose }) {
               <TextArea label="Descripción general" value={editor.description} onChange={(value) => setEditor((prev) => ({ ...prev, description: value }))} placeholder="Objetivo, condiciones generales y contexto agronómico." />
             </Section>
 
-            <Section title="2 · Condiciones del sitio y unidad productiva" subtitle="Qué debe cumplir el terreno antes de aplicar esta ficha. La realidad se valida luego en la finca y el lote.">
+            <Section active={activeSection === 2} title="2 · Condiciones del sitio y unidad productiva" subtitle="Qué debe cumplir el terreno antes de aplicar esta ficha. La realidad se valida luego en la finca y el lote.">
               <div className="agts-callout">AgroMind debe poder contrastar la ficha con el mapa: lote, bloque o sección, suelo, drenajes, agua, pendientes, áreas sensibles y antecedentes.</div>
               <div className="agts-grid cols-2">
                 <TextArea label="Uso anterior / historial requerido" value={profile.site.previousUse} onChange={(value) => updateProfileGroup("site", "previousUse", value)} />
@@ -766,7 +817,7 @@ export default function TechnicalSheetsLibraryPage({ user, onClose }) {
               </div>
             </Section>
 
-            <Section title="3 · Material de propagación y siembra" subtitle="Procedencia, condición fitosanitaria, clasificación, densidad y registros del establecimiento.">
+            <Section active={activeSection === 3} title="3 · Material de propagación y siembra" subtitle="Procedencia, condición fitosanitaria, clasificación, densidad y registros del establecimiento.">
               <div className="agts-grid cols-4">
                 <Field label="Tipo de material" value={profile.planting.materialType} onChange={(value) => updateProfileGroup("planting", "materialType", value)} />
                 <Field label="Procedencia" value={profile.planting.origin} onChange={(value) => updateProfileGroup("planting", "origin", value)} />
@@ -781,7 +832,7 @@ export default function TechnicalSheetsLibraryPage({ user, onClose }) {
               <TextArea label="Registros que deben conservarse en la siembra" value={profile.planting.plantingRecords} onChange={(value) => updateProfileGroup("planting", "plantingRecords", value)} placeholder="Ej: lote, fecha, procedencia, clasificación, número de plantas…" />
             </Section>
 
-            <Section title="4 · Cronograma técnico y etapas" subtitle="Etapas planificadas. Las fechas reales nacen cuando la ficha se vincula a un proceso de una finca." badge={editor.stages.length}>
+            <Section active={activeSection === 4} title="4 · Cronograma técnico y etapas" subtitle="Etapas planificadas. Las fechas reales nacen cuando la ficha se vincula a un proceso de una finca." badge={editor.stages.length}>
               <div className="agts-callout">No todo ocurre por calendario. Una actividad puede depender de días desde siembra, etapa fenológica, semanas desde un evento o una condición observada. En esta beta, el disparador queda documentado y la tarea automática sigue usando el día relativo de tarea.</div>
               {editor.stages.map((stage, stageIndex) => (
                 <div className="agts-stage" key={stage.id}>
@@ -840,7 +891,7 @@ export default function TechnicalSheetsLibraryPage({ user, onClose }) {
               <button className="agts-btn" type="button" onClick={addStage}>+ Agregar etapa</button>
             </Section>
 
-            <Section title="5 · Análisis, muestreos e inspecciones" subtitle="Suelo, foliar, agua, residuos, plagas u otros controles que generan resultados medibles." badge={profile.analyses.length}>
+            <Section active={activeSection === 5} title="5 · Análisis, muestreos e inspecciones" subtitle="Suelo, foliar, agua, residuos, plagas u otros controles que generan resultados medibles." badge={profile.analyses.length}>
               {profile.analyses.length === 0 && <EmptyRow>Agrega análisis solo cuando la fuente técnica los pida. No inventes frecuencias ni rangos.</EmptyRow>}
               {profile.analyses.map((item, index) => (
                 <div className="agts-repeat-card" key={item.id}>
@@ -866,7 +917,7 @@ export default function TechnicalSheetsLibraryPage({ user, onClose }) {
               <button className="agts-btn" type="button" onClick={() => addProfileListItem("analyses", emptyAnalysis)}>+ Agregar análisis o muestreo</button>
             </Section>
 
-            <Section title="6 · Nutrición y rangos objetivo" subtitle="Rangos de referencia y requerimientos del cultivo; separados de las aplicaciones comerciales." badge={profile.nutritionTargets.length}>
+            <Section active={activeSection === 6} title="6 · Nutrición y rangos objetivo" subtitle="Rangos de referencia y requerimientos del cultivo; separados de las aplicaciones comerciales." badge={profile.nutritionTargets.length}>
               <div className="agts-callout">Guardamos el objetivo nutricional por separado del fertilizante usado. Así después podremos comparar análisis real vs rango técnico.</div>
               {profile.nutritionTargets.length === 0 && <EmptyRow>Sin rangos nutricionales registrados.</EmptyRow>}
               {profile.nutritionTargets.map((item, index) => (
@@ -884,7 +935,7 @@ export default function TechnicalSheetsLibraryPage({ user, onClose }) {
               <button className="agts-btn" type="button" onClick={() => addProfileListItem("nutritionTargets", emptyNutritionTarget)}>+ Agregar nutriente</button>
             </Section>
 
-            <Section title="7 · Agua y riego" subtitle="Fuente, calidad, criterio de riego, mantenimiento y registros esperados.">
+            <Section active={activeSection === 7} title="7 · Agua y riego" subtitle="Fuente, calidad, criterio de riego, mantenimiento y registros esperados.">
               <div className="agts-grid cols-2">
                 <TextArea label="Requisitos de la fuente de agua" value={profile.water.sourceRequirements} onChange={(value) => updateProfileGroup("water", "sourceRequirements", value)} />
                 <TextArea label="Criterio de riego" value={profile.water.irrigationCriteria} onChange={(value) => updateProfileGroup("water", "irrigationCriteria", value)} placeholder="Clima, suelo, etapa fisiológica, necesidad de planta…" />
@@ -893,7 +944,7 @@ export default function TechnicalSheetsLibraryPage({ user, onClose }) {
               </div>
             </Section>
 
-            <Section title="8 · Manejo integrado de plagas y arvenses" subtitle="Monitoreo, síntomas y opciones preventivas, curativas e integradas." badge={profile.pests.length}>
+            <Section active={activeSection === 8} title="8 · Manejo integrado de plagas y arvenses" subtitle="Monitoreo, síntomas y opciones preventivas, curativas e integradas." badge={profile.pests.length}>
               <div className="agts-callout">La ficha separa monitoreo y control. El tratamiento químico no debe sustituir el diagnóstico ni la justificación técnica.</div>
               {profile.pests.length === 0 && <EmptyRow>Agrega únicamente plagas o arvenses sustentados por la fuente técnica.</EmptyRow>}
               {profile.pests.map((item, index) => (
@@ -918,7 +969,7 @@ export default function TechnicalSheetsLibraryPage({ user, onClose }) {
               <button className="agts-btn" type="button" onClick={() => addProfileListItem("pests", emptyPest)}>+ Agregar plaga o arvense</button>
             </Section>
 
-            <Section title="9 · Cosecha, despacho y transporte" subtitle="Qué debe registrarse para que la trazabilidad no termine al marcar una tarea como completada.">
+            <Section active={activeSection === 9} title="9 · Cosecha, despacho y transporte" subtitle="Qué debe registrarse para que la trazabilidad no termine al marcar una tarea como completada.">
               <div className="agts-grid cols-2">
                 <TextArea label="Criterios de calidad / madurez" value={profile.harvest.qualityCriteria} onChange={(value) => updateProfileGroup("harvest", "qualityCriteria", value)} />
                 <TextArea label="Registro de cosecha" value={profile.harvest.harvestRecords} onChange={(value) => updateProfileGroup("harvest", "harvestRecords", value)} placeholder="Lote, fecha, cantidad, tipo, tamaño, responsable…" />
@@ -927,7 +978,7 @@ export default function TechnicalSheetsLibraryPage({ user, onClose }) {
               </div>
             </Section>
 
-            <Section title="10 · Residuos, rastrojos y cierre del ciclo" subtitle="El ciclo productivo no termina en cosecha: define manejo de residuos, renovación y controles poscosecha.">
+            <Section active={activeSection === 10} title="10 · Residuos, rastrojos y cierre del ciclo" subtitle="El ciclo productivo no termina en cosecha: define manejo de residuos, renovación y controles poscosecha.">
               <div className="agts-grid cols-2">
                 <TextArea label="Plan de manejo" value={profile.residues.managementPlan} onChange={(value) => updateProfileGroup("residues", "managementPlan", value)} />
                 <TextArea label="Manejo de rastrojos" value={profile.residues.cropResidueHandling} onChange={(value) => updateProfileGroup("residues", "cropResidueHandling", value)} />
@@ -936,7 +987,7 @@ export default function TechnicalSheetsLibraryPage({ user, onClose }) {
               </div>
             </Section>
 
-            <Section title="11 · Cumplimiento, evidencia y buenas prácticas" subtitle="Distingue lo obligatorio de lo recomendado y deja claro qué evidencia debería conservar el productor." badge={profile.requirements.length}>
+            <Section active={activeSection === 11} title="11 · Cumplimiento, evidencia y buenas prácticas" subtitle="Distingue lo obligatorio de lo recomendado y deja claro qué evidencia debería conservar el productor." badge={profile.requirements.length}>
               {profile.requirements.length === 0 && <EmptyRow>Agrega requisitos cuando la fuente indique obligaciones, recomendaciones, controles o documentos a conservar.</EmptyRow>}
               {profile.requirements.map((item, index) => (
                 <div className="agts-repeat-card" key={item.id}>
@@ -954,7 +1005,7 @@ export default function TechnicalSheetsLibraryPage({ user, onClose }) {
               <button className="agts-btn" type="button" onClick={() => addProfileListItem("requirements", emptyRequirement)}>+ Agregar requisito</button>
             </Section>
 
-            <Section title="12 · Referencias normativas y técnicas" subtitle="Guarda la referencia; AgroMind no debe confundir normativa con una recomendación agronómica." badge={profile.regulations.length}>
+            <Section active={activeSection === 12} title="12 · Referencias normativas y técnicas" subtitle="Guarda la referencia; AgroMind no debe confundir normativa con una recomendación agronómica." badge={profile.regulations.length}>
               {profile.regulations.length === 0 && <EmptyRow>Sin referencias agregadas.</EmptyRow>}
               {profile.regulations.map((item, index) => (
                 <div className="agts-reg-row" key={item.id}>
@@ -968,9 +1019,32 @@ export default function TechnicalSheetsLibraryPage({ user, onClose }) {
               <button className="agts-btn" type="button" onClick={() => addProfileListItem("regulations", emptyRegulation)}>+ Agregar referencia</button>
             </Section>
 
-            <Section title="13 · Notas técnicas finales" subtitle="Observaciones que deben conservarse en todas las versiones y adaptaciones.">
+            <Section active={activeSection === 13} title="13 · Notas técnicas finales" subtitle="Observaciones que deben conservarse en todas las versiones y adaptaciones.">
               <TextArea label="Notas técnicas" value={editor.notes} onChange={(value) => setEditor((prev) => ({ ...prev, notes: value }))} rows={5} placeholder="Criterios, advertencias, supuestos, limitaciones y observaciones generales." />
             </Section>
+
+            <div className="agts-step-navigation">
+              <button
+                className="agts-btn"
+                type="button"
+                disabled={activeSection === 1}
+                onClick={() => goToSection(activeSection - 1, { scroll: true })}
+              >
+                ← Anterior
+              </button>
+              <div>
+                <span>Sección {activeSection} de {TECHNICAL_SECTION_TABS.length}</span>
+                <strong>{TECHNICAL_SECTION_TABS[activeSection - 1]?.label}</strong>
+              </div>
+              <button
+                className="agts-btn agts-btn-light"
+                type="button"
+                disabled={activeSection === TECHNICAL_SECTION_TABS.length}
+                onClick={() => goToSection(activeSection + 1, { scroll: true })}
+              >
+                Siguiente →
+              </button>
+            </div>
 
             <div className="agts-savebar">
               <div>
