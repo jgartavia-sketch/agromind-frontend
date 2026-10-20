@@ -446,6 +446,19 @@ export default function ComponentModal({
       return;
     }
 
+    const invalidStorage = safeComponents.find((component) =>
+      String(component?.type || "").trim().toLowerCase() === "bodega" &&
+      [component.storageQuantity, component.storageWeightGrams].some((value) =>
+        value != null && value !== "" && (!Number.isFinite(value) || value < 0)
+      )
+    );
+    if (invalidStorage) {
+      setActiveTypeFilter("Todos");
+      setExpandedComponentId(invalidStorage.id);
+      setSaveNotice("La cantidad y el gramaje de Bodega deben ser números iguales o mayores que cero.");
+      return;
+    }
+
     try {
       const result = saveComponentsModal?.({
         keepOpen: true,
@@ -1494,6 +1507,40 @@ export default function ComponentModal({
                             <p style={{ color: "#94a3b8", fontSize: "0.8rem", margin: "8px 0 0" }}>
                               El alimento registrado es el total compartido por este grupo en la zona.
                               Cualquier promedio por animal es teórico.
+                            </p>
+                          </div>
+                        ) : null}
+
+                        {String(comp.type || "").trim().toLowerCase() === "bodega" ? (
+                          <div style={{ marginTop: "12px" }}>
+                            <div style={{ display: "grid", gridTemplateColumns: isMobileLayout ? "1fr" : "1fr 1fr", gap: "12px" }}>
+                              {[
+                                ["storageQuantity", "Cantidad", "Ej.: 1 o 0,5"],
+                                ["storageWeightGrams", "Gramaje total (g)", "Ej.: 25000"],
+                              ].map(([field, label, placeholder]) => (
+                                <label key={field} style={{ display: "grid", gap: "8px" }}>
+                                  <span>{label}</span>
+                                  {canEdit ? (
+                                    <input
+                                      className="farm-feature-input"
+                                      type="number"
+                                      min="0"
+                                      step="any"
+                                      inputMode="decimal"
+                                      value={comp[field] ?? ""}
+                                      onChange={(e) => draftUpdate(comp.id, {
+                                        [field]: e.target.value === "" ? "" : Number(e.target.value),
+                                      })}
+                                      placeholder={placeholder}
+                                    />
+                                  ) : (
+                                    <strong>{comp[field] === "" || comp[field] == null ? "Sin especificar" : `${comp[field]}${field === "storageWeightGrams" ? " g" : ""}`}</strong>
+                                  )}
+                                </label>
+                              ))}
+                            </div>
+                            <p style={{ color: "#94a3b8", fontSize: "0.8rem", margin: "8px 0 0" }}>
+                              Indicá la cantidad y el peso total disponible en gramos. Ej.: 1 saco de 25 kg = cantidad 1 y gramaje total 25000 g.
                             </p>
                           </div>
                         ) : null}

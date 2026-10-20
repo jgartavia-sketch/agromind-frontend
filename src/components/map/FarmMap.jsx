@@ -485,6 +485,8 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
         note: c.note || "",
         type: c.type || "Otro",
         ...(c.animalCount != null ? { animalCount: c.animalCount } : {}),
+            ...(c.storageQuantity != null ? { storageQuantity: c.storageQuantity } : {}),
+            ...(c.storageWeightGrams != null ? { storageWeightGrams: c.storageWeightGrams } : {}),
         createdAt,
         updatedAt,
       };
@@ -566,6 +568,8 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
             note: c.note || "",
             type: c.type || "Otro",
             ...(c.animalCount != null ? { animalCount: c.animalCount } : {}),
+            ...(c.storageQuantity != null ? { storageQuantity: c.storageQuantity } : {}),
+            ...(c.storageWeightGrams != null ? { storageWeightGrams: c.storageWeightGrams } : {}),
             createdAt,
             updatedAt,
           };
@@ -797,6 +801,8 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
                 note: c.note || "",
                 type: c.type || "Otro",
                 ...(c.animalCount != null ? { animalCount: c.animalCount } : {}),
+            ...(c.storageQuantity != null ? { storageQuantity: c.storageQuantity } : {}),
+            ...(c.storageWeightGrams != null ? { storageWeightGrams: c.storageWeightGrams } : {}),
                 createdAt: cCreated,
                 updatedAt: cUpdated,
               };
@@ -1619,6 +1625,8 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
                         note: c.note || "",
                         type: c.type || "Otro",
                         ...(c.animalCount != null ? { animalCount: c.animalCount } : {}),
+            ...(c.storageQuantity != null ? { storageQuantity: c.storageQuantity } : {}),
+            ...(c.storageWeightGrams != null ? { storageWeightGrams: c.storageWeightGrams } : {}),
                         createdAt: cCreated,
                         updatedAt: cUpdated,
                       };
