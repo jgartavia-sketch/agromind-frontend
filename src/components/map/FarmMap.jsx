@@ -484,6 +484,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
         name: c.name || "",
         note: c.note || "",
         type: c.type || "Otro",
+        ...(c.animalCount != null ? { animalCount: c.animalCount } : {}),
         createdAt,
         updatedAt,
       };
@@ -564,6 +565,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
             name: c.name || "",
             note: c.note || "",
             type: c.type || "Otro",
+            ...(c.animalCount != null ? { animalCount: c.animalCount } : {}),
             createdAt,
             updatedAt,
           };
@@ -794,6 +796,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
                 name: c.name || "",
                 note: c.note || "",
                 type: c.type || "Otro",
+                ...(c.animalCount != null ? { animalCount: c.animalCount } : {}),
                 createdAt: cCreated,
                 updatedAt: cUpdated,
               };
@@ -1615,6 +1618,7 @@ export default function FarmMap({ focusZoneRequest, onFarmLocationChange }) {
                         name: c.name || "",
                         note: c.note || "",
                         type: c.type || "Otro",
+                        ...(c.animalCount != null ? { animalCount: c.animalCount } : {}),
                         createdAt: cCreated,
                         updatedAt: cUpdated,
                       };

@@ -1558,3 +1558,68 @@ body {
     grid-template-columns: auto minmax(0, 1fr) auto;
   }
 }
+
+/* Priorizar los módulos y compactar los controles secundarios del menú. */
+.farm-sidebar-top {
+  min-height: 104px;
+  flex: 0 0 104px;
+  padding-bottom: .5rem;
+}
+
+.farm-sidebar-cinematic {
+  min-height: 0;
+}
+
+.farm-sidebar-cinematic-copy strong {
+  font-size: 1.25rem;
+}
+
+.farm-sidebar-cinematic-copy > span,
+.farm-sidebar-cinematic-copy small {
+  margin-top: .25rem;
+  margin-bottom: .25rem;
+}
+
+.farm-sidebar-nav {
+  flex: 1 1 auto;
+  padding: .5rem 0;
+}
+
+.farm-sidebar-footer {
+  padding-top: .25rem;
+}
+
+.farm-sidebar-footer .farm-sidebar-item,
+.farm-sidebar-footer .farm-sidebar-logout {
+  min-height: 36px;
+  padding-top: .2rem;
+  padding-bottom: .2rem;
+  margin-top: .1rem;
+  margin-bottom: .1rem;
+  font-size: .78rem;
+}
+
+.farm-sidebar-footer .farm-sidebar-icon {
+  width: 26px;
+  height: 26px;
+  flex-basis: 26px;
+}
+
+.farm-sidebar-profile {
+  min-height: 40px;
+  margin: .2rem 0;
+  padding-top: .2rem;
+  padding-bottom: .2rem;
+}
+
+@media (max-height: 600px) {
+  .farm-sidebar,
+  .sidebar-is-collapsed .farm-sidebar {
+    overflow-y: auto;
+  }
+
+  .farm-sidebar-nav {
+    flex: 1 0 auto;
+    overflow-y: visible;
+  }
+}

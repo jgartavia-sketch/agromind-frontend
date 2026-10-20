@@ -436,6 +436,16 @@ export default function ComponentModal({
   const handleSaveWithoutClosing = async () => {
     if (!canEdit) return;
 
+    const invalidAnimal = safeComponents.find((component) =>
+      String(component?.type || "").trim().toLowerCase() === "animal" &&
+      (!Number.isSafeInteger(component.animalCount) || component.animalCount < 1)
+    );
+    if (invalidAnimal) {
+      setExpandedComponentId(invalidAnimal.id);
+      setSaveNotice("Indicá una cantidad entera mayor que cero en cada componente de tipo Animal.");
+      return;
+    }
+
     try {
       const result = saveComponentsModal?.({
         keepOpen: true,
@@ -1291,7 +1301,7 @@ export default function ComponentModal({
                             }}
                           >
                             <span>{icon}</span>
-                            <span>{comp.type || "Otro"}</span>
+                            <span>{comp.type || "Otro"}{String(comp.type || "").trim().toLowerCase() === "animal" && comp.animalCount != null && comp.animalCount !== "" ? ` · ${comp.animalCount} animales` : ""}</span>
                           </span>
 
                           <span
@@ -1459,6 +1469,34 @@ export default function ComponentModal({
                             </div>
                           </div>
                         )}
+
+                        {String(comp.type || "").trim().toLowerCase() === "animal" ? (
+                          <div style={{ marginTop: "12px" }}>
+                            <label style={{ display: "grid", gap: "8px" }}>
+                              <span>Cantidad de animales</span>
+                              {canEdit ? (
+                                <input
+                                  className="farm-feature-input"
+                                  type="number"
+                                  min="1"
+                                  step="1"
+                                  inputMode="numeric"
+                                  value={comp.animalCount ?? ""}
+                                  onChange={(e) => draftUpdate(comp.id, {
+                                    animalCount: e.target.value === "" ? "" : Number(e.target.value),
+                                  })}
+                                  placeholder="Ej.: 7"
+                                />
+                              ) : (
+                                <strong>{comp.animalCount ?? "Sin especificar"}</strong>
+                              )}
+                            </label>
+                            <p style={{ color: "#94a3b8", fontSize: "0.8rem", margin: "8px 0 0" }}>
+                              El alimento registrado es el total compartido por este grupo en la zona.
+                              Cualquier promedio por animal es teórico.
+                            </p>
+                          </div>
+                        ) : null}
 
                         <section
                           style={{
